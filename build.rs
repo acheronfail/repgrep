@@ -1,0 +1,1 @@
+./ci/build-clap-v3.rs

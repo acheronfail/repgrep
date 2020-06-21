@@ -1,0 +1,32 @@
+An interactive replacer for ripgrep that makes it easy to find and replace across files on the command line.
+https://github.com/acheronfail/repgrep
+
+Upon start all command line arguments are passed down to `rg` (adding `--json`).
+
+INTERFACE
+---------
+
+There are a few different modes:
+
+* SELECT
+
+  This mode is the first mode presented after `rgr` is started.
+  In this mode a list of matches is presented, and they can be toggled on or off.
+  Toggling a match off means that the match itself _will not be replaced_.
+
+* REPLACE
+
+  In this mode the user types the desired replacement text and the matches are updated in real-time.
+  Note that this is a demo only, no changes are written to disk.
+  Pressing enter will cause all selected matches to be replaced with the text entered.
+
+* HELP
+
+  This mode provides a short explanation of the tool and its keybindings.
+
+BUGS & FEATURES
+---------------
+
+Please report bugs and feature requests in the issue tracker.
+Do your best to provide a reproducible test case for bugs.
+Also please include the version of rgr and rg.

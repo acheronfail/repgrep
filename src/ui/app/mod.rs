@@ -3,17 +3,20 @@ mod item;
 use std::collections::VecDeque;
 
 use anyhow::Result;
+use clap::crate_name;
 use crossterm::event::{Event, KeyCode, KeyModifiers};
 use either::Either;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Style};
-use tui::widgets::{Block, List, ListState, Paragraph, Text};
+use tui::widgets::{Block, Borders, List, ListState, Paragraph, Row, Table, Text};
 use tui::Frame;
 
 use crate::cli::Args;
 use crate::rg::de::{RgMessageType, Stats};
 use item::{Item, ItemKind};
+
+const HELP_TEXT: &str = include_str!("../../../doc/help.txt");
 
 fn clamp(val: usize, min: usize, max: usize) -> usize {
   if val <= min {
@@ -37,21 +40,18 @@ enum Movement {
 
 #[derive(Debug, Eq, PartialEq)]
 enum AppState {
+  Help,
   SelectMatches,
   InputReplacement(String),
 }
 
 impl AppState {
   pub fn to_text(&self) -> Text {
+    let style = Style::default().fg(Color::Black);
     match self {
-      AppState::SelectMatches => Text::styled(
-        " SELECT ",
-        Style::default().bg(Color::Cyan).fg(Color::Black),
-      ),
-      AppState::InputReplacement(_) => Text::styled(
-        " REPLACE ",
-        Style::default().bg(Color::White).fg(Color::Black),
-      ),
+      AppState::Help => Text::styled(" HELP ", style.bg(Color::Green)),
+      AppState::SelectMatches => Text::styled(" SELECT ", style.bg(Color::Cyan)),
+      AppState::InputReplacement(_) => Text::styled(" REPLACE ", style.bg(Color::White)),
     }
   }
 }
@@ -108,7 +108,11 @@ impl App {
   // _
   pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
     let (root_split, stats_and_input_split) = self.get_layouts(f.size());
-    self.draw_match_list(f, root_split[0]);
+    if matches!(self.state, AppState::Help) {
+      self.draw_help_view(f, root_split[0]);
+    } else {
+      self.draw_main_view(f, root_split[0]);
+    }
     self.draw_stats_line(f, stats_and_input_split[0]);
     self.draw_input_line(f, stats_and_input_split[1]);
   }
@@ -129,8 +133,9 @@ impl App {
 
   fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
     let text_items = match &self.state {
+      AppState::Help => vec![Text::raw("Viewing Help. Press <esc> or <q> to return...")],
       AppState::SelectMatches => vec![Text::raw(
-        "Select (or deselect) Matches with <space> then press <Enter>...",
+        "Select (or deselect) Matches with <space> then press <Enter>. Press <?> for help.",
       )],
       AppState::InputReplacement(input) => vec![
         Text::raw("Replacement: "),
@@ -141,6 +146,7 @@ impl App {
         },
       ],
     };
+
     f.render_widget(Paragraph::new(text_items.iter()), r);
   }
 
@@ -195,7 +201,52 @@ impl App {
     );
   }
 
-  fn draw_match_list<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
+  fn draw_help_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
+    let title_style = Style::default().fg(Color::Magenta);
+    let hsplit = Layout::default()
+      .direction(Direction::Horizontal)
+      .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+      .split(r);
+
+    let help_table = Table::new(
+      ["Key", "Action"].iter(),
+      vec![
+        Row::Data(["k, up", "select previous match"].iter()),
+        Row::Data(["j, down", "select next match"].iter()),
+        Row::Data(["K, shift + up", "select previous file"].iter()),
+        Row::Data(["J, shift + down", "select next file"].iter()),
+        Row::Data(["space", "toggle item"].iter()),
+        Row::Data(["enter, r, R", "accept selection and enter replacement text"].iter()),
+        Row::Data(["q, esc", "quit"].iter()),
+        Row::Data(["?", "show help and keybindings"].iter()),
+      ]
+      .into_iter(),
+    )
+    .block(
+      Block::default()
+        .borders(Borders::ALL)
+        .title("Keybindings")
+        .title_style(title_style),
+    )
+    .header_style(Style::default().fg(Color::Yellow))
+    .widths(&[Constraint::Length(20), Constraint::Length(50)])
+    .column_spacing(1);
+
+    f.render_widget(help_table, hsplit[1]);
+
+    let help_title = format!("{} help", crate_name!());
+    let help_text = [Text::raw(HELP_TEXT)];
+    let help_paragraph = Paragraph::new(help_text.iter()).wrap(true).block(
+      Block::default()
+        .borders(Borders::ALL)
+        .title(&help_title)
+        .title_style(title_style),
+    );
+
+    f.render_widget(help_paragraph, hsplit[0]);
+  }
+
+  fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
     let match_items = self.list.iter().map(|item| item.to_text());
 
     let curr_item = &self.list[self.curr_pos()];
@@ -219,20 +270,24 @@ impl App {
       .highlight_symbol("-> ")
       .highlight_style(highlight_style);
 
-    f.render_stateful_widget(match_list, r, &mut self.list_state)
+    f.render_stateful_widget(match_list, r, &mut self.list_state);
+  }
+
+  fn list_height(&self, term_size: Rect) -> u16 {
+    let (root_split, _) = self.get_layouts(term_size);
+    root_split[0].height
   }
 }
 
 // Event Handling.
 impl App {
-  fn list_height(&self, term_size: Rect) -> u16 {
-    let (root_split, _) = self.get_layouts(term_size);
-    root_split[0].height
-  }
-
   pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
     if let Event::Key(key) = event {
       match self.state {
+        AppState::Help => match key.code {
+          KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::SelectMatches,
+          _ => {}
+        },
         AppState::SelectMatches => {
           // CONTROL+KEY
           if key.modifiers.contains(KeyModifiers::CONTROL) {
@@ -256,7 +311,10 @@ impl App {
               }),
               KeyCode::Char(' ') => self.toggle_item(),
               KeyCode::Esc | KeyCode::Char('q') => self.should_quit = true,
-              KeyCode::Enter => self.state = AppState::InputReplacement(String::new()),
+              KeyCode::Char('?') => self.state = AppState::Help,
+              KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
+                self.state = AppState::InputReplacement(String::new())
+              }
               _ => {}
             }
           }

@@ -1,4 +1,5 @@
 mod cli;
+mod model;
 mod replace;
 mod rg;
 mod ui;

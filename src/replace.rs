@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::ui::app::Item;
+use crate::model::Item;
 
 pub fn perform_replacements(_items: Vec<Item>) -> Result<()> {
   // TODO: perform replacements

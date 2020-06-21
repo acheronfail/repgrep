@@ -14,10 +14,12 @@ pub fn run_ripgrep(args: &cli::Args) -> Result<VecDeque<RgMessageType>> {
     .output()?;
 
   if !output.status.success() {
-    return Err(anyhow!(
-      "An error occurred running rg: {}",
-      to_string(output.stderr)
-    ));
+    let stderr = to_string(output.stderr);
+    if stderr.is_empty() {
+      return Err(anyhow!("No matches found"));
+    } else {
+      return Err(anyhow!("An error occurred running rg: {}", stderr));
+    }
   }
 
   Ok(

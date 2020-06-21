@@ -27,16 +27,18 @@ struct Item {
   pub is_begin: bool,
   pub is_context: bool,
   pub is_match: bool,
+  pub is_end: bool,
   pub should_replace: bool,
 }
 
 impl Item {
   pub fn new(rg_type: RgMessageType) -> Item {
-    let (is_begin, is_context, is_match) = match rg_type {
-      RgMessageType::Begin { .. } => (true, false, false),
-      RgMessageType::Match { .. } => (false, false, true),
-      RgMessageType::Context { .. } => (false, true, false),
-      _ => (false, false, false),
+    let (is_begin, is_context, is_match, is_end) = match rg_type {
+      RgMessageType::Begin { .. } => (true, false, false, false),
+      RgMessageType::Match { .. } => (false, false, true, false),
+      RgMessageType::Context { .. } => (false, true, false, false),
+      RgMessageType::End { .. } => (false, true, false, true),
+      _ => (false, false, false, false),
     };
 
     Item {
@@ -44,7 +46,21 @@ impl Item {
       is_begin,
       is_context,
       is_match,
+      is_end,
       should_replace: true,
+    }
+  }
+
+  pub fn path(&self) -> &ArbitraryData {
+    match &self.rg_type {
+      RgMessageType::Begin { path } => path,
+      RgMessageType::Context { path, .. } => path,
+      RgMessageType::Match { path, .. } => path,
+      RgMessageType::End { path, .. } => path,
+      unexpected_type => panic!(
+        "Unexpected enum variant, got {:?} and expected only Begin, Context, Match or End!",
+        unexpected_type
+      ),
     }
   }
 
@@ -82,7 +98,12 @@ impl Item {
       } => {
         // TODO: highlight matches on line, currently not possible
         // See: https://github.com/fdehau/tui-rs/issues/315
-        Text::raw(lines_as_string(lines, line_number))
+        let mut style = Style::default();
+        if !self.should_replace {
+          style = style.fg(Color::Red);
+        }
+
+        Text::styled(lines_as_string(lines, line_number), style)
       }
       RgMessageType::End { .. } => Text::raw(""),
       unexpected_type => panic!(
@@ -160,9 +181,7 @@ impl App {
   // repgrep command line (enter text to replace here, etc)
   pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
     let (root_split, stats_and_input_split) = self.get_layouts(f.size());
-
     self.draw_match_list(f, root_split[0]);
-
     self.draw_stats_line(f, stats_and_input_split[0]);
     self.draw_input_line(f, stats_and_input_split[1]);
   }
@@ -194,17 +213,15 @@ impl App {
   }
 
   fn draw_match_list<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
-    let match_items = self.list.iter().filter_map(|item| {
-      if item.should_replace {
-        Some(item.to_text())
-      } else {
-        None
-      }
-    });
+    let match_items = self.list.iter().map(|item| item.to_text());
 
     let curr_item = &self.list[self.curr_pos()];
     let highlight_style = Style::default().fg(if curr_item.is_match {
-      Color::Yellow
+      if curr_item.should_replace {
+        Color::Yellow
+      } else {
+        Color::Red
+      }
     } else if curr_item.is_begin {
       Color::Magenta
     } else {
@@ -257,7 +274,7 @@ impl App {
           Movement::Next | Movement::Forward(_) => i > current,
         };
 
-        if is_valid_next && item.is_selectable() && item.should_replace {
+        if is_valid_next && item.is_selectable() {
           Some(i)
         } else {
           None
@@ -291,6 +308,32 @@ impl App {
           KeyCode::Char('q') => self.should_quit = true,
           KeyCode::Up | KeyCode::Char('k') => self.move_pos(Movement::Prev),
           KeyCode::Down | KeyCode::Char('j') => self.move_pos(Movement::Next),
+          // KeyCode::Char('x') => {}, // TODO: delete item
+          KeyCode::Char(' ') => {
+            let curr_pos = self.curr_pos();
+
+            // If Match item, toggle replace.
+            if self.list[curr_pos].is_match {
+              let selected_item = &mut self.list[curr_pos];
+              selected_item.should_replace = !selected_item.should_replace;
+            }
+
+            // If Begin item, toggle all matches in it.
+            if self.list[curr_pos].is_begin {
+              let mut items_to_toggle: Vec<_> = self
+                .list
+                .iter_mut()
+                .skip(curr_pos)
+                .take_while(|i| !i.is_end)
+                .filter(|i| i.is_match)
+                .collect();
+
+              let should_replace = items_to_toggle.iter().all(|i| !i.should_replace);
+              for item in items_to_toggle.iter_mut() {
+                item.should_replace = should_replace;
+              }
+            }
+          }
           _ => {}
         }
       }

@@ -47,7 +47,7 @@ impl Tui {
       term.draw(|mut f| self.app.draw(&mut f))?;
 
       let event = rx.recv()?;
-      self.app.on_event(event)?;
+      self.app.on_event(term.size()?, event)?;
 
       if self.app.should_quit {
         return Ok(());

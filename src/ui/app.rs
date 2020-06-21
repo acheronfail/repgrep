@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use anyhow::Result;
-use crossterm::event::{Event, KeyCode};
+use crossterm::event::{Event, KeyCode, KeyModifiers};
 use either::Either;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
@@ -52,7 +52,7 @@ impl Item {
     self.is_begin || self.is_match
   }
 
-  // TODO: left-pad line  numbers?
+  // TODO: left-pad line numbers?
   pub fn to_text(&self) -> Text {
     // TODO: color line number, currently not possible
     // See: https://github.com/fdehau/tui-rs/issues/315
@@ -94,9 +94,11 @@ impl Item {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum MoveDirection {
+enum Movement {
   Prev,
   Next,
+  Forward(u16),
+  Backward(u16),
 }
 
 pub struct App {
@@ -136,6 +138,20 @@ impl App {
     }
   }
 
+  fn get_layouts(&self, r: Rect) -> (Vec<Rect>, Vec<Rect>) {
+    let root_split = Layout::default()
+      .direction(Direction::Vertical)
+      .constraints([Constraint::Min(1), Constraint::Length(2)].as_ref())
+      .split(r);
+
+    let stats_and_input_split = Layout::default()
+      .direction(Direction::Vertical)
+      .constraints([Constraint::Length(1), Constraint::Length(1)].as_ref())
+      .split(root_split[1]);
+
+    (root_split, stats_and_input_split)
+  }
+
   // rg cmdline
   // - list
   // - of
@@ -143,17 +159,9 @@ impl App {
   // repgrep status line (how many to replace, etc)
   // repgrep command line (enter text to replace here, etc)
   pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
-    let root_split = Layout::default()
-      .direction(Direction::Vertical)
-      .constraints([Constraint::Min(1), Constraint::Length(2)].as_ref())
-      .split(f.size());
+    let (root_split, stats_and_input_split) = self.get_layouts(f.size());
 
     self.draw_match_list(f, root_split[0]);
-
-    let stats_and_input_split = Layout::default()
-      .direction(Direction::Vertical)
-      .constraints([Constraint::Length(1), Constraint::Length(1)].as_ref())
-      .split(root_split[1]);
 
     self.draw_stats_line(f, stats_and_input_split[0]);
     self.draw_input_line(f, stats_and_input_split[1]);
@@ -219,25 +227,34 @@ impl App {
   }
 
   // TODO: support selecting submatches
-  fn move_pos(&mut self, direction: MoveDirection) {
+  fn move_pos(&mut self, direction: Movement) {
     let iterator = self.list.iter().enumerate();
     let iterator = match direction {
-      MoveDirection::Prev => Either::Left(iterator.rev()),
-      MoveDirection::Next => Either::Right(iterator),
+      Movement::Prev | Movement::Backward(_) => Either::Left(iterator.rev()),
+      Movement::Next | Movement::Forward(_) => Either::Right(iterator),
     };
 
     let current = self.curr_pos();
     let (skip, default) = match direction {
-      MoveDirection::Prev => (self.list.len() - current, 0),
-      MoveDirection::Next => (current, self.list.len() - 1),
+      Movement::Prev => (self.list.len().saturating_sub(current), 0),
+      Movement::Backward(n) => (
+        self
+          .list
+          .len()
+          .saturating_sub(current.saturating_sub(n as usize)),
+        0,
+      ),
+
+      Movement::Next => (current, self.list.len() - 1),
+      Movement::Forward(n) => (current + (n as usize), self.list.len() - 1),
     };
 
     let pos = iterator
       .skip(skip)
       .find_map(|(i, item)| {
         let is_valid_next = match direction {
-          MoveDirection::Prev => i < current,
-          MoveDirection::Next => i > current,
+          Movement::Prev | Movement::Backward(_) => i < current,
+          Movement::Next | Movement::Forward(_) => i > current,
         };
 
         if is_valid_next && item.is_selectable() && item.should_replace {
@@ -253,13 +270,29 @@ impl App {
       .select(Some(clamp(pos, 0, self.list.len() - 1)));
   }
 
-  pub fn on_event(&mut self, event: Event) -> Result<()> {
+  pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
     if let Event::Key(key) = event {
-      match key.code {
-        KeyCode::Char('q') => self.should_quit = true,
-        KeyCode::Up | KeyCode::Char('k') => self.move_pos(MoveDirection::Prev),
-        KeyCode::Down | KeyCode::Char('j') => self.move_pos(MoveDirection::Next),
-        _ => {}
+      // TODO: toggle between inputting "replacement" text, and moving and selecting?
+      //    maybe select first, and on enter switch to entering replacement string (esc for back)
+      //    on enter again, apply changes
+
+      // CONTROL+KEY
+      if key.modifiers.contains(KeyModifiers::CONTROL) {
+        let (root_split, _) = self.get_layouts(term_size);
+        let list_height = root_split[0].height;
+
+        match key.code {
+          KeyCode::Char('b') => self.move_pos(Movement::Backward(list_height)),
+          KeyCode::Char('f') => self.move_pos(Movement::Forward(list_height)),
+          _ => {}
+        }
+      } else {
+        match key.code {
+          KeyCode::Char('q') => self.should_quit = true,
+          KeyCode::Up | KeyCode::Char('k') => self.move_pos(Movement::Prev),
+          KeyCode::Down | KeyCode::Char('j') => self.move_pos(Movement::Next),
+          _ => {}
+        }
       }
     }
 

@@ -28,20 +28,31 @@ fn clamp(val: usize, min: usize, max: usize) -> usize {
   }
 }
 
+/// Defines basic movement types in the main matches list.
 #[derive(Debug, Eq, PartialEq)]
 enum Movement {
+  /// Move to the previous item.
   Prev,
+  /// Move to the next item.
   Next,
+  /// Move to the previous file.
   PrevFile,
+  /// Move to the next file.
   NextFile,
+  /// Move forward `n` items.
   Forward(u16),
+  /// Move backward `n` items.
   Backward(u16),
 }
 
+/// Describes the various states that `App` can be in.
 #[derive(Debug, Eq, PartialEq)]
 enum AppState {
+  /// Show the help text and keybindings.
   Help,
+  /// The main matches list: select or deselect the found matches.
   SelectMatches,
+  /// Prompt the user for the replacement text.
   InputReplacement(String),
 }
 
@@ -103,8 +114,8 @@ impl App {
   // | - list
   // | - of
   // | - matches
-  // | repgrep status line (rg cmdline, matches, replacements, etc)
-  // | repgrep command line (user input for replacement text, etc)
+  // | status line (rg command line, matches, replacements, etc)
+  // | command line (user input for replacement text, etc)
   // _
   pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
     let (root_split, stats_and_input_split) = self.get_layouts(f.size());

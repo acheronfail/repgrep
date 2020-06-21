@@ -205,7 +205,7 @@ impl App {
         Color::Red
       }
     } else if matches!(curr_item.kind, ItemKind::Begin) {
-      Color::Magenta
+      Color::Yellow
     } else {
       Color::DarkGray
     });

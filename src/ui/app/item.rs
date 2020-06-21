@@ -3,7 +3,7 @@ use tui::widgets::Text;
 
 use crate::rg::de::RgMessageType;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ItemKind {
   Begin,
   Context,
@@ -12,6 +12,7 @@ pub enum ItemKind {
   Summary,
 }
 
+#[derive(Debug, Clone)]
 pub struct Item {
   rg_message_type: RgMessageType,
 

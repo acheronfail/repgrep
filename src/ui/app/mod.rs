@@ -5,6 +5,7 @@ use tui::style::{Color, Style};
 use tui::widgets::Text;
 
 pub use application::App;
+pub use item::{Item, ItemKind};
 
 /// Defines basic movement types in the main matches list.
 #[derive(Debug, Eq, PartialEq)]

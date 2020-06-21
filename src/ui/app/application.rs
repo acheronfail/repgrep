@@ -11,6 +11,7 @@ use tui::widgets::{Block, Borders, List, ListState, Paragraph, Row, Table, Text}
 use tui::Frame;
 
 use crate::cli::Args;
+use crate::replace::perform_replacements;
 use crate::rg::de::{RgMessageType, Stats};
 use crate::ui::app::item::{Item, ItemKind};
 use crate::ui::app::{AppState, Movement};
@@ -260,9 +261,7 @@ impl App {
           KeyCode::Esc | KeyCode::Char('q') => {
             self.state = AppState::InputReplacement(replacement.to_owned())
           }
-          KeyCode::Enter => {
-            // TODO: perform replacements and quit
-          }
+          KeyCode::Enter => perform_replacements(self.list.clone())?,
           _ => {}
         },
         AppState::Help => match key.code {

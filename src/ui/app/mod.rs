@@ -8,7 +8,7 @@ use crossterm::event::{Event, KeyCode, KeyModifiers};
 use either::Either;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Style};
+use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListState, Paragraph, Row, Table, Text};
 use tui::Frame;
 
@@ -177,16 +177,29 @@ impl App {
       .split(r);
 
     let help_table = Table::new(
-      ["Key", "Action"].iter(),
+      ["[Key]", "[Action]"].iter(),
       vec![
-        Row::Data(["k, up", "select previous match"].iter()),
-        Row::Data(["j, down", "select next match"].iter()),
-        Row::Data(["K, shift + up", "select previous file"].iter()),
-        Row::Data(["J, shift + down", "select next file"].iter()),
-        Row::Data(["space", "toggle item"].iter()),
-        Row::Data(["enter, r, R", "accept selection and enter replacement text"].iter()),
+        Row::StyledData(["MODE: ALL"].iter(), title_style),
+        Row::Data(["control + b", "move backward one page"].iter()),
+        Row::Data(["control + f", "move forward one page"].iter()),
+        Row::Data([].iter()),
+        Row::StyledData(["MODE: SELECT"].iter(), title_style),
+        Row::Data(["k, up", "move to previous match"].iter()),
+        Row::Data(["j, down", "move to next match"].iter()),
+        Row::Data(["K, shift + up", "move to previous file"].iter()),
+        Row::Data(["J, shift + down", "move to next file"].iter()),
+        Row::Data(["space", "toggle selection"].iter()),
+        Row::Data(["enter, r, R", "accept selection"].iter()),
         Row::Data(["q, esc", "quit"].iter()),
         Row::Data(["?", "show help and keybindings"].iter()),
+        Row::Data([].iter()),
+        Row::StyledData(["MODE: REPLACE"].iter(), title_style),
+        Row::Data(["enter", "accept replacement text"].iter()),
+        Row::Data(["esc", "previous mode"].iter()),
+        Row::Data([].iter()),
+        Row::StyledData(["MODE: CONFIRM"].iter(), title_style),
+        Row::Data(["enter", "write replacements to disk"].iter()),
+        Row::Data(["q, esc", "previous mode"].iter()),
       ]
       .into_iter(),
     )
@@ -196,7 +209,7 @@ impl App {
         .title("Keybindings")
         .title_style(title_style),
     )
-    .header_style(Style::default().fg(Color::Yellow))
+    .header_style(Style::default().fg(Color::Yellow).modifier(Modifier::BOLD))
     .widths(&[Constraint::Length(20), Constraint::Length(50)])
     .column_spacing(1);
 

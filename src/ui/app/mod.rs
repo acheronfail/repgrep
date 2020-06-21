@@ -157,9 +157,10 @@ impl App {
       })
       .sum::<usize>();
 
-    // Split the stats line into halves.
+    // Split the stats line into halves, so we can render left and right aligned portions.
     let hsplit = Layout::default()
       .direction(Direction::Horizontal)
+      // NOTE: Length is 10 because the longest `AppState.to_text()` is 10 characters.
       .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
       .split(r);
 

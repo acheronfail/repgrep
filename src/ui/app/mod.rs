@@ -258,6 +258,31 @@ impl App {
 impl App {
   pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
     if let Event::Key(key) = event {
+      // Common Ctrl+Key scroll keybindings that apply to multiple modes.
+      if key.modifiers.contains(KeyModifiers::CONTROL) {
+        let did_handle_key = match &self.state {
+          AppState::SelectMatches
+          | AppState::InputReplacement(_)
+          | AppState::ConfirmReplacement(_) => match key.code {
+            KeyCode::Char('b') => {
+              self.move_pos(Movement::Backward(self.list_height(term_size)));
+              true
+            }
+            KeyCode::Char('f') => {
+              self.move_pos(Movement::Forward(self.list_height(term_size)));
+              true
+            }
+            _ => false,
+          },
+          _ => false,
+        };
+
+        // If a key was handled then stop processing any other events.
+        if did_handle_key {
+          return Ok(());
+        }
+      }
+
       match &self.state {
         AppState::ConfirmReplacement(replacement) => match key.code {
           KeyCode::Esc | KeyCode::Char('q') => {
@@ -271,34 +296,25 @@ impl App {
           _ => {}
         },
         AppState::SelectMatches => {
-          // CONTROL+KEY
-          if key.modifiers.contains(KeyModifiers::CONTROL) {
-            match key.code {
-              KeyCode::Char('b') => self.move_pos(Movement::Backward(self.list_height(term_size))),
-              KeyCode::Char('f') => self.move_pos(Movement::Forward(self.list_height(term_size))),
-              _ => {}
+          let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+          match key.code {
+            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => self.move_pos(if shift {
+              Movement::PrevFile
+            } else {
+              Movement::Prev
+            }),
+            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => self.move_pos(if shift {
+              Movement::NextFile
+            } else {
+              Movement::Next
+            }),
+            KeyCode::Char(' ') => self.toggle_item(),
+            KeyCode::Esc | KeyCode::Char('q') => self.should_quit = true,
+            KeyCode::Char('?') => self.state = AppState::Help,
+            KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
+              self.state = AppState::InputReplacement(String::new())
             }
-          } else {
-            let shift = key.modifiers.contains(KeyModifiers::SHIFT);
-            match key.code {
-              KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => self.move_pos(if shift {
-                Movement::PrevFile
-              } else {
-                Movement::Prev
-              }),
-              KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => self.move_pos(if shift {
-                Movement::NextFile
-              } else {
-                Movement::Next
-              }),
-              KeyCode::Char(' ') => self.toggle_item(),
-              KeyCode::Esc | KeyCode::Char('q') => self.should_quit = true,
-              KeyCode::Char('?') => self.state = AppState::Help,
-              KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
-                self.state = AppState::InputReplacement(String::new())
-              }
-              _ => {}
-            }
+            _ => {}
           }
         }
         AppState::InputReplacement(ref input) => match key.code {

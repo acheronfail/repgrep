@@ -241,11 +241,18 @@ impl App {
               _ => {}
             }
           } else {
+            let shift = key.modifiers.contains(KeyModifiers::SHIFT);
             match key.code {
-              KeyCode::Up | KeyCode::Char('k') => self.move_pos(Movement::Prev),
-              KeyCode::Down | KeyCode::Char('j') => self.move_pos(Movement::Next),
-              KeyCode::Char('K') => self.move_pos(Movement::PrevFile),
-              KeyCode::Char('J') => self.move_pos(Movement::NextFile),
+              KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => self.move_pos(if shift {
+                Movement::PrevFile
+              } else {
+                Movement::Prev
+              }),
+              KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => self.move_pos(if shift {
+                Movement::NextFile
+              } else {
+                Movement::Next
+              }),
               KeyCode::Char(' ') => self.toggle_item(),
               KeyCode::Esc | KeyCode::Char('q') => self.should_quit = true,
               KeyCode::Enter => self.state = AppState::InputReplacement(String::new()),

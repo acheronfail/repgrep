@@ -1,6 +1,7 @@
 mod cli;
 mod rg;
 mod ui;
+mod util;
 
 use std::process;
 

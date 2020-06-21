@@ -29,8 +29,31 @@ fn clamp(val: usize, min: usize, max: usize) -> usize {
 enum Movement {
   Prev,
   Next,
+  PrevFile,
+  NextFile,
   Forward(u16),
   Backward(u16),
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum AppState {
+  SelectMatches,
+  InputReplacement(String),
+}
+
+impl AppState {
+  pub fn to_text(&self) -> Text {
+    match self {
+      AppState::SelectMatches => Text::styled(
+        " SELECT ",
+        Style::default().bg(Color::Cyan).fg(Color::Black),
+      ),
+      AppState::InputReplacement(_) => Text::styled(
+        " REPLACE ",
+        Style::default().bg(Color::White).fg(Color::Black),
+      ),
+    }
+  }
 }
 
 pub struct App {
@@ -38,9 +61,9 @@ pub struct App {
 
   rg_cmdline: String,
   stats: Stats,
-
   list: Vec<Item>,
   list_state: ListState,
+  state: AppState,
 }
 
 // General impl.
@@ -65,9 +88,10 @@ impl App {
     App {
       rg_cmdline: format!("rg {}", args.rg_args.join(" ")),
       should_quit: false,
-      stats: maybe_stats.unwrap(),
+      stats: maybe_stats.expect("failed to find RgMessageType::Summary from rg!"),
       list_state,
       list,
+      state: AppState::SelectMatches,
     }
   }
 }
@@ -104,28 +128,69 @@ impl App {
   }
 
   fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
-    // TODO: user input for replacement string
-    let text = Text::raw("> TODO...");
-    f.render_widget(Paragraph::new([text].iter()), r);
+    let text_items = match &self.state {
+      AppState::SelectMatches => vec![Text::raw(
+        "Select (or deselect) Matches with <space> then press <Enter>...",
+      )],
+      AppState::InputReplacement(input) => vec![
+        Text::raw("Replacement: "),
+        if input.is_empty() {
+          Text::styled("<Enter Replacement>", Style::default().fg(Color::DarkGray))
+        } else {
+          Text::raw(input)
+        },
+      ],
+    };
+    f.render_widget(Paragraph::new(text_items.iter()), r);
   }
 
   fn draw_stats_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
     let replacement_count = self
       .list
       .iter()
-      .filter(|i| matches!(i.kind, ItemKind::Match) && i.should_replace)
-      .count();
+      .filter_map(|i| {
+        if matches!(i.kind, ItemKind::Match) && i.should_replace {
+          Some(i.match_count())
+        } else {
+          None
+        }
+      })
+      .sum::<usize>();
 
-    let text = Text::raw(format!(
-      "rg: {}, Matches: {}, Replacements: {}",
-      self.rg_cmdline, self.stats.matches, replacement_count
-    ));
+    // Split the stats line into halves.
+    let hsplit = Layout::default()
+      .direction(Direction::Horizontal)
+      .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
+      .split(r);
 
+    let left_side_items = [self.state.to_text()];
+    let right_side_items = [
+      Text::styled(
+        format!(" {} ", self.rg_cmdline),
+        Style::default().bg(Color::Blue).fg(Color::Black),
+      ),
+      Text::styled(
+        format!(" Matches: {} ", self.stats.matches),
+        Style::default().bg(Color::Cyan).fg(Color::Black),
+      ),
+      Text::styled(
+        format!(" Replacements: {} ", replacement_count),
+        Style::default().bg(Color::Magenta).fg(Color::Black),
+      ),
+    ];
+
+    let stats_line_style = Style::default().bg(Color::DarkGray).fg(Color::White);
     f.render_widget(
-      Paragraph::new([text].iter())
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White))
+      Paragraph::new(left_side_items.iter())
+        .style(stats_line_style)
+        .alignment(Alignment::Left),
+      hsplit[0],
+    );
+    f.render_widget(
+      Paragraph::new(right_side_items.iter())
+        .style(stats_line_style)
         .alignment(Alignment::Right),
-      r,
+      hsplit[1],
     );
   }
 
@@ -159,29 +224,57 @@ impl App {
 
 // Event Handling.
 impl App {
+  fn list_height(&self, term_size: Rect) -> u16 {
+    let (root_split, _) = self.get_layouts(term_size);
+    root_split[0].height
+  }
+
   pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
     if let Event::Key(key) = event {
-      // TODO: toggle between inputting "replacement" text, and moving and selecting?
-      //    maybe select first, and on enter switch to entering replacement string (esc for back)
-      //    on enter again, apply changes
-
-      // CONTROL+KEY
-      if key.modifiers.contains(KeyModifiers::CONTROL) {
-        let (root_split, _) = self.get_layouts(term_size);
-        let list_height = root_split[0].height;
-
-        match key.code {
-          KeyCode::Char('b') => self.move_pos(Movement::Backward(list_height)),
-          KeyCode::Char('f') => self.move_pos(Movement::Forward(list_height)),
-          _ => {}
+      match self.state {
+        AppState::SelectMatches => {
+          // CONTROL+KEY
+          if key.modifiers.contains(KeyModifiers::CONTROL) {
+            match key.code {
+              KeyCode::Char('b') => self.move_pos(Movement::Backward(self.list_height(term_size))),
+              KeyCode::Char('f') => self.move_pos(Movement::Forward(self.list_height(term_size))),
+              _ => {}
+            }
+          } else {
+            match key.code {
+              KeyCode::Up | KeyCode::Char('k') => self.move_pos(Movement::Prev),
+              KeyCode::Down | KeyCode::Char('j') => self.move_pos(Movement::Next),
+              KeyCode::Char('K') => self.move_pos(Movement::PrevFile),
+              KeyCode::Char('J') => self.move_pos(Movement::NextFile),
+              KeyCode::Char(' ') => self.toggle_item(),
+              KeyCode::Esc | KeyCode::Char('q') => self.should_quit = true,
+              KeyCode::Enter => self.state = AppState::InputReplacement(String::new()),
+              _ => {}
+            }
+          }
         }
-      } else {
-        match key.code {
-          KeyCode::Char('q') => self.should_quit = true,
-          KeyCode::Up | KeyCode::Char('k') => self.move_pos(Movement::Prev),
-          KeyCode::Down | KeyCode::Char('j') => self.move_pos(Movement::Next),
-          KeyCode::Char(' ') => self.toggle_item(),
-          _ => {}
+        AppState::InputReplacement(ref input) => {
+          match key.code {
+            KeyCode::Char(c) => {
+              let mut new_input = String::from(input);
+              new_input.push(c);
+              self.state = AppState::InputReplacement(new_input);
+            }
+            KeyCode::Backspace | KeyCode::Delete => {
+              let new_input = if !input.is_empty() {
+                String::from(input)[..input.len() - 1].to_owned()
+              } else {
+                String::new()
+              };
+              self.state = AppState::InputReplacement(new_input);
+            }
+            KeyCode::Esc => self.state = AppState::SelectMatches,
+            KeyCode::Enter => {
+              // TODO: confirm replacement before continuing
+              // TODO: perform replacements and quit
+            }
+            _ => {}
+          }
         }
       }
     }
@@ -197,13 +290,13 @@ impl App {
   fn move_pos(&mut self, direction: Movement) {
     let iterator = self.list.iter().enumerate();
     let iterator = match direction {
-      Movement::Prev | Movement::Backward(_) => Either::Left(iterator.rev()),
-      Movement::Next | Movement::Forward(_) => Either::Right(iterator),
+      Movement::Prev | Movement::PrevFile | Movement::Backward(_) => Either::Left(iterator.rev()),
+      Movement::Next | Movement::NextFile | Movement::Forward(_) => Either::Right(iterator),
     };
 
     let current = self.curr_pos();
     let (skip, default) = match direction {
-      Movement::Prev => (self.list.len().saturating_sub(current), 0),
+      Movement::Prev | Movement::PrevFile => (self.list.len().saturating_sub(current), 0),
       Movement::Backward(n) => (
         self
           .list
@@ -212,7 +305,7 @@ impl App {
         0,
       ),
 
-      Movement::Next => (current, self.list.len() - 1),
+      Movement::Next | Movement::NextFile => (current, self.list.len() - 1),
       Movement::Forward(n) => (current + (n as usize), self.list.len() - 1),
     };
 
@@ -220,6 +313,8 @@ impl App {
       .skip(skip)
       .find_map(|(i, item)| {
         let is_valid_next = match direction {
+          Movement::PrevFile => i < current && matches!(item.kind, ItemKind::Begin),
+          Movement::NextFile => i > current && matches!(item.kind, ItemKind::Begin),
           Movement::Prev | Movement::Backward(_) => i < current,
           Movement::Next | Movement::Forward(_) => i > current,
         };

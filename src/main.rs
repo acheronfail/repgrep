@@ -1,7 +1,3 @@
-// TODO: use ripgrep to search for results (--json flag and parse that)
-// TODO: `tig`-like UI where you can remove (and undo) search entries
-// TODO: when typing demo replace like VSCode
-
 mod cli;
 mod rg;
 mod ui;

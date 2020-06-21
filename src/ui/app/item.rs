@@ -41,6 +41,13 @@ impl Item {
     matches!(self.kind, ItemKind::Begin | ItemKind::Match)
   }
 
+  pub fn match_count(&self) -> usize {
+    match &self.rg_message_type {
+      RgMessageType::Match { submatches, .. } => submatches.len(),
+      _ => 0,
+    }
+  }
+
   pub fn to_text(&self) -> Text {
     // TODO: color line number, currently not possible
     // See: https://github.com/fdehau/tui-rs/issues/315

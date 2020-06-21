@@ -54,6 +54,8 @@ enum AppState {
   SelectMatches,
   /// Prompt the user for the replacement text.
   InputReplacement(String),
+  /// Ask the user to confirm the replacement.
+  ConfirmReplacement(String),
 }
 
 impl AppState {
@@ -63,6 +65,7 @@ impl AppState {
       AppState::Help => Text::styled(" HELP ", style.bg(Color::Green)),
       AppState::SelectMatches => Text::styled(" SELECT ", style.bg(Color::Cyan)),
       AppState::InputReplacement(_) => Text::styled(" REPLACE ", style.bg(Color::White)),
+      AppState::ConfirmReplacement(_) => Text::styled(" CONFIRM ", style.bg(Color::Red)),
     }
   }
 }
@@ -156,6 +159,9 @@ impl App {
           Text::raw(input)
         },
       ],
+      AppState::ConfirmReplacement(_) => vec![Text::raw(
+        "Press <enter> to write changes, <esc> to cancel.",
+      )],
     };
 
     f.render_widget(Paragraph::new(text_items.iter()), r);
@@ -258,7 +264,14 @@ impl App {
   }
 
   fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
-    let match_items = self.list.iter().map(|item| item.to_text());
+    let replacement = match &self.state {
+      AppState::InputReplacement(replacement) | AppState::ConfirmReplacement(replacement) => {
+        Some(replacement)
+      }
+      _ => None,
+    };
+
+    let match_items = self.list.iter().map(|item| item.to_text(replacement));
 
     let curr_item = &self.list[self.curr_pos()];
     let highlight_style = Style::default().fg(if matches!(curr_item.kind, ItemKind::Match) {
@@ -294,7 +307,16 @@ impl App {
 impl App {
   pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
     if let Event::Key(key) = event {
-      match self.state {
+      match &self.state {
+        AppState::ConfirmReplacement(replacement) => match key.code {
+          KeyCode::Esc | KeyCode::Char('q') => {
+            self.state = AppState::InputReplacement(replacement.to_owned())
+          }
+          KeyCode::Enter => {
+            // TODO: perform replacements and quit
+          }
+          _ => {}
+        },
         AppState::Help => match key.code {
           KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::SelectMatches,
           _ => {}
@@ -330,29 +352,24 @@ impl App {
             }
           }
         }
-        AppState::InputReplacement(ref input) => {
-          match key.code {
-            KeyCode::Char(c) => {
-              let mut new_input = String::from(input);
-              new_input.push(c);
-              self.state = AppState::InputReplacement(new_input);
-            }
-            KeyCode::Backspace | KeyCode::Delete => {
-              let new_input = if !input.is_empty() {
-                String::from(input)[..input.len() - 1].to_owned()
-              } else {
-                String::new()
-              };
-              self.state = AppState::InputReplacement(new_input);
-            }
-            KeyCode::Esc => self.state = AppState::SelectMatches,
-            KeyCode::Enter => {
-              // TODO: confirm replacement before continuing
-              // TODO: perform replacements and quit
-            }
-            _ => {}
+        AppState::InputReplacement(ref input) => match key.code {
+          KeyCode::Char(c) => {
+            let mut new_input = String::from(input);
+            new_input.push(c);
+            self.state = AppState::InputReplacement(new_input);
           }
-        }
+          KeyCode::Backspace | KeyCode::Delete => {
+            let new_input = if !input.is_empty() {
+              String::from(input)[..input.len() - 1].to_owned()
+            } else {
+              String::new()
+            };
+            self.state = AppState::InputReplacement(new_input);
+          }
+          KeyCode::Esc => self.state = AppState::SelectMatches,
+          KeyCode::Enter => self.state = AppState::ConfirmReplacement(input.to_owned()),
+          _ => {}
+        },
       }
     }
 

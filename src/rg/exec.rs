@@ -25,7 +25,7 @@ pub fn run_ripgrep(args: &cli::Args) -> Result<VecDeque<RgMessageType>> {
   Ok(
     to_string(output.stdout)
       .lines()
-      .map(|line| serde_json::from_str(line).unwrap())
+      .map(|line| serde_json::from_str(line).expect("failed to deserialise `rg` JSON output!"))
       .collect(),
   )
 }

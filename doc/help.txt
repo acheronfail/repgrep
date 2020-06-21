@@ -20,6 +20,10 @@ There are a few different modes:
   Note that this is a demo only, no changes are written to disk.
   Pressing enter will cause all selected matches to be replaced with the text entered.
 
+* CONFIRM
+
+  Prompt the user to confirm before writing replacements to disk.
+
 * HELP
 
   This mode provides a short explanation of the tool and its keybindings.

@@ -4,6 +4,9 @@ This is an interactive command line tool to make find and replacement easy.
 It uses [`ripgrep`] to find, and then provides you with a simple interface to see
 the replacements in real-time and conditionally replace matches.
 
+**DISCLAIMER**: This project doesn't have extensive tests, and it's behaviour with files that are not pure UTF8 is currently undefined.
+Until it's tested against multiple different encodings and strings, use it at your own risk!
+
 ## Usage
 
 After installing, just use `rgr` (think: `rg` + `replace`).

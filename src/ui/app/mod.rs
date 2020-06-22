@@ -13,22 +13,22 @@ use tui::widgets::{Block, Borders, List, ListState, Paragraph, Row, Table, Text}
 use tui::Frame;
 
 use crate::cli::Args;
-use crate::model::{Item, ItemKind, Movement};
-use crate::replace::perform_replacements;
+use crate::model::{Item, ItemKind, Movement, ReplacementCriteria};
 use crate::rg::de::{RgMessage, Stats};
 use crate::util::clamp;
-use state::AppState;
+pub use state::AppState;
+use state::AppUiState;
 
 const HELP_TEXT: &str = include_str!("../../../doc/help.txt");
 
 pub struct App {
-  pub should_quit: bool,
+  pub state: AppState,
 
   rg_cmdline: String,
   stats: Stats,
   list: Vec<Item>,
   list_state: ListState,
-  state: AppState,
+  ui_state: AppUiState,
 }
 
 // General impl.
@@ -51,12 +51,13 @@ impl App {
     list_state.select(Some(0));
 
     App {
+      state: AppState::Running,
+
       rg_cmdline: format!("rg {}", args.rg_args.join(" ")),
-      should_quit: false,
       stats: maybe_stats.expect("failed to find RgMessage::Summary from rg!"),
       list_state,
       list,
-      state: AppState::SelectMatches,
+      ui_state: AppUiState::SelectMatches,
     }
   }
 }
@@ -73,7 +74,7 @@ impl App {
   // _
   pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
     let (root_split, stats_and_input_split) = self.get_layouts(f.size());
-    if matches!(self.state, AppState::Help) {
+    if matches!(self.ui_state, AppUiState::Help) {
       self.draw_help_view(f, root_split[0]);
     } else {
       self.draw_main_view(f, root_split[0]);
@@ -97,12 +98,12 @@ impl App {
   }
 
   fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
-    let text_items = match &self.state {
-      AppState::Help => vec![Text::raw("Viewing Help. Press <esc> or <q> to return...")],
-      AppState::SelectMatches => vec![Text::raw(
+    let text_items = match &self.ui_state {
+      AppUiState::Help => vec![Text::raw("Viewing Help. Press <esc> or <q> to return...")],
+      AppUiState::SelectMatches => vec![Text::raw(
         "Select (or deselect) Matches with <space> then press <Enter>. Press <?> for help.",
       )],
-      AppState::InputReplacement(input) => vec![
+      AppUiState::InputReplacement(input) => vec![
         Text::raw("Replacement: "),
         if input.is_empty() {
           Text::styled("<empty>", Style::default().fg(Color::DarkGray))
@@ -110,7 +111,7 @@ impl App {
           Text::raw(input)
         },
       ],
-      AppState::ConfirmReplacement(_) => vec![Text::raw(
+      AppUiState::ConfirmReplacement(_) => vec![Text::raw(
         "Press <enter> to write changes, <esc> to cancel.",
       )],
     };
@@ -134,11 +135,11 @@ impl App {
     // Split the stats line into halves, so we can render left and right aligned portions.
     let hsplit = Layout::default()
       .direction(Direction::Horizontal)
-      // NOTE: Length is 10 because the longest `AppState.to_text()` is 10 characters.
+      // NOTE: Length is 10 because the longest `AppUiState.to_text()` is 10 characters.
       .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
       .split(r);
 
-    let left_side_items = [self.state.to_text()];
+    let left_side_items = [self.ui_state.to_text()];
     let right_side_items = [
       Text::styled(
         format!(" {} ", self.rg_cmdline),
@@ -229,8 +230,8 @@ impl App {
   }
 
   fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
-    let replacement = match &self.state {
-      AppState::InputReplacement(replacement) | AppState::ConfirmReplacement(replacement) => {
+    let replacement = match &self.ui_state {
+      AppUiState::InputReplacement(replacement) | AppUiState::ConfirmReplacement(replacement) => {
         Some(replacement)
       }
       _ => None,
@@ -274,10 +275,10 @@ impl App {
     if let Event::Key(key) = event {
       // Common Ctrl+Key scroll keybindings that apply to multiple modes.
       if key.modifiers.contains(KeyModifiers::CONTROL) {
-        let did_handle_key = match &self.state {
-          AppState::SelectMatches
-          | AppState::InputReplacement(_)
-          | AppState::ConfirmReplacement(_) => match key.code {
+        let did_handle_key = match &self.ui_state {
+          AppUiState::SelectMatches
+          | AppUiState::InputReplacement(_)
+          | AppUiState::ConfirmReplacement(_) => match key.code {
             KeyCode::Char('b') => {
               self.move_pos(Movement::Backward(self.list_height(term_size)));
               true
@@ -297,22 +298,22 @@ impl App {
         }
       }
 
-      match &self.state {
-        AppState::ConfirmReplacement(replacement) => match key.code {
+      match &self.ui_state {
+        AppUiState::ConfirmReplacement(replacement) => match key.code {
           KeyCode::Esc | KeyCode::Char('q') => {
-            self.state = AppState::InputReplacement(replacement.to_owned())
+            self.ui_state = AppUiState::InputReplacement(replacement.to_owned())
           }
           KeyCode::Enter => {
-            perform_replacements(self.list.clone(), &replacement)?;
-            self.should_quit = true;
+            self.state =
+              AppState::Complete(ReplacementCriteria::new(replacement, self.list.clone()));
           }
           _ => {}
         },
-        AppState::Help => match key.code {
-          KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::SelectMatches,
+        AppUiState::Help => match key.code {
+          KeyCode::Esc | KeyCode::Char('q') => self.ui_state = AppUiState::SelectMatches,
           _ => {}
         },
-        AppState::SelectMatches => {
+        AppUiState::SelectMatches => {
           let shift = key.modifiers.contains(KeyModifiers::SHIFT);
           match key.code {
             KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => self.move_pos(if shift {
@@ -327,19 +328,19 @@ impl App {
             }),
             KeyCode::Char(' ') => self.toggle_item(),
             KeyCode::Char('a') | KeyCode::Char('A') => self.toggle_all_items(),
-            KeyCode::Esc | KeyCode::Char('q') => self.should_quit = true,
-            KeyCode::Char('?') => self.state = AppState::Help,
+            KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
+            KeyCode::Char('?') => self.ui_state = AppUiState::Help,
             KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
-              self.state = AppState::InputReplacement(String::new())
+              self.ui_state = AppUiState::InputReplacement(String::new())
             }
             _ => {}
           }
         }
-        AppState::InputReplacement(ref input) => match key.code {
+        AppUiState::InputReplacement(ref input) => match key.code {
           KeyCode::Char(c) => {
             let mut new_input = String::from(input);
             new_input.push(c);
-            self.state = AppState::InputReplacement(new_input);
+            self.ui_state = AppUiState::InputReplacement(new_input);
           }
           KeyCode::Backspace | KeyCode::Delete => {
             let new_input = if !input.is_empty() {
@@ -347,10 +348,10 @@ impl App {
             } else {
               String::new()
             };
-            self.state = AppState::InputReplacement(new_input);
+            self.ui_state = AppUiState::InputReplacement(new_input);
           }
-          KeyCode::Esc => self.state = AppState::SelectMatches,
-          KeyCode::Enter => self.state = AppState::ConfirmReplacement(input.to_owned()),
+          KeyCode::Esc => self.ui_state = AppUiState::SelectMatches,
+          KeyCode::Enter => self.ui_state = AppUiState::ConfirmReplacement(input.to_owned()),
           _ => {}
         },
       }

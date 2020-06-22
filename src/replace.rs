@@ -3,54 +3,60 @@ use std::io::{Read, Write};
 
 use anyhow::Result;
 
-use crate::model::{Item, ItemKind};
+use crate::model::{ItemKind, ReplacementCriteria, ReplacementResult};
 
 // TODO: extensively test this function!
-pub fn perform_replacements(items: Vec<Item>, replacement: impl AsRef<str>) -> Result<()> {
-  items
-    .iter()
-    // The only item kind we replace is the Match kind.
-    .filter(|item| matches!(item.kind, ItemKind::Match) && item.should_replace)
-    // Perform the replacement on each match.
-    // TODO: handle files with non-UTF8 contents
-    // TODO: better error handling and messaging to the user when any of this fails
-    .for_each(|item| {
-      let file_path = item.path();
+pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<ReplacementResult> {
+  Ok(
+    criteria
+      .items
+      .iter()
+      // The only item kind we replace is the Match kind.
+      .filter(|item| matches!(item.kind, ItemKind::Match) && item.should_replace)
+      // Perform the replacement on each match.
+      // TODO: handle files with non-UTF8 contents (remove all `lossy_utf8`)
+      // TODO: better error handling and messaging to the user when any of this fails
+      .fold(ReplacementResult::new(&criteria.text), |mut res, item| {
+        let file_path = item.path();
 
-      // Read file to string.
-      let mut file_contents = String::new();
-      OpenOptions::new()
-        .read(true)
-        .open(&file_path)
-        .unwrap()
-        .read_to_string(&mut file_contents)
-        .unwrap();
+        // Read file to string.
+        let mut file_contents = String::new();
+        OpenOptions::new()
+          .read(true)
+          .open(&file_path)
+          .unwrap()
+          .read_to_string(&mut file_contents)
+          .unwrap();
 
-      // Replace matches within the file contents with the given `replacement` string.
-      if let Some(submatches) = item.matches() {
-        let offset = item.offset().unwrap_or(0);
-        for submatch in submatches.iter().rev() {
-          let range = (offset + submatch.range.start)..(offset + submatch.range.end);
-          file_contents.replace_range(range, replacement.as_ref());
+        // Replace matches within the file contents with the given `replacement` string.
+        let mut replaced_matches = vec![];
+        if let Some(submatches) = item.matches() {
+          let offset = item.offset().unwrap_or(0);
+          for submatch in submatches.iter().rev() {
+            let range = (offset + submatch.range.start)..(offset + submatch.range.end);
+            file_contents.replace_range(range, &criteria.text);
+            replaced_matches.push(submatch.text.lossy_utf8());
+          }
         }
-      }
 
-      // Write modified string into a temporary file.
-      let temp_file_path = &file_path.with_extension("rgr");
-      OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(&temp_file_path)
-        .unwrap()
-        .write_all(file_contents.as_bytes())
-        .unwrap();
+        // Write modified string into a temporary file.
+        let temp_file_path = &file_path.with_extension("rgr");
+        OpenOptions::new()
+          .create(true)
+          .write(true)
+          .truncate(true)
+          .open(&temp_file_path)
+          .unwrap()
+          .write_all(file_contents.as_bytes())
+          .unwrap();
 
-      // Overwrite the original file with the patched temp file.
-      fs::rename(temp_file_path, file_path).unwrap();
-    });
+        // Overwrite the original file with the patched temp file.
+        fs::rename(temp_file_path, &file_path).unwrap();
 
-  Ok(())
+        res.add_replacement(&file_path, &replaced_matches);
+        res
+      }),
+  )
 }
 
 #[cfg(test)]
@@ -59,9 +65,10 @@ mod tests {
   use std::io::Write;
   use std::path::PathBuf;
 
+  use pretty_assertions::assert_eq;
   use tempfile::{tempdir, NamedTempFile};
 
-  use crate::model::Item;
+  use crate::model::*;
   use crate::replace::perform_replacements;
   use crate::rg::de::test_utilities::{RgMessageBuilder, RgMessageKind};
   use crate::rg::de::SubMatch;
@@ -92,7 +99,7 @@ mod tests {
       Item::new(temp_rg_msg(&f3, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]).build()),
     ];
 
-    perform_replacements(items, "ZAP").unwrap();
+    perform_replacements(ReplacementCriteria::new("ZAP", items)).unwrap();
     assert_eq!(fs::read_to_string(f1.path()).unwrap(), "ZAP bar baz");
     assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz ZAP bar");
     assert_eq!(fs::read_to_string(f3.path()).unwrap(), "bar baz ZAP");
@@ -114,7 +121,7 @@ mod tests {
     items[1].should_replace = true;
     items[2].should_replace = false;
 
-    perform_replacements(items, "ZAP").unwrap();
+    perform_replacements(ReplacementCriteria::new("ZAP", items)).unwrap();
     assert_eq!(fs::read_to_string(f1.path()).unwrap(), "foo bar baz");
     assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz ZAP bar");
     assert_eq!(fs::read_to_string(f3.path()).unwrap(), "bar baz foo");
@@ -136,7 +143,7 @@ mod tests {
       .build(),
     );
 
-    perform_replacements(vec![item], "ZAP").unwrap();
+    perform_replacements(ReplacementCriteria::new("ZAP", vec![item])).unwrap();
     assert_eq!(fs::read_to_string(f.path()).unwrap(), "ZAP ZAP ZAP");
   }
 
@@ -175,7 +182,7 @@ mod tests {
       ),
     ];
 
-    perform_replacements(items, "ZAP").unwrap();
+    perform_replacements(ReplacementCriteria::new("ZAP", items)).unwrap();
     assert_eq!(
       fs::read_to_string(f.path()).unwrap(),
       "ZAP bar baz\n...\nbaz ZAP bar\n...\nbar baz ZAP"
@@ -204,7 +211,7 @@ mod tests {
         .with_path_base64(base64::encode(p.as_os_str().as_bytes()))
         .with_lines_text(lines.to_string())
         .with_submatches(vec![SubMatch::new_text("o", 4..5)])
-        .with_offset(0) // unused at the moment
+        .with_offset(0)
         .build(),
     );
 
@@ -212,7 +219,7 @@ mod tests {
     println!("{:#?}", &item);
     println!("{}", fs::read_to_string(&p).unwrap());
 
-    perform_replacements(vec![item], " on").unwrap();
+    perform_replacements(ReplacementCriteria::new(" on", vec![item])).unwrap();
     assert_eq!(fs::read_to_string(p).unwrap(), "hell on earth");
   }
 }

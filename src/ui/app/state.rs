@@ -1,9 +1,18 @@
 use tui::style::{Color, Style};
 use tui::widgets::Text;
 
+use crate::model::ReplacementCriteria;
+
+#[derive(Debug)]
+pub enum AppState {
+  Running,
+  Cancelled,
+  Complete(ReplacementCriteria),
+}
+
 /// Describes the various states that `App` can be in.
 #[derive(Debug, Eq, PartialEq)]
-pub enum AppState {
+pub enum AppUiState {
   /// Show the help text and keybindings.
   Help,
   /// The main matches list: select or deselect the found matches.
@@ -14,16 +23,16 @@ pub enum AppState {
   ConfirmReplacement(String),
 }
 
-impl AppState {
-  /// Represent the `AppState` as a `Text`.
+impl AppUiState {
+  /// Represent the `AppUiState` as a `Text`.
   /// This is displayed as the "mode" in the stats line.
   pub fn to_text(&self) -> Text {
     let style = Style::default().fg(Color::Black);
     match self {
-      AppState::Help => Text::styled(" HELP ", style.bg(Color::Green)),
-      AppState::SelectMatches => Text::styled(" SELECT ", style.bg(Color::Cyan)),
-      AppState::InputReplacement(_) => Text::styled(" REPLACE ", style.bg(Color::White)),
-      AppState::ConfirmReplacement(_) => Text::styled(" CONFIRM ", style.bg(Color::Red)),
+      AppUiState::Help => Text::styled(" HELP ", style.bg(Color::Green)),
+      AppUiState::SelectMatches => Text::styled(" SELECT ", style.bg(Color::Cyan)),
+      AppUiState::InputReplacement(_) => Text::styled(" REPLACE ", style.bg(Color::White)),
+      AppUiState::ConfirmReplacement(_) => Text::styled(" CONFIRM ", style.bg(Color::Red)),
     }
   }
 }

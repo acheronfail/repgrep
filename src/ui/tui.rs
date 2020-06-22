@@ -10,8 +10,9 @@ use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use tui::{backend::CrosstermBackend, Terminal};
 
 use crate::cli::Args;
+use crate::model::ReplacementCriteria;
 use crate::rg::de::RgMessage;
-use crate::ui::app::App;
+use crate::ui::app::{App, AppState};
 
 pub struct Tui {
   app: App,
@@ -24,7 +25,7 @@ impl Tui {
     }
   }
 
-  pub fn start(mut self) -> Result<()> {
+  pub fn start(mut self) -> Result<Option<ReplacementCriteria>> {
     terminal::enable_raw_mode()?;
 
     let mut stdout = io::stdout();
@@ -49,8 +50,10 @@ impl Tui {
       let event = rx.recv()?;
       self.app.on_event(term.size()?, event)?;
 
-      if self.app.should_quit {
-        return Ok(());
+      match self.app.state {
+        AppState::Running => continue,
+        AppState::Cancelled => return Ok(None),
+        AppState::Complete(replacement_criteria) => return Ok(Some(replacement_criteria)),
       }
     }
   }

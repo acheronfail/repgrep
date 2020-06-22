@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "lowercase")]
 #[serde(tag = "type", content = "data")]
-pub enum RgMessageType {
+pub enum RgMessage {
   /// As specified in: [message-begin](https://docs.rs/grep-printer/0.1.5/grep_printer/struct.JSON.html#message-begin).
   Begin { path: ArbitraryData },
   /// As specified in: [message-end](https://docs.rs/grep-printer/0.1.5/grep_printer/struct.JSON.html#message-end).
@@ -95,7 +95,7 @@ pub struct SubMatch {
 mod tests {
   // tests based on [`grep_printer` example output](https://docs.rs/grep-printer/0.1.5/grep_printer/struct.JSON.html#example)
 
-  use crate::rg::de::{ArbitraryData::*, RgMessageType::*, *};
+  use crate::rg::de::{ArbitraryData::*, RgMessage::*, *};
 
   #[test]
   fn arbitrarydata() {
@@ -217,5 +217,149 @@ mod tests {
       },
       serde_json::from_str(json).unwrap()
     )
+  }
+}
+
+/// Utilities for tests.
+#[cfg(test)]
+#[allow(dead_code)]
+pub mod test_utilities {
+  use crate::rg::de::*;
+
+  impl ArbitraryData {
+    pub fn new_with_text(text: String) -> ArbitraryData {
+      ArbitraryData::Text { text }
+    }
+
+    pub fn new_with_base64(bytes: String) -> ArbitraryData {
+      ArbitraryData::Base64 { bytes }
+    }
+  }
+
+  impl SubMatch {
+    pub fn new_text(text: impl AsRef<str>, range: Range<usize>) -> SubMatch {
+      SubMatch {
+        text: ArbitraryData::new_with_text(text.as_ref().to_owned()),
+        range,
+      }
+    }
+    pub fn new_base64(base64: impl AsRef<str>, range: Range<usize>) -> SubMatch {
+      SubMatch {
+        text: ArbitraryData::new_with_base64(base64.as_ref().to_owned()),
+        range,
+      }
+    }
+  }
+
+  /// A helper to easily select the `RgMessage` kind.
+  pub enum RgMessageKind {
+    Begin,
+    End,
+    Match,
+    Context,
+    Summary,
+  }
+
+  /// A builder to help construct `RgMessage` structs during tests.
+  pub struct RgMessageBuilder {
+    kind: RgMessageKind,
+    path: Option<ArbitraryData>,
+    offset: Option<usize>,
+    lines: Option<ArbitraryData>,
+    line_number: Option<usize>,
+    elapsed_total: Option<Duration>,
+    stats: Option<Stats>,
+    submatches: Vec<SubMatch>,
+  }
+
+  impl RgMessageBuilder {
+    pub fn new(kind: RgMessageKind) -> RgMessageBuilder {
+      RgMessageBuilder {
+        kind,
+        path: None,
+        offset: None,
+        lines: None,
+        line_number: None,
+        stats: None,
+        elapsed_total: None,
+        submatches: vec![],
+      }
+    }
+
+    pub fn with_offset(mut self, offset: usize) -> Self {
+      self.offset = Some(offset);
+      self
+    }
+
+    pub fn with_line_number(mut self, line_number: usize) -> Self {
+      self.line_number = Some(line_number);
+      self
+    }
+
+    pub fn with_path_text(mut self, path: String) -> Self {
+      self.path = Some(ArbitraryData::new_with_text(path));
+      self
+    }
+
+    pub fn with_lines_text(mut self, lines: String) -> Self {
+      self.lines = Some(ArbitraryData::new_with_text(lines));
+      self
+    }
+
+    pub fn with_path_base64(mut self, path: String) -> Self {
+      self.path = Some(ArbitraryData::new_with_base64(path));
+      self
+    }
+
+    pub fn with_lines_base64(mut self, lines: String) -> Self {
+      self.lines = Some(ArbitraryData::new_with_base64(lines));
+      self
+    }
+
+    pub fn with_submatches(mut self, submatches: Vec<SubMatch>) -> Self {
+      self.submatches = submatches;
+      self
+    }
+
+    pub fn with_elapsed_total(mut self, elapsed_total: Duration) -> Self {
+      self.elapsed_total = Some(elapsed_total);
+      self
+    }
+
+    pub fn with_stats(mut self, stats: Stats) -> Self {
+      self.stats = Some(stats);
+      self
+    }
+
+    pub fn build(self) -> RgMessage {
+      match self.kind {
+        RgMessageKind::Begin => RgMessage::Begin {
+          path: self.path.unwrap(),
+        },
+        RgMessageKind::End => RgMessage::End {
+          path: self.path.unwrap(),
+          binary_offset: self.offset,
+          stats: self.stats.unwrap(),
+        },
+        RgMessageKind::Match => RgMessage::Match {
+          path: self.path.unwrap(),
+          absolute_offset: self.offset.unwrap(),
+          line_number: self.line_number,
+          lines: self.lines.unwrap(),
+          submatches: self.submatches,
+        },
+        RgMessageKind::Context => RgMessage::Context {
+          path: self.path.unwrap(),
+          absolute_offset: self.offset.unwrap(),
+          line_number: self.line_number,
+          lines: self.lines.unwrap(),
+          submatches: self.submatches,
+        },
+        RgMessageKind::Summary => RgMessage::Summary {
+          elapsed_total: self.elapsed_total.unwrap(),
+          stats: self.stats.unwrap(),
+        },
+      }
+    }
   }
 }

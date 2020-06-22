@@ -4,9 +4,9 @@ use std::process::Command;
 use anyhow::{anyhow, Result};
 
 use crate::cli;
-use crate::rg::de::RgMessageType;
+use crate::rg::de::RgMessage;
 
-pub fn run_ripgrep(args: &cli::Args) -> Result<VecDeque<RgMessageType>> {
+pub fn run_ripgrep(args: &cli::Args) -> Result<VecDeque<RgMessage>> {
   let to_string = |s| String::from_utf8(s).unwrap().trim().to_string();
   let output = Command::new("rg")
     .arg("--json")

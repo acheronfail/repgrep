@@ -15,7 +15,7 @@ use tui::Frame;
 use crate::cli::Args;
 use crate::model::{Item, ItemKind, Movement};
 use crate::replace::perform_replacements;
-use crate::rg::de::{RgMessageType, Stats};
+use crate::rg::de::{RgMessage, Stats};
 use crate::util::clamp;
 use state::AppState;
 
@@ -33,14 +33,14 @@ pub struct App {
 
 // General impl.
 impl App {
-  pub fn new(args: &Args, mut rg_results: VecDeque<RgMessageType>) -> App {
+  pub fn new(args: &Args, mut rg_results: VecDeque<RgMessage>) -> App {
     let mut list = vec![];
     let mut maybe_stats = None;
     while let Some(rg_type) = rg_results.pop_front() {
       match rg_type {
-        RgMessageType::Summary { stats, .. } => {
+        RgMessage::Summary { stats, .. } => {
           maybe_stats = Some(stats);
-          // NOTE: there should only be one RgMessageType::Summary, and it should be the last item.
+          // NOTE: there should only be one RgMessage::Summary, and it should be the last item.
           break;
         }
         t => list.push(Item::new(t)),
@@ -53,7 +53,7 @@ impl App {
     App {
       rg_cmdline: format!("rg {}", args.rg_args.join(" ")),
       should_quit: false,
-      stats: maybe_stats.expect("failed to find RgMessageType::Summary from rg!"),
+      stats: maybe_stats.expect("failed to find RgMessage::Summary from rg!"),
       list_state,
       list,
       state: AppState::SelectMatches,

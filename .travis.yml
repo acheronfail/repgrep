@@ -1,0 +1,104 @@
+env:
+  global:
+    # Used in the deploy steps below.
+    - PROJECT_NAME="repgrep"
+    # Default target on travis-ci.
+    # Used as conditional check in the install stage
+    - HOST="x86_64-unknown-linux-gnu"
+
+language: rust
+cache: cargo
+matrix:
+  include:
+    # Stable channel.
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-gnu
+    - os: linux
+      rust: stable
+      env: TARGET=x86_64-unknown-linux-musl
+    - os: linux
+      rust: stable
+      env: TARGET=i686-unknown-linux-gnu
+    - os: linux
+      rust: stable
+      env: TARGET=i686-unknown-linux-musl
+    - os: linux
+      rust: stable
+      env:
+        - TARGET=arm-unknown-linux-gnueabihf
+        - CC_arm_unknown_linux_gnueabihf=/usr/bin/arm-linux-gnueabihf-gcc-4.8
+        - CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc-4.8
+    - os: linux
+      rust: stable
+      env:
+        - TARGET=arm-unknown-linux-musleabihf
+        - CARGO_TARGET_ARM_UNKNOWN_LINUX_MUSLEABIHF_LINKER=arm-linux-gnueabihf-gcc-4.8
+    - os: osx
+      rust: stable
+      env: TARGET=x86_64-apple-darwin
+
+sudo: required
+
+addons:
+  homebrew:
+    update: true
+    packages:
+      - jq
+
+before_install:
+  - ci/before_install.sh
+
+install:
+  # prevent target re-add error from rustup
+  - if [[ $TRAVIS_OS_NAME = linux && $HOST != $TARGET ]]; then rustup target add $TARGET; fi
+
+script:
+  - ci/script.sh
+
+before_deploy:
+  - bash ci/before_deploy.sh
+
+_deploy_on: &deploy_on
+  # deploy only if we push a tag
+  tags: true
+  # deploy only on stable channel that has TARGET env variable sets
+  condition: $TRAVIS_RUST_VERSION = stable && $TARGET != ""
+
+deploy:
+  # Deploy to crates.
+  - provider: cargo
+    # NOTE updating the `token.secure`
+    # - go to: https://crates.io/me
+    # - generate new token
+    # - encrypt it using: `travis encrypt API_KEY_HERE`
+    # - paste the output below
+    token:
+      secure: QCxG9Dr+p4UVJSJBE6r+bzcD6871zFaOyrW3Gw57wYZ8Y0aBRcvslEGU94K8DTecATQEcXkCl5e2V+lSOeXpFbT403ZiE/JyUFuHJjd412AikGBzl/wCBDXKLLSRH/UjPPVmd2NK7Bit6LPkB9+/UNYgGl+jwdYLBWs1uJr2gevQL3d8ianXF8oRRRsuAMtJtuPBMISO2MVaUJouS/GJDN1LLwOfFY9mNLupIfK/3fAxnaltn9KxmPrtNiOnx/5WWCkHp6s0fAOYrYNQsNkY5gpl/MH0VARqEP/eB2b0KiY/hyF0oK6lYdhXoZ4nmpiF6t7HieCbO2p34nnxfJfA+Rjd802S4hozSMfF+ZBK3LtzjV9S6ZonExhjIPq9ocY2d8pGuAIKscg6SV1i8hVhJMOQ4FJ1wyF5U6gtHIPQBEhznYe7LR4kUIk+VaflRexHfx8yaZ9sjjPzSY/jd+wmsKCTbapirZVsnirlC+faUGqCDV7Jbnh4LH3Kwy28oj1oqnMxHcsfVVLwDB21xEAa/5t/5E2+E+IgoVsBke27Q3Vti+YlxTylJd+xcMWpHpXsrRE8M6/FznHCbLM/0I5j1IlNGgOLy7yf0gz4SBMoZb0OGCwOJayH9kv9yS6pwQk43ZMilsCtofLCc32AZNUUNBBxhAlyY4medNyQ3SZQyPA=
+    on: *deploy_on
+
+  # Deploy to GitHub releases.
+  - provider: releases
+    # NOTE updating the `api_key.secure`
+    # - go to: https://github.com/settings/tokens/new
+    # - generate new token using `public_repo` scope
+    # - encrypt it using: `travis encrypt API_KEY_HERE`
+    # - paste the output below
+    api_key:
+      secure: HvCt2m+Zqx2rL2/WD+XPgWKjao1ja0qU6u0YRGxcel5e8ppND/tpkxTGnUZc3UmEYm0oHTYjYW3z1yhDQdtDnpG0GDqPnUJSLPAX54g9ocDg6vAJ+wehaGoDJCxBxS1navtPz7k/f2S68bxq1Bxu1doxVUGLaGRbaXXrhLHx2qPASW91JEQUBZaNnh6vKFKJpeAzYoJYrh9HWAHseJ1sJPRItmDXt+JOfeta41clnmN7Oj5qm26Lbr9xpXggjb0NHk4W1/kfdQ3lIjO5Rrjxqz4iyqKccDLCHsE5lE3BqTc4LHqe7u/MKD89t2O5yBczQQDOpCWZbap3LtxxrtMJp/cNQg8TmWfdX40E/0sw20178fkkmIwMWIIg+abaCwuVCOhvO6D7OVZma7YKTsrFvoJ1UFdoFvqnMZi/A60xmECOoft/EXdHBhpzjULO94RhG66A1VUi1kdbyE/3ewKFLLMvk/2YyljU7qLJgrgNOtbnHVx+BYFmRq4DDxeRDI+IDN+giU1W16DBJMOXeS0HX7ygxE0q72rdDBw8GJjvc6pv94lnfYOZzBaGQTvt/MbnvzL6x1wAH8UJYiouxRrBdCvv0fgWPGZL5AX0cGO7fHRk9NdBuW4uWdrzIEW8MTsB6JNS2bpkVd799YEeVCNpSxoSNNU6SiqVqUIelHCEJ+E=
+    # for uploading multiple files
+    file_glob: true
+    # NOTE explanation on each env variable
+    # - PROJECT_NAME: name of the project, set on the `env.global` above
+    # - TRAVIS_TAG: tag name that the build is being deployed for, usually the version number
+    # - TARGET: target triple of the build
+    file:
+      - $PROJECT_NAME-$TRAVIS_TAG-$TARGET.*
+      - $PROJECT_NAME*.deb
+    # don't delete artifacts from previous stage
+    skip_cleanup: true
+    on: *deploy_on
+
+notifications:
+  email:
+    on_success: never

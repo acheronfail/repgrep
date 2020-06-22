@@ -189,6 +189,7 @@ impl App {
         Row::Data(["K, shift + up", "move to previous file"].iter()),
         Row::Data(["J, shift + down", "move to next file"].iter()),
         Row::Data(["space", "toggle selection"].iter()),
+        Row::Data(["a, A", "toggle selection for all matches"].iter()),
         Row::Data(["enter, r, R", "accept selection"].iter()),
         Row::Data(["q, esc", "quit"].iter()),
         Row::Data(["?", "show help and keybindings"].iter()),
@@ -322,6 +323,7 @@ impl App {
               Movement::Next
             }),
             KeyCode::Char(' ') => self.toggle_item(),
+            KeyCode::Char('a') | KeyCode::Char('A') => self.toggle_all_items(),
             KeyCode::Esc | KeyCode::Char('q') => self.should_quit = true,
             KeyCode::Char('?') => self.state = AppState::Help,
             KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
@@ -427,6 +429,13 @@ impl App {
       for item in items_to_toggle.iter_mut() {
         item.should_replace = should_replace;
       }
+    }
+  }
+
+  fn toggle_all_items(&mut self) {
+    let should_replace = self.list.iter().all(|i| !i.should_replace);
+    for item in self.list.iter_mut() {
+      item.should_replace = should_replace;
     }
   }
 }

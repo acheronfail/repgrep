@@ -1,7 +1,11 @@
+use std::ffi::OsString;
+use std::path::PathBuf;
+
+use anyhow::Result;
 use tui::style::{Color, Style};
 use tui::widgets::Text;
 
-use crate::rg::de::RgMessageType;
+use crate::rg::de::{ArbitraryData, RgMessageType, SubMatch};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ItemKind {
@@ -10,6 +14,28 @@ pub enum ItemKind {
   Match,
   End,
   Summary,
+}
+
+// TODO: tests for Base64 decoding on separate platforms
+
+/// Convert Base64 encoded data to an OsString on Unix platforms.
+/// https://doc.rust-lang.org/std/ffi/index.html#on-unix
+#[cfg(not(target_os = "windows"))]
+fn base64_to_os_string(bytes: Vec<u8>) -> Result<OsString> {
+  use std::os::unix::ffi::OsStringExt;
+  Ok(OsString::from_vec(bytes))
+}
+
+/// Convert Base64 encoded data to an OsString on Windows platforms.
+/// https://doc.rust-lang.org/std/ffi/index.html#on-windows
+#[cfg(target_os = "windows")]
+fn base64_to_os_string(bytes: Vec<u8>) -> Result<OsString> {
+  use safe_transmute::{transmute_many, try_copy, PedanticGuard};
+  use std::os::windows::ffi::OsStringExt;
+
+  // Transmute decoded Base64 bytes as UTF-16 since that's what underlying paths are on Windows.
+  let bytes_u16 = try_copy!(transmute_many::<u16, PedanticGuard>(&bytes))?;
+  OsString::from_wide(&bytes_u16)
 }
 
 #[derive(Debug, Clone)]
@@ -43,9 +69,48 @@ impl Item {
   }
 
   pub fn match_count(&self) -> usize {
+    self
+      .matches()
+      .map(|submatches| submatches.len())
+      .unwrap_or(0)
+  }
+
+  pub fn matches(&self) -> Option<&[SubMatch]> {
     match &self.rg_message_type {
-      RgMessageType::Match { submatches, .. } => submatches.len(),
-      _ => 0,
+      RgMessageType::Match { submatches, .. } => Some(submatches),
+      _ => None,
+    }
+  }
+
+  pub fn path(&self) -> PathBuf {
+    let path_data = match &self.rg_message_type {
+      RgMessageType::Begin { path, .. } => path,
+      RgMessageType::Match { path, .. } => path,
+      RgMessageType::Context { path, .. } => path,
+      RgMessageType::End { path, .. } => path,
+      unexpected_type => panic!(
+        "Unexpected enum variant, got {:?} and expected all except Summary!",
+        unexpected_type
+      ),
+    };
+
+    match path_data {
+      ArbitraryData::Text { text } => PathBuf::from(text),
+      ArbitraryData::Base64 { bytes } => {
+        // Decode the Base64 into u8 bytes.
+        let data = match base64::decode(bytes) {
+          Ok(data) => data,
+          Err(e) => panic!("Error deserialising Base64 data: {}", e),
+        };
+
+        // Convert the bytes into an OsString.
+        let os_string = match base64_to_os_string(data) {
+          Ok(os_string) => os_string,
+          Err(e) => panic!("Error transmuting Base64 data to OsString: {}", e),
+        };
+
+        PathBuf::from(os_string)
+      }
     }
   }
 

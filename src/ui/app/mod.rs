@@ -302,7 +302,10 @@ impl App {
           KeyCode::Esc | KeyCode::Char('q') => {
             self.state = AppState::InputReplacement(replacement.to_owned())
           }
-          KeyCode::Enter => perform_replacements(self.list.clone())?,
+          KeyCode::Enter => {
+            perform_replacements(self.list.clone(), &replacement)?;
+            self.should_quit = true;
+          }
           _ => {}
         },
         AppState::Help => match key.code {

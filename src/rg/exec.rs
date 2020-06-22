@@ -7,6 +7,12 @@ use crate::cli;
 use crate::rg::de::RgMessage;
 
 pub fn run_ripgrep(args: &cli::Args) -> Result<VecDeque<RgMessage>> {
+  if args.rg_args.is_empty() {
+    return Err(anyhow!(
+      "No arguments provided. Please pass arguments that will be forwarded to rg.\nSee rgr --help."
+    ));
+  }
+
   let to_string = |s| String::from_utf8(s).unwrap().trim().to_string();
   let output = Command::new("rg")
     .arg("--json")
@@ -18,7 +24,7 @@ pub fn run_ripgrep(args: &cli::Args) -> Result<VecDeque<RgMessage>> {
     if stderr.is_empty() {
       return Err(anyhow!("No matches found"));
     } else {
-      return Err(anyhow!("An error occurred running rg: {}", stderr));
+      return Err(anyhow!("An error occurred running rg:\n\n{}", stderr));
     }
   }
 

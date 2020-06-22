@@ -296,23 +296,23 @@ pub mod test_utilities {
       self
     }
 
-    pub fn with_path_text(mut self, path: String) -> Self {
-      self.path = Some(ArbitraryData::new_with_text(path));
+    pub fn with_path_text(mut self, path: impl AsRef<str>) -> Self {
+      self.path = Some(ArbitraryData::new_with_text(path.as_ref().to_owned()));
       self
     }
 
-    pub fn with_lines_text(mut self, lines: String) -> Self {
-      self.lines = Some(ArbitraryData::new_with_text(lines));
+    pub fn with_lines_text(mut self, lines: impl AsRef<str>) -> Self {
+      self.lines = Some(ArbitraryData::new_with_text(lines.as_ref().to_owned()));
       self
     }
 
-    pub fn with_path_base64(mut self, path: String) -> Self {
-      self.path = Some(ArbitraryData::new_with_base64(path));
+    pub fn with_path_base64(mut self, path: impl AsRef<str>) -> Self {
+      self.path = Some(ArbitraryData::new_with_base64(path.as_ref().to_owned()));
       self
     }
 
-    pub fn with_lines_base64(mut self, lines: String) -> Self {
-      self.lines = Some(ArbitraryData::new_with_base64(lines));
+    pub fn with_lines_base64(mut self, lines: impl AsRef<str>) -> Self {
+      self.lines = Some(ArbitraryData::new_with_base64(lines.as_ref().to_owned()));
       self
     }
 

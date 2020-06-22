@@ -28,8 +28,10 @@ pub fn perform_replacements(items: Vec<Item>, replacement: impl AsRef<str>) -> R
 
       // Replace matches within the file contents with the given `replacement` string.
       if let Some(submatches) = item.matches() {
+        let offset = item.offset().unwrap_or(0);
         for submatch in submatches.iter().rev() {
-          file_contents.replace_range(submatch.range.clone(), replacement.as_ref());
+          let range = (offset + submatch.range.start)..(offset + submatch.range.end);
+          file_contents.replace_range(range, replacement.as_ref());
         }
       }
 
@@ -64,17 +66,18 @@ mod tests {
   use crate::rg::de::test_utilities::{RgMessageBuilder, RgMessageKind};
   use crate::rg::de::SubMatch;
 
-  fn tempitem(mut f: &NamedTempFile, lines: impl AsRef<str>, submatches: Vec<SubMatch>) -> Item {
+  fn temp_rg_msg(
+    mut f: &NamedTempFile,
+    lines: impl AsRef<str>,
+    submatches: Vec<SubMatch>,
+  ) -> RgMessageBuilder {
     f.write_all(lines.as_ref().as_bytes()).unwrap();
 
-    Item::new(
-      RgMessageBuilder::new(RgMessageKind::Match)
-        .with_path_text(f.path().to_string_lossy().to_string())
-        .with_lines_text(lines.as_ref().to_string())
-        .with_submatches(submatches)
-        .with_offset(0) // unused at the moment
-        .build(),
-    )
+    RgMessageBuilder::new(RgMessageKind::Match)
+      .with_path_text(f.path().to_string_lossy().to_string())
+      .with_lines_text(lines.as_ref().to_string())
+      .with_submatches(submatches)
+      .with_offset(0) // TODO: do not assume 0 since this limits this function to single-line files
   }
 
   #[test]
@@ -84,9 +87,9 @@ mod tests {
     let f3 = NamedTempFile::new().unwrap();
 
     let items = vec![
-      tempitem(&f1, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]),
-      tempitem(&f2, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]),
-      tempitem(&f3, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]),
+      Item::new(temp_rg_msg(&f1, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]).build()),
+      Item::new(temp_rg_msg(&f2, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]).build()),
+      Item::new(temp_rg_msg(&f3, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]).build()),
     ];
 
     perform_replacements(items, "ZAP").unwrap();
@@ -96,32 +99,15 @@ mod tests {
   }
 
   #[test]
-  fn it_performs_multiple_replacements_one_file() {
-    let f = NamedTempFile::new().unwrap();
-    let item = tempitem(
-      &f,
-      "foo bar baz",
-      vec![
-        SubMatch::new_text("foo", 0..3),
-        SubMatch::new_text("bar", 4..7),
-        SubMatch::new_text("baz", 8..11),
-      ],
-    );
-
-    perform_replacements(vec![item], "ZAP").unwrap();
-    assert_eq!(fs::read_to_string(f.path()).unwrap(), "ZAP ZAP ZAP");
-  }
-
-  #[test]
   fn it_does_not_replace_deselected_matches() {
     let f1 = NamedTempFile::new().unwrap();
     let f2 = NamedTempFile::new().unwrap();
     let f3 = NamedTempFile::new().unwrap();
 
     let mut items = vec![
-      tempitem(&f1, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]),
-      tempitem(&f2, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]),
-      tempitem(&f3, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]),
+      Item::new(temp_rg_msg(&f1, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]).build()),
+      Item::new(temp_rg_msg(&f2, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]).build()),
+      Item::new(temp_rg_msg(&f3, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]).build()),
     ];
 
     items[0].should_replace = false;
@@ -132,6 +118,68 @@ mod tests {
     assert_eq!(fs::read_to_string(f1.path()).unwrap(), "foo bar baz");
     assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz ZAP bar");
     assert_eq!(fs::read_to_string(f3.path()).unwrap(), "bar baz foo");
+  }
+
+  #[test]
+  fn it_performs_multiple_replacements_one_file() {
+    let f = NamedTempFile::new().unwrap();
+    let item = Item::new(
+      temp_rg_msg(
+        &f,
+        "foo bar baz",
+        vec![
+          SubMatch::new_text("foo", 0..3),
+          SubMatch::new_text("bar", 4..7),
+          SubMatch::new_text("baz", 8..11),
+        ],
+      )
+      .build(),
+    );
+
+    perform_replacements(vec![item], "ZAP").unwrap();
+    assert_eq!(fs::read_to_string(f.path()).unwrap(), "ZAP ZAP ZAP");
+  }
+
+  #[test]
+  fn it_performs_replacements_on_multiple_lines() {
+    let mut f = NamedTempFile::new().unwrap();
+
+    f.write_all(b"foo bar baz\n...\nbaz foo bar\n...\nbar baz foo")
+      .unwrap();
+
+    let path_string = f.path().to_string_lossy().to_string();
+    let items = vec![
+      Item::new(
+        RgMessageBuilder::new(RgMessageKind::Match)
+          .with_path_text(path_string.clone())
+          .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
+          .with_lines_text("foo bar baz\n")
+          .with_offset(0)
+          .build(),
+      ),
+      Item::new(
+        RgMessageBuilder::new(RgMessageKind::Match)
+          .with_path_text(path_string.clone())
+          .with_submatches(vec![SubMatch::new_text("bar", 4..7)])
+          .with_lines_text("baz foo bar\n")
+          .with_offset(16)
+          .build(),
+      ),
+      Item::new(
+        RgMessageBuilder::new(RgMessageKind::Match)
+          .with_path_text(path_string)
+          .with_submatches(vec![SubMatch::new_text("baz", 8..11)])
+          .with_lines_text("bar baz foo")
+          .with_offset(32)
+          .build(),
+      ),
+    ];
+
+    perform_replacements(items, "ZAP").unwrap();
+    assert_eq!(
+      fs::read_to_string(f.path()).unwrap(),
+      "ZAP bar baz\n...\nbaz ZAP bar\n...\nbar baz ZAP"
+    );
   }
 
   #[test]

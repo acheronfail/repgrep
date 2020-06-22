@@ -67,6 +67,16 @@ impl Item {
     matches!(self.kind, ItemKind::Begin | ItemKind::Match)
   }
 
+  pub fn offset(&self) -> Option<usize> {
+    match &self.rg_message {
+      RgMessage::End { binary_offset, .. } => *binary_offset,
+      RgMessage::Match {
+        absolute_offset, ..
+      } => Some(*absolute_offset),
+      _ => None,
+    }
+  }
+
   pub fn match_count(&self) -> usize {
     self
       .matches()

@@ -12,7 +12,7 @@ pub fn perform_replacements(items: Vec<Item>, replacement: impl AsRef<str>) -> R
     // The only item kind we replace is the Match kind.
     .filter(|item| matches!(item.kind, ItemKind::Match) && item.should_replace)
     // Perform the replacement on each match.
-    // TODO: handle non-UTF8 files
+    // TODO: handle files with non-UTF8 contents
     // TODO: better error handling and messaging to the user when any of this fails
     .for_each(|item| {
       let file_path = item.path();

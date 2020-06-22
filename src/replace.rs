@@ -11,6 +11,8 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
     criteria
       .items
       .iter()
+      // Iterate backwards so the offset doesn't change as we make replacements.
+      .rev()
       // The only item kind we replace is the Match kind.
       .filter(|item| matches!(item.kind, ItemKind::Match) && item.should_replace)
       // Perform the replacement on each match.
@@ -32,6 +34,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
         let mut replaced_matches = vec![];
         if let Some(submatches) = item.matches() {
           let offset = item.offset().unwrap_or(0);
+          // Iterate backwards so the offset doesn't change as we make replacements.
           for submatch in submatches.iter().rev() {
             let range = (offset + submatch.range.start)..(offset + submatch.range.end);
             file_contents.replace_range(range, &criteria.text);
@@ -99,10 +102,10 @@ mod tests {
       Item::new(temp_rg_msg(&f3, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]).build()),
     ];
 
-    perform_replacements(ReplacementCriteria::new("ZAP", items)).unwrap();
-    assert_eq!(fs::read_to_string(f1.path()).unwrap(), "ZAP bar baz");
-    assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz ZAP bar");
-    assert_eq!(fs::read_to_string(f3.path()).unwrap(), "bar baz ZAP");
+    perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
+    assert_eq!(fs::read_to_string(f1.path()).unwrap(), "NEW_VALUE bar baz");
+    assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz NEW_VALUE bar");
+    assert_eq!(fs::read_to_string(f3.path()).unwrap(), "bar baz NEW_VALUE");
   }
 
   #[test]
@@ -121,9 +124,9 @@ mod tests {
     items[1].should_replace = true;
     items[2].should_replace = false;
 
-    perform_replacements(ReplacementCriteria::new("ZAP", items)).unwrap();
+    perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
     assert_eq!(fs::read_to_string(f1.path()).unwrap(), "foo bar baz");
-    assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz ZAP bar");
+    assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz NEW_VALUE bar");
     assert_eq!(fs::read_to_string(f3.path()).unwrap(), "bar baz foo");
   }
 
@@ -143,8 +146,11 @@ mod tests {
       .build(),
     );
 
-    perform_replacements(ReplacementCriteria::new("ZAP", vec![item])).unwrap();
-    assert_eq!(fs::read_to_string(f.path()).unwrap(), "ZAP ZAP ZAP");
+    perform_replacements(ReplacementCriteria::new("NEW_VALUE", vec![item])).unwrap();
+    assert_eq!(
+      fs::read_to_string(f.path()).unwrap(),
+      "NEW_VALUE NEW_VALUE NEW_VALUE"
+    );
   }
 
   #[test]
@@ -182,10 +188,10 @@ mod tests {
       ),
     ];
 
-    perform_replacements(ReplacementCriteria::new("ZAP", items)).unwrap();
+    perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
     assert_eq!(
       fs::read_to_string(f.path()).unwrap(),
-      "ZAP bar baz\n...\nbaz ZAP bar\n...\nbar baz ZAP"
+      "NEW_VALUE bar baz\n...\nbaz NEW_VALUE bar\n...\nbar baz NEW_VALUE"
     );
   }
 

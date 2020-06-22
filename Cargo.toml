@@ -1,6 +1,8 @@
 [package]
 name = "repgrep"
 description = "An interactive command line replacer for `ripgrep`."
+homepage = "https://github.com/acheronfail/repgrep"
+repository = "https://github.com/acheronfail/repgrep"
 keywords = ["regex", "grep", "egrep", "replace", "find", "pattern", "ripgrep"]
 categories = ["command-line-utilities", "text-processing"]
 license = "Unlicense OR MIT OR Apache2"

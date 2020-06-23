@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 use std::path::{Path, PathBuf};
 
@@ -17,54 +18,10 @@ impl ReplacementCriteria {
 }
 
 #[derive(Debug)]
-pub struct Replacement {
-  path: PathBuf,
-  matches: Vec<String>,
-  detected_encoding: String,
-}
-
-impl Replacement {
-  pub fn new<P, S>(path: P, matches: &[S], detected_encoding: S) -> Replacement
-  where
-    P: AsRef<Path>,
-    S: AsRef<str>,
-  {
-    let path = path.as_ref().to_owned();
-    let matches = matches.iter().map(|s| s.as_ref().to_owned()).collect();
-    let detected_encoding = detected_encoding.as_ref().to_owned();
-    Replacement {
-      path,
-      matches,
-      detected_encoding,
-    }
-  }
-}
-
-impl Display for Replacement {
-  fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-    writeln!(
-      f,
-      "file: {} <{}>",
-      self.path.display(),
-      self.detected_encoding
-    )?;
-
-    if !self.matches.is_empty() {
-      for m in &self.matches {
-        writeln!(f, "  replaced {}", m)?;
-      }
-    } else {
-      writeln!(f, "  no matches")?;
-    }
-
-    Ok(())
-  }
-}
-
-#[derive(Debug)]
 pub struct ReplacementResult {
   pub text: String,
-  pub replacements: Vec<Replacement>,
+  /// Map of (Path, DetectedEncoding) -> [List, Of, Matches, Replaced]
+  pub replacements: HashMap<(PathBuf, String), Vec<String>>,
 }
 
 impl ReplacementResult {
@@ -72,7 +29,7 @@ impl ReplacementResult {
     let text = text.as_ref().to_owned();
     ReplacementResult {
       text,
-      replacements: vec![],
+      replacements: HashMap::new(),
     }
   }
 
@@ -81,20 +38,32 @@ impl ReplacementResult {
     P: AsRef<Path>,
     S: AsRef<str>,
   {
+    let path = path.as_ref().to_owned();
+    let detected_encoding = detected_encoding.as_ref().to_owned();
+    let mut matches = matches.iter().map(|s| s.as_ref().to_owned()).collect();
     self
       .replacements
-      .push(Replacement::new(path, matches, detected_encoding));
+      .entry((path, detected_encoding))
+      .and_modify(|v| v.append(&mut matches))
+      .or_insert_with(|| vec![]);
   }
 }
 
 impl Display for ReplacementResult {
   fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-    for replacement in &self.replacements {
-      writeln!(f, "{}", replacement)?;
+    let mut total_replacements = 0;
+    for ((path, encoding), replacements) in &self.replacements {
+      if !replacements.is_empty() {
+        writeln!(f, "file: {} <{}>", path.display(), encoding)?;
+        for r in replacements {
+          writeln!(f, "  replaced: {}", r)?;
+          total_replacements += 1;
+        }
+      }
     }
 
     writeln!(f, "Replacement text: {}", self.text)?;
-    writeln!(f, "Total matches replaced: {}", self.replacements.len())?;
+    writeln!(f, "Total matches replaced: {}", total_replacements)?;
 
     Ok(())
   }

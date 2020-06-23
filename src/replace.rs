@@ -91,13 +91,14 @@ mod tests {
 
   #[test]
   fn it_performs_replacements_only_on_match_items() {
-    let build_item = |kind, mut f: &NamedTempFile, lines: &str, submatch: &SubMatch| {
-      f.write_all(lines.as_bytes()).unwrap();
+    let text = "foo bar baz";
+    let build_item = |kind, mut f: &NamedTempFile| {
+      f.write_all(text.as_bytes()).unwrap();
       Item::new(
         RgMessageBuilder::new(kind)
           .with_path_text(f.path().to_string_lossy())
-          .with_lines_text(lines)
-          .with_submatches(vec![submatch.clone()])
+          .with_lines_text(text)
+          .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
           .with_stats(Stats::new())
           .with_elapsed_total(Duration::new())
           .with_offset(0)
@@ -111,14 +112,12 @@ mod tests {
     let f4 = NamedTempFile::new().unwrap();
     let f5 = NamedTempFile::new().unwrap();
 
-    let text = "foo bar baz";
-    let submatch = SubMatch::new_text("foo", 0..3);
     let items = vec![
-      build_item(RgMessageKind::Begin, &f1, text, &submatch),
-      build_item(RgMessageKind::Context, &f2, text, &submatch),
-      build_item(RgMessageKind::Match, &f3, text, &submatch),
-      build_item(RgMessageKind::End, &f4, text, &submatch),
-      build_item(RgMessageKind::Summary, &f5, text, &submatch),
+      build_item(RgMessageKind::Begin, &f1),
+      build_item(RgMessageKind::Context, &f2),
+      build_item(RgMessageKind::Match, &f3),
+      build_item(RgMessageKind::End, &f4),
+      build_item(RgMessageKind::Summary, &f5),
     ];
 
     let result = perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();

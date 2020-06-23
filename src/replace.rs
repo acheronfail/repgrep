@@ -77,16 +77,20 @@ mod tests {
 
   fn temp_rg_msg(
     mut f: &NamedTempFile,
+    offset: usize,
     lines: impl AsRef<str>,
     submatches: Vec<SubMatch>,
-  ) -> RgMessageBuilder {
+  ) -> Item {
     f.write_all(lines.as_ref().as_bytes()).unwrap();
 
-    RgMessageBuilder::new(RgMessageKind::Match)
-      .with_path_text(f.path().to_string_lossy().to_string())
-      .with_lines_text(lines.as_ref().to_string())
-      .with_submatches(submatches)
-      .with_offset(0) // TODO: do not assume 0 since this limits this function to single-line files
+    Item::new(
+      RgMessageBuilder::new(RgMessageKind::Match)
+        .with_path_text(f.path().to_string_lossy().to_string())
+        .with_lines_text(lines.as_ref().to_string())
+        .with_submatches(submatches)
+        .with_offset(offset)
+        .build(),
+    )
   }
 
   #[test]
@@ -137,9 +141,14 @@ mod tests {
     let f3 = NamedTempFile::new().unwrap();
 
     let items = vec![
-      Item::new(temp_rg_msg(&f1, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]).build()),
-      Item::new(temp_rg_msg(&f2, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]).build()),
-      Item::new(temp_rg_msg(&f3, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]).build()),
+      temp_rg_msg(&f1, 0, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]),
+      temp_rg_msg(&f2, 0, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]),
+      temp_rg_msg(
+        &f3,
+        0,
+        "bar baz foo",
+        vec![SubMatch::new_text("foo", 8..11)],
+      ),
     ];
 
     perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
@@ -155,9 +164,14 @@ mod tests {
     let f3 = NamedTempFile::new().unwrap();
 
     let mut items = vec![
-      Item::new(temp_rg_msg(&f1, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]).build()),
-      Item::new(temp_rg_msg(&f2, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]).build()),
-      Item::new(temp_rg_msg(&f3, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]).build()),
+      temp_rg_msg(&f1, 0, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]),
+      temp_rg_msg(&f2, 0, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]),
+      temp_rg_msg(
+        &f3,
+        0,
+        "bar baz foo",
+        vec![SubMatch::new_text("foo", 8..11)],
+      ),
     ];
 
     items[0].should_replace = false;
@@ -173,17 +187,15 @@ mod tests {
   #[test]
   fn it_performs_multiple_replacements_one_file() {
     let f = NamedTempFile::new().unwrap();
-    let item = Item::new(
-      temp_rg_msg(
-        &f,
-        "foo bar baz",
-        vec![
-          SubMatch::new_text("foo", 0..3),
-          SubMatch::new_text("bar", 4..7),
-          SubMatch::new_text("baz", 8..11),
-        ],
-      )
-      .build(),
+    let item = temp_rg_msg(
+      &f,
+      0,
+      "foo bar baz",
+      vec![
+        SubMatch::new_text("foo", 0..3),
+        SubMatch::new_text("bar", 4..7),
+        SubMatch::new_text("baz", 8..11),
+      ],
     );
 
     perform_replacements(ReplacementCriteria::new("NEW_VALUE", vec![item])).unwrap();

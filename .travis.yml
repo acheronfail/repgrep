@@ -63,8 +63,8 @@ before_deploy:
 _deploy_on: &deploy_on
   # deploy only if we push a tag
   tags: true
-  # deploy only on stable channel that has TARGET env variable sets
-  condition: $TRAVIS_RUST_VERSION = stable && $TARGET != ""
+  # deploy only on stable channel and only with TARGET=x86_64-unknown-linux-gnu
+  condition: $TRAVIS_RUST_VERSION = stable && $TARGET == "x86_64-unknown-linux-gnu"
 
 deploy:
   # Deploy to crates.

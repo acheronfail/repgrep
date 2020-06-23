@@ -41,11 +41,12 @@ impl ReplacementResult {
     let path = path.as_ref().to_owned();
     let detected_encoding = detected_encoding.as_ref().to_owned();
     let mut matches = matches.iter().map(|s| s.as_ref().to_owned()).collect();
+
     self
       .replacements
       .entry((path, detected_encoding))
-      .and_modify(|v| v.append(&mut matches))
-      .or_insert_with(|| vec![]);
+      .and_modify(|v| (*v).append(&mut matches))
+      .or_insert_with(|| matches);
   }
 }
 

@@ -48,8 +48,9 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
         };
 
         // Replace matches within the file contents with the given `replacement` string.
-        let replaced_matches = match item.matches() {
-          Some(submatches) => {
+        let replaced_matches = item.matches().map_or_else(
+          || vec![],
+          |submatches| {
             let mut offset = item.offset().unwrap_or(0);
 
             // Increase offset to take into account the BOM if it exists.
@@ -62,33 +63,35 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
             }
 
             // Iterate backwards so the offset doesn't change as we make replacements.
-            submatches.iter().rev().fold(vec![], |mut acc, submatch| {
-              let SubMatch { text, range } = submatch;
-              let removed_bytes = file_contents
-                .splice(
-                  (offset + range.start)..(offset + range.end),
-                  replacement.clone(),
-                )
-                .collect::<Vec<_>>();
+            submatches
+              .iter()
+              .rev()
+              .map(|submatch| {
+                let SubMatch { text, range } = submatch;
+                let removed_bytes = file_contents
+                  .splice(
+                    (offset + range.start)..(offset + range.end),
+                    replacement.clone(),
+                  )
+                  .collect::<Vec<_>>();
 
-              // Assert that the portion we replaced matches the matched portion.
-              let matched_bytes =
-                encoder.map_or_else(|| text.to_vec(), |e| text.to_vec_with_encoding(e));
+                // Assert that the portion we replaced matches the matched portion.
+                let matched_bytes =
+                  encoder.map_or_else(|| text.to_vec(), |e| text.to_vec_with_encoding(e));
 
-              assert_eq!(
-                &matched_bytes,
-                &removed_bytes,
-                "Matched bytes do not match bytes to replace in {}@{}!",
-                file_path.display(),
-                offset + range.start,
-              );
+                assert_eq!(
+                  &matched_bytes,
+                  &removed_bytes,
+                  "Matched bytes do not match bytes to replace in {}@{}!",
+                  file_path.display(),
+                  offset + range.start,
+                );
 
-              acc.push(text.lossy_utf8());
-              acc
-            })
-          }
-          None => vec![],
-        };
+                text.lossy_utf8()
+              })
+              .collect()
+          },
+        );
 
         // Write modified string into a temporary file.
         let temp_file_path = &file_path.with_extension("rgr");

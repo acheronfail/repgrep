@@ -16,7 +16,7 @@ The arguments are:
 rgr <rg arguments> # See `rgr --help` for more details
 ```
 
-![demo using rgr](./doc/demo.mp4)
+![demo using rgr](./doc/demo.gif)
 
 ## Installation
 

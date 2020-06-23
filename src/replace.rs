@@ -2,8 +2,14 @@ use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 
 use anyhow::Result;
+use chardet::charset2encoding;
+use encoding::label::encoding_from_whatwg_label;
+use encoding::EncoderTrap;
 
 use crate::model::{ItemKind, ReplacementCriteria, ReplacementResult};
+
+const BOM_LE: [u8; 2] = [0xFF, 0xFE];
+const BOM_BE: [u8; 2] = [0xFE, 0xFF];
 
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<ReplacementResult> {
   Ok(
@@ -15,31 +21,69 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
       // The only item kind we replace is the Match kind.
       .filter(|item| matches!(item.kind, ItemKind::Match) && item.should_replace)
       // Perform the replacement on each match.
-      // TODO: handle files with non-UTF8 contents (remove all `lossy_utf8`)
       // TODO: better error handling and messaging to the user when any of this fails
       .fold(ReplacementResult::new(&criteria.text), |mut res, item| {
         let file_path = item.path();
 
-        // Read file to string.
-        let mut file_contents = String::new();
+        // TODO: don't read file completely into memory, but use a buffered approach instead
+        let mut file_contents = vec![];
         OpenOptions::new()
           .read(true)
           .open(&file_path)
           .unwrap()
-          .read_to_string(&mut file_contents)
+          .read_to_end(&mut file_contents)
           .unwrap();
 
+        // Guess the file's encoding. We only use the encoding if the confidence is greater than 80%.
+        // TODO: read `rg`'s command line and check if encoding was passed
+        let (encoding, confidence, _) = chardet::detect(&file_contents);
+        let (encoder, replacement) = if confidence > 0.80 {
+          let encoder = encoding_from_whatwg_label(charset2encoding(&encoding)).unwrap();
+          let encoded_replacement = encoder.encode(&criteria.text, EncoderTrap::Ignore).unwrap();
+          (Some(encoder), encoded_replacement)
+        } else {
+          (None, criteria.text.as_bytes().to_vec())
+        };
+
         // Replace matches within the file contents with the given `replacement` string.
-        let mut replaced_matches = vec![];
-        if let Some(submatches) = item.matches() {
-          let offset = item.offset().unwrap_or(0);
-          // Iterate backwards so the offset doesn't change as we make replacements.
-          for submatch in submatches.iter().rev() {
-            let range = (offset + submatch.range.start)..(offset + submatch.range.end);
-            file_contents.replace_range(range, &criteria.text);
-            replaced_matches.push(submatch.text.lossy_utf8());
+        let replaced_matches = match item.matches() {
+          Some(submatches) => {
+            let mut offset = item.offset().unwrap_or(0);
+
+            // Increase offset to take into account the BOM if it exists.
+            if (encoding == "UTF-16LE" && file_contents[0..2] == BOM_LE)
+              || (encoding == "UTF-16BE" && file_contents[0..2] == BOM_BE)
+            {
+              offset += 2;
+            }
+
+            // Iterate backwards so the offset doesn't change as we make replacements.
+            submatches.iter().rev().fold(vec![], |mut acc, submatch| {
+              let range = (offset + submatch.range.start)..(offset + submatch.range.end);
+              let removed_bytes = file_contents
+                .splice(range, replacement.clone())
+                .collect::<Vec<_>>();
+
+              // Assert that the portion we replaced matches the matched portion.
+              let matched_bytes = encoder.map_or_else(
+                || submatch.text.to_vec(),
+                |e| submatch.text.to_vec_with_encoding(e),
+              );
+
+              assert_eq!(
+                &matched_bytes,
+                &removed_bytes,
+                "Matched bytes do not match bytes to replace in {}@{}!",
+                file_path.display(),
+                offset + submatch.range.start
+              );
+
+              acc.push(submatch.text.lossy_utf8());
+              acc
+            })
           }
-        }
+          None => vec![],
+        };
 
         // Write modified string into a temporary file.
         let temp_file_path = &file_path.with_extension("rgr");
@@ -49,13 +93,20 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
           .truncate(true)
           .open(&temp_file_path)
           .unwrap()
-          .write_all(file_contents.as_bytes())
+          .write_all(&file_contents)
           .unwrap();
 
         // Overwrite the original file with the patched temp file.
         fs::rename(temp_file_path, &file_path).unwrap();
 
-        res.add_replacement(&file_path, &replaced_matches);
+        res.add_replacement(
+          &file_path,
+          &replaced_matches,
+          match encoder {
+            Some(_) => encoding,
+            None => "utf-8".to_owned(),
+          },
+        );
         res
       }),
   )
@@ -63,8 +114,8 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
 
 #[cfg(test)]
 mod tests {
-  use std::fs;
-  use std::io::Write;
+  use std::fs::{self, OpenOptions};
+  use std::io::{Read, Write};
   use std::path::PathBuf;
 
   use pretty_assertions::assert_eq;
@@ -225,7 +276,7 @@ mod tests {
       Item::new(
         RgMessageBuilder::new(RgMessageKind::Match)
           .with_path_text(&path_string)
-          .with_submatches(vec![SubMatch::new_text("bar", 4..7)])
+          .with_submatches(vec![SubMatch::new_text("foo", 4..7)])
           .with_lines_text("baz foo bar\n")
           .with_offset(16)
           .build(),
@@ -233,7 +284,7 @@ mod tests {
       Item::new(
         RgMessageBuilder::new(RgMessageKind::Match)
           .with_path_text(&path_string)
-          .with_submatches(vec![SubMatch::new_text("baz", 8..11)])
+          .with_submatches(vec![SubMatch::new_text("foo", 8..11)])
           .with_lines_text("bar baz foo")
           .with_offset(32)
           .build(),
@@ -273,11 +324,59 @@ mod tests {
         .build(),
     );
 
-    println!("{:#?}", &d);
-    println!("{:#?}", &item);
-    println!("{}", fs::read_to_string(&p).unwrap());
-
     perform_replacements(ReplacementCriteria::new(" on", vec![item])).unwrap();
     assert_eq!(fs::read_to_string(p).unwrap(), "hell on earth");
   }
+
+  // Encodings
+
+  macro_rules! test_encoding_simple {
+    ($name:ident, $src_bytes:expr, $range:expr, $dst_bytes:expr) => {
+      #[test]
+      fn $name() {
+        // Write bytes to temp file.
+        let mut f = NamedTempFile::new().unwrap();
+        f.write_all($src_bytes).unwrap();
+
+        // Build item match.
+        let item = Item::new(
+          RgMessageBuilder::new(RgMessageKind::Match)
+            .with_path_text(f.path().to_string_lossy())
+            .with_lines_text("Ж")
+            .with_submatches(vec![SubMatch::new_text("Ж", $range)])
+            .with_offset(0)
+            .build(),
+        );
+
+        // Replace match in file.
+        perform_replacements(ReplacementCriteria::new("foo", vec![item])).unwrap();
+
+        // Read file bytes.
+        let mut file_bytes = vec![];
+        OpenOptions::new()
+          .read(true)
+          .open(f.path())
+          .unwrap()
+          .read_to_end(&mut file_bytes)
+          .unwrap();
+
+        // Check real bytes are the same as expected bytes.
+        assert_eq!(file_bytes, $dst_bytes);
+      }
+    };
+  }
+
+  test_encoding_simple!(encodings_simple_utf8, b"\xD0\x96", 0..2, b"\x66\x6F\x6F");
+  test_encoding_simple!(
+    encodings_simple_utf16le,
+    b"\xFF\xFE\x16\x04",
+    0..2,
+    b"\xFF\xFE\x66\x00\x6F\x00\x6F\x00"
+  );
+  test_encoding_simple!(
+    encodings_simple_utf16be,
+    b"\xFE\xFF\x04\x16",
+    0..2,
+    b"\xFE\xFF\x00\x66\x00\x6F\x00\x6F"
+  );
 }

@@ -2,6 +2,10 @@ use clap::AppSettings::{AllowLeadingHyphen, ColoredHelp, TrailingVarArg};
 use clap::Clap;
 use clap::{crate_authors, crate_version};
 
+// TODO: configure:
+//  replace: confidence level of character encoding detection
+//  replace: disable strict byte assertions
+
 #[derive(Clap, Debug)]
 #[clap(
   version = crate_version!(),

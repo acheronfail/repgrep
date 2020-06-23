@@ -29,14 +29,14 @@ fn main() {
             match result {
                 Ok(Some(replacement_criteria)) => {
                     match replace::perform_replacements(replacement_criteria) {
-                        Ok(results) => println!("{}", results),
+                        Ok(results) => eprintln!("{}", results),
                         Err(err) => {
                             eprintln!("An error occurred during replacement: {}", err);
                             process::exit(1);
                         }
                     }
                 }
-                Ok(None) => println!("Cancelled"),
+                Ok(None) => eprintln!("Cancelled"),
                 Err(err) => {
                     eprintln!("An app error occurred: {}", err);
                     process::exit(1);

@@ -20,13 +20,44 @@ impl ReplacementCriteria {
 pub struct Replacement {
   path: PathBuf,
   matches: Vec<String>,
+  detected_encoding: String,
 }
 
 impl Replacement {
-  pub fn new(path: impl AsRef<Path>, matches: &[impl AsRef<str>]) -> Replacement {
+  pub fn new<P, S>(path: P, matches: &[S], detected_encoding: S) -> Replacement
+  where
+    P: AsRef<Path>,
+    S: AsRef<str>,
+  {
     let path = path.as_ref().to_owned();
     let matches = matches.iter().map(|s| s.as_ref().to_owned()).collect();
-    Replacement { path, matches }
+    let detected_encoding = detected_encoding.as_ref().to_owned();
+    Replacement {
+      path,
+      matches,
+      detected_encoding,
+    }
+  }
+}
+
+impl Display for Replacement {
+  fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    writeln!(
+      f,
+      "file: {} <{}>",
+      self.path.display(),
+      self.detected_encoding
+    )?;
+
+    if !self.matches.is_empty() {
+      for m in &self.matches {
+        writeln!(f, "  replaced {}", m)?;
+      }
+    } else {
+      writeln!(f, "  no matches")?;
+    }
+
+    Ok(())
   }
 }
 
@@ -45,24 +76,25 @@ impl ReplacementResult {
     }
   }
 
-  pub fn add_replacement(&mut self, path: impl AsRef<Path>, matches: &[impl AsRef<str>]) {
-    self.replacements.push(Replacement::new(path, matches));
+  pub fn add_replacement<P, S>(&mut self, path: P, matches: &[S], detected_encoding: S)
+  where
+    P: AsRef<Path>,
+    S: AsRef<str>,
+  {
+    self
+      .replacements
+      .push(Replacement::new(path, matches, detected_encoding));
   }
 }
 
 impl Display for ReplacementResult {
   fn fmt(&self, f: &mut Formatter) -> fmt::Result {
     for replacement in &self.replacements {
-      if !replacement.matches.is_empty() {
-        write!(f, "file: {}", replacement.path.display())?;
-        for m in &replacement.matches {
-          write!(f, "  replaced {}", m)?;
-        }
-      }
+      writeln!(f, "{}", replacement)?;
     }
 
-    write!(f, "Replacement text: {}", self.text)?;
-    write!(f, "Total matches replaced: {}", self.replacements.len())?;
+    writeln!(f, "Replacement text: {}", self.text)?;
+    writeln!(f, "Total matches replaced: {}", self.replacements.len())?;
 
     Ok(())
   }

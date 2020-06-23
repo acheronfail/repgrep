@@ -3,6 +3,7 @@
 
 use std::ops::Range;
 
+use encoding::{EncoderTrap, EncodingRef};
 use serde::{Deserialize, Serialize};
 
 /// A struct used to deserialise JSON values produced by `ripgrep`.
@@ -50,6 +51,20 @@ pub enum ArbitraryData {
 }
 
 impl ArbitraryData {
+  pub fn to_vec(&self) -> Vec<u8> {
+    match self {
+      ArbitraryData::Text { text } => text.as_bytes().to_vec(),
+      ArbitraryData::Base64 { bytes } => base64::decode(bytes).unwrap(),
+    }
+  }
+
+  pub fn to_vec_with_encoding(&self, encoding: EncodingRef) -> Vec<u8> {
+    match self {
+      ArbitraryData::Text { text } => encoding.encode(text, EncoderTrap::Strict).unwrap(),
+      ArbitraryData::Base64 { bytes } => base64::decode(bytes).unwrap(),
+    }
+  }
+
   pub fn lossy_utf8(&self) -> String {
     match self {
       ArbitraryData::Text { text } => text.to_owned(),

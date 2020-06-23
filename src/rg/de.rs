@@ -251,6 +251,30 @@ pub mod test_utilities {
     }
   }
 
+  impl Duration {
+    pub fn new() -> Duration {
+      Duration {
+        human: String::from("0"),
+        nanos: 0,
+        secs: 0,
+      }
+    }
+  }
+
+  impl Stats {
+    pub fn new() -> Stats {
+      Stats {
+        bytes_printed: 0,
+        bytes_searched: 0,
+        matched_lines: 0,
+        matches: 0,
+        searches: 0,
+        searches_with_match: 0,
+        elapsed: Duration::new(),
+      }
+    }
+  }
+
   /// A helper to easily select the `RgMessage` kind.
   pub enum RgMessageKind {
     Begin,

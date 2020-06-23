@@ -5,7 +5,6 @@ use anyhow::Result;
 
 use crate::model::{ItemKind, ReplacementCriteria, ReplacementResult};
 
-// TODO: extensively test this function!
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<ReplacementResult> {
   Ok(
     criteria
@@ -74,7 +73,7 @@ mod tests {
   use crate::model::*;
   use crate::replace::perform_replacements;
   use crate::rg::de::test_utilities::{RgMessageBuilder, RgMessageKind};
-  use crate::rg::de::SubMatch;
+  use crate::rg::de::{Duration, Stats, SubMatch};
 
   fn temp_rg_msg(
     mut f: &NamedTempFile,
@@ -88,6 +87,48 @@ mod tests {
       .with_lines_text(lines.as_ref().to_string())
       .with_submatches(submatches)
       .with_offset(0) // TODO: do not assume 0 since this limits this function to single-line files
+  }
+
+  #[test]
+  fn it_performs_replacements_only_on_match_items() {
+    let build_item = |kind, mut f: &NamedTempFile, lines: &str, submatch: &SubMatch| {
+      f.write_all(lines.as_bytes()).unwrap();
+      Item::new(
+        RgMessageBuilder::new(kind)
+          .with_path_text(f.path().to_string_lossy())
+          .with_lines_text(lines)
+          .with_submatches(vec![submatch.clone()])
+          .with_stats(Stats::new())
+          .with_elapsed_total(Duration::new())
+          .with_offset(0)
+          .build(),
+      )
+    };
+
+    let f1 = NamedTempFile::new().unwrap();
+    let f2 = NamedTempFile::new().unwrap();
+    let f3 = NamedTempFile::new().unwrap();
+    let f4 = NamedTempFile::new().unwrap();
+    let f5 = NamedTempFile::new().unwrap();
+
+    let text = "foo bar baz";
+    let submatch = SubMatch::new_text("foo", 0..3);
+    let items = vec![
+      build_item(RgMessageKind::Begin, &f1, text, &submatch),
+      build_item(RgMessageKind::Context, &f2, text, &submatch),
+      build_item(RgMessageKind::Match, &f3, text, &submatch),
+      build_item(RgMessageKind::End, &f4, text, &submatch),
+      build_item(RgMessageKind::Summary, &f5, text, &submatch),
+    ];
+
+    let result = perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
+    assert_eq!(result.replacements.len(), 1);
+
+    assert_eq!(fs::read_to_string(f1.path()).unwrap(), text);
+    assert_eq!(fs::read_to_string(f2.path()).unwrap(), text);
+    assert_eq!(fs::read_to_string(f3.path()).unwrap(), "NEW_VALUE bar baz");
+    assert_eq!(fs::read_to_string(f4.path()).unwrap(), text);
+    assert_eq!(fs::read_to_string(f5.path()).unwrap(), text);
   }
 
   #[test]
@@ -160,11 +201,11 @@ mod tests {
     f.write_all(b"foo bar baz\n...\nbaz foo bar\n...\nbar baz foo")
       .unwrap();
 
-    let path_string = f.path().to_string_lossy().to_string();
+    let path_string = f.path().to_string_lossy();
     let items = vec![
       Item::new(
         RgMessageBuilder::new(RgMessageKind::Match)
-          .with_path_text(path_string.clone())
+          .with_path_text(&path_string)
           .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
           .with_lines_text("foo bar baz\n")
           .with_offset(0)
@@ -172,7 +213,7 @@ mod tests {
       ),
       Item::new(
         RgMessageBuilder::new(RgMessageKind::Match)
-          .with_path_text(path_string.clone())
+          .with_path_text(&path_string)
           .with_submatches(vec![SubMatch::new_text("bar", 4..7)])
           .with_lines_text("baz foo bar\n")
           .with_offset(16)
@@ -180,7 +221,7 @@ mod tests {
       ),
       Item::new(
         RgMessageBuilder::new(RgMessageKind::Match)
-          .with_path_text(path_string)
+          .with_path_text(&path_string)
           .with_submatches(vec![SubMatch::new_text("baz", 8..11)])
           .with_lines_text("bar baz foo")
           .with_offset(32)

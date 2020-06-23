@@ -32,8 +32,8 @@ impl Replacement {
 
 #[derive(Debug)]
 pub struct ReplacementResult {
-  text: String,
-  replacements: Vec<Replacement>,
+  pub text: String,
+  pub replacements: Vec<Replacement>,
 }
 
 impl ReplacementResult {

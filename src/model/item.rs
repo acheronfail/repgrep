@@ -157,6 +157,12 @@ impl Item {
         // and add the replacement after.
         if self.should_replace {
           if let Some(replacement) = replacement {
+            let replacement = if replacement.is_empty() {
+              "<empty>"
+            } else {
+              replacement
+            };
+
             for submatch in submatches.iter().rev() {
               text.replace_range(submatch.range.clone(), replacement);
             }

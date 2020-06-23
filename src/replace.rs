@@ -7,9 +7,11 @@ use encoding::label::encoding_from_whatwg_label;
 use encoding::EncoderTrap;
 
 use crate::model::{ItemKind, ReplacementCriteria, ReplacementResult};
+use crate::rg::de::SubMatch;
 
-const BOM_LE: [u8; 2] = [0xFF, 0xFE];
-const BOM_BE: [u8; 2] = [0xFE, 0xFF];
+const BOM_UTF8: [u8; 3] = [0xEF, 0xBB, 0xBF];
+const BOM_UTF16LE: [u8; 2] = [0xFF, 0xFE];
+const BOM_UTF16BE: [u8; 2] = [0xFE, 0xFF];
 
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<ReplacementResult> {
   Ok(
@@ -51,34 +53,37 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
             let mut offset = item.offset().unwrap_or(0);
 
             // Increase offset to take into account the BOM if it exists.
-            if (encoding == "UTF-16LE" && file_contents[0..2] == BOM_LE)
-              || (encoding == "UTF-16BE" && file_contents[0..2] == BOM_BE)
+            if (encoding == "UTF-16LE" && file_contents[0..2] == BOM_UTF16LE)
+              || (encoding == "UTF-16BE" && file_contents[0..2] == BOM_UTF16BE)
             {
               offset += 2;
+            } else if encoding == "UTF-8" && file_contents[0..3] == BOM_UTF8 {
+              offset += 3;
             }
 
             // Iterate backwards so the offset doesn't change as we make replacements.
             submatches.iter().rev().fold(vec![], |mut acc, submatch| {
-              let range = (offset + submatch.range.start)..(offset + submatch.range.end);
+              let SubMatch { text, range } = submatch;
               let removed_bytes = file_contents
-                .splice(range, replacement.clone())
+                .splice(
+                  (offset + range.start)..(offset + range.end),
+                  replacement.clone(),
+                )
                 .collect::<Vec<_>>();
 
               // Assert that the portion we replaced matches the matched portion.
-              let matched_bytes = encoder.map_or_else(
-                || submatch.text.to_vec(),
-                |e| submatch.text.to_vec_with_encoding(e),
-              );
+              let matched_bytes =
+                encoder.map_or_else(|| text.to_vec(), |e| text.to_vec_with_encoding(e));
 
               assert_eq!(
                 &matched_bytes,
                 &removed_bytes,
                 "Matched bytes do not match bytes to replace in {}@{}!",
                 file_path.display(),
-                offset + submatch.range.start
+                offset + range.start,
               );
 
-              acc.push(submatch.text.lossy_utf8());
+              acc.push(text.lossy_utf8());
               acc
             })
           }

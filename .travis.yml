@@ -60,12 +60,6 @@ script:
 before_deploy:
   - bash ci/before_deploy.sh
 
-_deploy_on: &deploy_on
-  # deploy only if we push a tag
-  tags: true
-  # deploy only on stable channel and only with TARGET=x86_64-unknown-linux-gnu
-  condition: $TRAVIS_RUST_VERSION = stable && $TARGET == "x86_64-unknown-linux-gnu"
-
 deploy:
   # Deploy to crates.
   - provider: cargo
@@ -76,7 +70,11 @@ deploy:
     # - paste the output below
     token:
       secure: QCxG9Dr+p4UVJSJBE6r+bzcD6871zFaOyrW3Gw57wYZ8Y0aBRcvslEGU94K8DTecATQEcXkCl5e2V+lSOeXpFbT403ZiE/JyUFuHJjd412AikGBzl/wCBDXKLLSRH/UjPPVmd2NK7Bit6LPkB9+/UNYgGl+jwdYLBWs1uJr2gevQL3d8ianXF8oRRRsuAMtJtuPBMISO2MVaUJouS/GJDN1LLwOfFY9mNLupIfK/3fAxnaltn9KxmPrtNiOnx/5WWCkHp6s0fAOYrYNQsNkY5gpl/MH0VARqEP/eB2b0KiY/hyF0oK6lYdhXoZ4nmpiF6t7HieCbO2p34nnxfJfA+Rjd802S4hozSMfF+ZBK3LtzjV9S6ZonExhjIPq9ocY2d8pGuAIKscg6SV1i8hVhJMOQ4FJ1wyF5U6gtHIPQBEhznYe7LR4kUIk+VaflRexHfx8yaZ9sjjPzSY/jd+wmsKCTbapirZVsnirlC+faUGqCDV7Jbnh4LH3Kwy28oj1oqnMxHcsfVVLwDB21xEAa/5t/5E2+E+IgoVsBke27Q3Vti+YlxTylJd+xcMWpHpXsrRE8M6/FznHCbLM/0I5j1IlNGgOLy7yf0gz4SBMoZb0OGCwOJayH9kv9yS6pwQk43ZMilsCtofLCc32AZNUUNBBxhAlyY4medNyQ3SZQyPA=
-    on: *deploy_on
+    on:
+      # deploy only if we push a tag
+      tags: true
+      # deploy only on stable channel and only with TARGET=x86_64-unknown-linux-gnu
+      condition: $TRAVIS_RUST_VERSION = stable && $TARGET == "x86_64-unknown-linux-gnu"
 
   # Deploy to GitHub releases.
   - provider: releases
@@ -98,7 +96,11 @@ deploy:
       - $PROJECT_NAME*.deb
     # don't delete artifacts from previous stage
     skip_cleanup: true
-    on: *deploy_on
+    on:
+      # deploy only if we push a tag
+      tags: true
+      # deploy only on stable channel and only with TARGET set
+      condition: $TRAVIS_RUST_VERSION = stable && $TARGET != ""
 
 notifications:
   email:

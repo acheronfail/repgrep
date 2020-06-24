@@ -72,6 +72,7 @@ impl Display for ReplacementResult {
       }
     }
 
+    writeln!(f)?;
     writeln!(f, "Replacement text: {}", self.text)?;
     writeln!(f, "Total matches replaced: {}", total_replacements)?;
 

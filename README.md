@@ -20,6 +20,9 @@ rgr <rg arguments> # See `rgr --help` for more details
 
 ## Installation
 
+First and foremost, make sure you've installed `ripgrep` (AKA: `rg`).
+To do so see the [`ripgrep` installation instructions].
+
 #### Precompiled binaries
 
 See the [releases] page for pre-compiled binaries.
@@ -44,3 +47,4 @@ cargo install --path .
 
 [`ripgrep`]: https://github.com/BurntSushi/ripgrep
 [releases]: https://github.com/acheronfail/repgrep/releases
+[`ripgrep` installation instructions]: https://github.com/BurntSushi/ripgrep/#installation

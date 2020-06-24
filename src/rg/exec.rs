@@ -13,11 +13,7 @@ pub fn run_ripgrep(args: &[String]) -> Result<VecDeque<RgMessage>> {
   }
 
   let to_string = |s| String::from_utf8(s).unwrap().trim().to_string();
-  let output = Command::new("rg")
-    .arg("--json")
-    .args(args)
-    .output()
-    .expect("failed to run `rg`! Please make sure it's installed and available in PATH");
+  let output = Command::new("rg").arg("--json").args(args).output()?;
 
   if !output.status.success() {
     let stderr = to_string(output.stderr);

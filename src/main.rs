@@ -49,7 +49,7 @@ fn main() {
             }
         }
         Err(e) => {
-            eprintln!("{}", e);
+            eprintln!("Failed to run `rg`! Please make sure it's installed and available in PATH.\nError was: {}", e);
             process::exit(1);
         }
     }

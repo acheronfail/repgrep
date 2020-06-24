@@ -1,6 +1,6 @@
 [package]
 name = "repgrep"
-version = "0.4.3"
+version = "0.4.4"
 description = "An interactive command line replacer for `ripgrep`."
 homepage = "https://github.com/acheronfail/repgrep"
 repository = "https://github.com/acheronfail/repgrep"

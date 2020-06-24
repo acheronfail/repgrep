@@ -124,11 +124,12 @@ impl Item {
   }
 
   pub fn to_text(&self, replacement: Option<&String>) -> Text {
-    // TODO: handle non-UTF-8 text
+    // TODO: handle multiline matches
     match &self.rg_message {
-      RgMessage::Begin { path, .. } => {
-        Text::styled(path.lossy_utf8(), Style::default().fg(Color::Magenta))
-      }
+      RgMessage::Begin { .. } => Text::styled(
+        format!("{}", self.path().display()),
+        Style::default().fg(Color::Magenta),
+      ),
       RgMessage::Context {
         lines, line_number, ..
       } => {

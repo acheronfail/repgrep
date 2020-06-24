@@ -3,21 +3,17 @@ use std::process::Command;
 
 use anyhow::{anyhow, Result};
 
-use crate::cli;
 use crate::rg::de::RgMessage;
 
-pub fn run_ripgrep(args: &cli::Args) -> Result<VecDeque<RgMessage>> {
-  if args.rg_args.is_empty() {
+pub fn run_ripgrep(args: &[String]) -> Result<VecDeque<RgMessage>> {
+  if args.is_empty() {
     return Err(anyhow!(
       "No arguments provided. Please pass arguments that will be forwarded to rg.\nSee rgr --help."
     ));
   }
 
   let to_string = |s| String::from_utf8(s).unwrap().trim().to_string();
-  let output = Command::new("rg")
-    .arg("--json")
-    .args(&args.rg_args)
-    .output()?;
+  let output = Command::new("rg").arg("--json").args(args).output()?;
 
   if !output.status.success() {
     let stderr = to_string(output.stderr);

@@ -13,7 +13,7 @@ use ui::tui::Tui;
 fn main() {
     let args = cli::parse_arguments();
 
-    match run_ripgrep(&args) {
+    match run_ripgrep(&args.rg_args) {
         Ok(rg_results) => {
             let result = Tui::new(&args, rg_results).start();
 

@@ -13,8 +13,8 @@ use tui::widgets::{Block, Borders, List, ListState, Paragraph, Row, Table, Text}
 use tui::Frame;
 
 use crate::cli::Args;
-use crate::model::{Item, ItemKind, Movement, ReplacementCriteria};
-use crate::rg::de::{RgMessage, Stats};
+use crate::model::{Item, Movement, ReplacementCriteria};
+use crate::rg::de::{RgMessage, RgMessageKind, Stats};
 use crate::util::clamp;
 pub use state::AppState;
 use state::AppUiState;
@@ -124,7 +124,7 @@ impl App {
       .list
       .iter()
       .filter_map(|i| {
-        if matches!(i.kind, ItemKind::Match) && i.should_replace {
+        if matches!(i.kind, RgMessageKind::Match) && i.should_replace {
           Some(i.match_count())
         } else {
           None
@@ -232,7 +232,11 @@ impl App {
   fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
     let replacement = match &self.ui_state {
       AppUiState::InputReplacement(replacement) | AppUiState::ConfirmReplacement(replacement) => {
-        Some(replacement)
+        Some(if replacement.is_empty() {
+          "<empty>"
+        } else {
+          replacement
+        })
       }
       _ => None,
     };
@@ -240,13 +244,13 @@ impl App {
     let match_items = self.list.iter().map(|item| item.to_text(replacement));
 
     let curr_item = &self.list[self.curr_pos()];
-    let highlight_style = Style::default().fg(if matches!(curr_item.kind, ItemKind::Match) {
+    let highlight_style = Style::default().fg(if matches!(curr_item.kind, RgMessageKind::Match) {
       if curr_item.should_replace {
         Color::Yellow
       } else {
         Color::Red
       }
-    } else if matches!(curr_item.kind, ItemKind::Begin) {
+    } else if matches!(curr_item.kind, RgMessageKind::Begin) {
       Color::Yellow
     } else {
       Color::DarkGray
@@ -391,8 +395,8 @@ impl App {
       .skip(skip)
       .find_map(|(i, item)| {
         let is_valid_next = match direction {
-          Movement::PrevFile => i < current && matches!(item.kind, ItemKind::Begin),
-          Movement::NextFile => i > current && matches!(item.kind, ItemKind::Begin),
+          Movement::PrevFile => i < current && matches!(item.kind, RgMessageKind::Begin),
+          Movement::NextFile => i > current && matches!(item.kind, RgMessageKind::Begin),
           Movement::Prev | Movement::Backward(_) => i < current,
           Movement::Next | Movement::Forward(_) => i > current,
         };
@@ -414,19 +418,19 @@ impl App {
     let curr_pos = self.curr_pos();
 
     // If Match item, toggle replace.
-    if matches!(self.list[curr_pos].kind, ItemKind::Match) {
+    if matches!(self.list[curr_pos].kind, RgMessageKind::Match) {
       let selected_item = &mut self.list[curr_pos];
       selected_item.should_replace = !selected_item.should_replace;
     }
 
     // If Begin item, toggle all matches in it.
-    if matches!(self.list[curr_pos].kind, ItemKind::Begin) {
+    if matches!(self.list[curr_pos].kind, RgMessageKind::Begin) {
       let mut items_to_toggle: Vec<_> = self
         .list
         .iter_mut()
         .skip(curr_pos)
-        .take_while(|i| i.kind != ItemKind::End)
-        .filter(|i| i.kind == ItemKind::Match)
+        .take_while(|i| i.kind != RgMessageKind::End)
+        .filter(|i| i.kind == RgMessageKind::Match)
         .collect();
 
       let should_replace = items_to_toggle.iter().all(|i| !i.should_replace);

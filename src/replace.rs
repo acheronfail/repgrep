@@ -6,8 +6,8 @@ use chardet::charset2encoding;
 use encoding::label::encoding_from_whatwg_label;
 use encoding::EncoderTrap;
 
-use crate::model::{ItemKind, ReplacementCriteria, ReplacementResult};
-use crate::rg::de::SubMatch;
+use crate::model::{ReplacementCriteria, ReplacementResult};
+use crate::rg::de::{RgMessageKind, SubMatch};
 
 const BOM_UTF8: [u8; 3] = [0xEF, 0xBB, 0xBF];
 const BOM_UTF16LE: [u8; 2] = [0xFF, 0xFE];
@@ -21,11 +21,11 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
       // Iterate backwards so the offset doesn't change as we make replacements.
       .rev()
       // The only item kind we replace is the Match kind.
-      .filter(|item| matches!(item.kind, ItemKind::Match) && item.should_replace)
+      .filter(|item| matches!(item.kind, RgMessageKind::Match) && item.should_replace)
       // Perform the replacement on each match.
       // TODO: better error handling and messaging to the user when any of this fails
       .fold(ReplacementResult::new(&criteria.text), |mut res, item| {
-        let file_path = item.path();
+        let file_path = item.path().expect("match item did not have a path!");
 
         // TODO: don't read file completely into memory, but use a buffered approach instead
         let mut file_contents = vec![];
@@ -131,8 +131,8 @@ mod tests {
 
   use crate::model::*;
   use crate::replace::perform_replacements;
-  use crate::rg::de::test_utilities::{RgMessageBuilder, RgMessageKind};
-  use crate::rg::de::{Duration, Stats, SubMatch};
+  use crate::rg::de::test_utilities::RgMessageBuilder;
+  use crate::rg::de::{Duration, RgMessageKind, Stats, SubMatch};
 
   fn temp_rg_msg(
     mut f: &NamedTempFile,
@@ -306,6 +306,7 @@ mod tests {
     );
   }
 
+  // TODO: write a similar test for Windows systems
   #[test]
   #[cfg(unix)]
   fn it_performs_replacements_files_with_non_utf8_paths_unix() {

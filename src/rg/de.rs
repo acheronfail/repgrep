@@ -6,6 +6,16 @@ use std::ops::Range;
 use encoding::{EncoderTrap, EncodingRef};
 use serde::{Deserialize, Serialize};
 
+/// A helper to easily select the `RgMessage` kind.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum RgMessageKind {
+  Begin,
+  End,
+  Match,
+  Context,
+  Summary,
+}
+
 /// A struct used to deserialise JSON values produced by `ripgrep`.
 /// See: https://docs.rs/grep-printer/0.1.5/grep_printer/struct.JSON.html
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
@@ -288,15 +298,6 @@ pub mod test_utilities {
         elapsed: Duration::new(),
       }
     }
-  }
-
-  /// A helper to easily select the `RgMessage` kind.
-  pub enum RgMessageKind {
-    Begin,
-    End,
-    Match,
-    Context,
-    Summary,
   }
 
   /// A builder to help construct `RgMessage` structs during tests.

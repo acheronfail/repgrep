@@ -15,63 +15,63 @@ use crate::rg::de::RgMessage;
 use crate::ui::app::{App, AppState};
 
 pub struct Tui {
-  app: App,
+    app: App,
 }
 
 impl Tui {
-  pub fn new(args: &Args, rg_results: VecDeque<RgMessage>) -> Tui {
-    Tui {
-      app: App::new(args, rg_results),
+    pub fn new(args: &Args, rg_results: VecDeque<RgMessage>) -> Tui {
+        Tui {
+            app: App::new(args, rg_results),
+        }
     }
-  }
 
-  pub fn start(mut self) -> Result<Option<ReplacementCriteria>> {
-    terminal::enable_raw_mode()?;
+    pub fn start(mut self) -> Result<Option<ReplacementCriteria>> {
+        terminal::enable_raw_mode()?;
 
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
 
-    let backend = CrosstermBackend::new(stdout);
-    let mut term = Terminal::new(backend)?;
-    term.hide_cursor()?;
+        let backend = CrosstermBackend::new(stdout);
+        let mut term = Terminal::new(backend)?;
+        term.hide_cursor()?;
 
-    // Setup input handling
-    let (tx, rx) = mpsc::channel();
+        // Setup input handling
+        let (tx, rx) = mpsc::channel();
 
-    thread::spawn(move || loop {
-      tx.send(event::read().unwrap()).unwrap();
-    });
+        thread::spawn(move || loop {
+            tx.send(event::read().unwrap()).unwrap();
+        });
 
-    term.clear()?;
+        term.clear()?;
 
-    loop {
-      term.draw(|mut f| self.app.draw(&mut f))?;
+        loop {
+            term.draw(|mut f| self.app.draw(&mut f))?;
 
-      let event = rx.recv()?;
-      self.app.on_event(term.size()?, event)?;
+            let event = rx.recv()?;
+            self.app.on_event(term.size()?, event)?;
 
-      match self.app.state {
-        AppState::Running => continue,
-        AppState::Cancelled => return Ok(None),
-        AppState::Complete(replacement_criteria) => return Ok(Some(replacement_criteria)),
-      }
+            match self.app.state {
+                AppState::Running => continue,
+                AppState::Cancelled => return Ok(None),
+                AppState::Complete(replacement_criteria) => return Ok(Some(replacement_criteria)),
+            }
+        }
     }
-  }
 
-  pub fn restore_terminal() -> Result<()> {
-    let backend = CrosstermBackend::new(io::stdout());
-    let mut term = Terminal::new(backend)?;
+    pub fn restore_terminal() -> Result<()> {
+        let backend = CrosstermBackend::new(io::stdout());
+        let mut term = Terminal::new(backend)?;
 
-    terminal::disable_raw_mode()?;
-    execute!(
-      term.backend_mut(),
-      LeaveAlternateScreen,
-      DisableMouseCapture
-    )?;
-    term.show_cursor()?;
-    term.clear()?;
-    term.set_cursor(0, 0)?;
+        terminal::disable_raw_mode()?;
+        execute!(
+            term.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
+        term.show_cursor()?;
+        term.clear()?;
+        term.set_cursor(0, 0)?;
 
-    Ok(())
-  }
+        Ok(())
+    }
 }

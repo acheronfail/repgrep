@@ -110,8 +110,15 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
                 },
             );
 
-            // Write modified string into a temporary file.
+            // Create a temporary file.
+            #[cfg(not(windows))]
             let temp_file_path = &file_path.with_extension("rgr");
+            // FIXME: for reasons unknown to me Windows fails with permissions errors if we try to create a new file
+            // next to the original, so for now, we don't create a temporary file.
+            #[cfg(windows)]
+            let temp_file_path = &file_path;
+
+            // Write modified string into a temporary file.
             OpenOptions::new()
                 .create(true)
                 .write(true)
@@ -122,6 +129,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
                 .unwrap();
 
             // Overwrite the original file with the patched temp file.
+            #[cfg(not(windows))]
             fs::rename(temp_file_path, &file_path).unwrap();
 
             res.add_replacement(
@@ -129,7 +137,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
                 &replaced_matches,
                 match encoder {
                     Some(_) => encoding,
-                    None => "utf-8".to_owned(),
+                    None => "UTF-8".to_owned(),
                 },
             );
             res
@@ -140,10 +148,9 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
 mod tests {
     use std::fs::{self, OpenOptions};
     use std::io::{Read, Write};
-    use std::path::PathBuf;
 
     use pretty_assertions::assert_eq;
-    use tempfile::{tempdir, NamedTempFile};
+    use tempfile::NamedTempFile;
 
     use crate::model::*;
     use crate::replace::perform_replacements;
@@ -322,12 +329,14 @@ mod tests {
         );
     }
 
-    // TODO: write a similar test for Windows systems
+    // TODO: write a similar test for Windows/macOS systems
     #[test]
-    #[cfg(unix)]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     fn it_performs_replacements_files_with_non_utf8_paths_unix() {
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
+        use std::path::PathBuf;
+        use tempfile::tempdir;
 
         // Here, the values 0x66 and 0x6f correspond to 'f' and 'o'
         // respectively. The value 0x80 is a lone continuation byte, invalid

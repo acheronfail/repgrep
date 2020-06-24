@@ -21,12 +21,12 @@ fn base64_to_os_string(bytes: Vec<u8>) -> Result<OsString> {
 /// https://doc.rust-lang.org/std/ffi/index.html#on-windows
 #[cfg(not(unix))]
 fn base64_to_os_string(bytes: Vec<u8>) -> Result<OsString> {
-    use safe_transmute::{transmute_many, try_copy, PedanticGuard};
+    use safe_transmute::transmute_vec;
     use std::os::windows::ffi::OsStringExt;
 
     // Transmute decoded Base64 bytes as UTF-16 since that's what underlying paths are on Windows.
-    let bytes_u16 = try_copy!(transmute_many::<u16, PedanticGuard>(&bytes))?;
-    OsString::from_wide(&bytes_u16)
+    let bytes_u16 = transmute_vec::<u8, u16>(bytes)?;
+    Ok(OsString::from_wide(&bytes_u16))
 }
 
 #[derive(Debug, Clone)]

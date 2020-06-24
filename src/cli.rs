@@ -5,6 +5,7 @@ use clap::{crate_authors, crate_version};
 // TODO: configure:
 //  replace: confidence level of character encoding detection
 //  replace: disable strict byte assertions
+//  replace: continue on error (don't write error, but continue replacing)
 
 const RG_ENCODING_FLAGS: [&str; 5] = [" -E ", " -E=", " -E", " --encoding ", " --encoding="];
 

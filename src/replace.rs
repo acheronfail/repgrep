@@ -13,7 +13,14 @@ const BOM_UTF8: [u8; 3] = [0xEF, 0xBB, 0xBF];
 const BOM_UTF16LE: [u8; 2] = [0xFF, 0xFE];
 const BOM_UTF16BE: [u8; 2] = [0xFE, 0xFF];
 
+// TODO: better error handling and messaging to the user when any of this fails
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<ReplacementResult> {
+  // If we've been passed an encoding, then try to create an encoder from it.
+  let rg_override_encoder = criteria
+    .encoding
+    .as_ref()
+    .map(|enc| encoding_from_whatwg_label(&enc));
+
   Ok(
     criteria
       .items
@@ -23,7 +30,6 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
       // The only item kind we replace is the Match kind.
       .filter(|item| matches!(item.kind, RgMessageKind::Match) && item.should_replace)
       // Perform the replacement on each match.
-      // TODO: better error handling and messaging to the user when any of this fails
       .fold(ReplacementResult::new(&criteria.text), |mut res, item| {
         let file_path = item.path().expect("match item did not have a path!");
 
@@ -36,15 +42,26 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
           .read_to_end(&mut file_contents)
           .unwrap();
 
-        // Guess the file's encoding. We only use the encoding if the confidence is greater than 80%.
-        // TODO: read `rg`'s command line and check if encoding was passed
-        let (encoding, confidence, _) = chardet::detect(&file_contents);
-        let (encoder, replacement) = if confidence > 0.80 {
-          let encoder = encoding_from_whatwg_label(charset2encoding(&encoding)).unwrap();
-          let encoded_replacement = encoder.encode(&criteria.text, EncoderTrap::Ignore).unwrap();
-          (Some(encoder), encoded_replacement)
+        // If `rg_override_encoder` is present then we've detected an encoding sent through to `rg`.
+        // When given an encoding `rg` will use it on _all_ files searched.
+        let (encoding, encoder, replacement_bytes) = if let Some(Some(encoder)) =
+          rg_override_encoder
+        {
+          (
+            criteria.encoding.as_ref().unwrap().to_owned(),
+            Some(encoder),
+            encoder.encode(&criteria.text, EncoderTrap::Ignore).unwrap(),
+          )
         } else {
-          (None, criteria.text.as_bytes().to_vec())
+          // Guess the file's encoding. We only use the encoding if the confidence is greater than 80%.
+          let (encoding, confidence, _) = chardet::detect(&file_contents);
+          if confidence > 0.80 {
+            let encoder = encoding_from_whatwg_label(charset2encoding(&encoding)).unwrap();
+            let encoded_replacement = encoder.encode(&criteria.text, EncoderTrap::Ignore).unwrap();
+            (encoding, Some(encoder), encoded_replacement)
+          } else {
+            (encoding, None, criteria.text.as_bytes().to_vec())
+          }
         };
 
         // Replace matches within the file contents with the given `replacement` string.
@@ -71,7 +88,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
                 let removed_bytes = file_contents
                   .splice(
                     (offset + range.start)..(offset + range.end),
-                    replacement.clone(),
+                    replacement_bytes.clone(),
                   )
                   .collect::<Vec<_>>();
 

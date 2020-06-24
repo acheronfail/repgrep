@@ -27,7 +27,12 @@ fn main() {
 
             // Handle application result.
             match result {
-                Ok(Some(replacement_criteria)) => {
+                Ok(Some(mut replacement_criteria)) => {
+                    // If we detected an encoding passed to `rg`, then use that.
+                    if let Some(encoding) = args.rg_encoding() {
+                        replacement_criteria.set_encoding(encoding);
+                    }
+
                     match replace::perform_replacements(replacement_criteria) {
                         Ok(results) => eprintln!("{}", results),
                         Err(err) => {

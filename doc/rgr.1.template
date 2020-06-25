@@ -1,0 +1,68 @@
+rgr(1)
+=====
+
+Name
+----
+rgr - An interactive replacer for ripgrep that makes it easy to find and replace across files on the command line.
+
+DESCRIPTION
+-----------
+Upon start all command line arguments are passed down to *rg* (adding *--json*).
+The JSON output is then parsed, and you are presented with a terminal interface (described below).
+
+Thus, in order to use this tool you must have first installed *rg* (AKA: *ripgrep*).
+See: https://github.com/BurntSushi/ripgrep/#installation.
+
+To see the keybindings, press *?* while in the **SELECT** mode.
+
+INTERFACE
+---------
+There are a few different modes:
+
+**SELECT**
+
+* This mode is the first mode presented after *rgr* is started.
+* In this mode a list of matches is presented, and they can be toggled on or off.
+* Toggling a match off means that the match itself _will not be replaced_.
+
+**REPLACE**
+
+* In this mode the user types the desired replacement text and the matches are updated in real-time.
+* Note that this is a demo only, no changes are written to disk.
+* Non UTF-8 bytes in the matches are shown with the UTF-8 replacement character in this mode.
+* Pressing enter will cause all selected matches to be replaced with the text entered.
+
+**CONFIRM**
+
+* Prompt the user to confirm before writing replacements to disk.
+* Replacements are written to disk, and all attempts to use the correct file encoding are made. (see FILE ENCODING.)
+* Note that *rgr* _will not replace_ a different slice of bytes than what *rg* reported in its output.  (see FILE ENCODING.)
+
+**HELP**
+
+* This mode provides information about *rgr* and its keybindings.
+
+FILE ENCODING
+-------------
+
+Handling of file encoding happens in two places: the **SELECT** mode and when the replacements are written to disk.
+
+_In the **SELECT** mode_, non UTF-8 bytes are shown with the UTF-8 replacement character.
+This occurs because the files themselves have not yet been read, and thus the encoding of the file is unknown.
+
+_During replacement_ encoding is handled in two ways:
+
+    1. If the encoding flag was passed to *rg* (see *rg --help*) then that encoding is forced for all files.
+    2. Otherwise, the *chardet* (https://github.com/thuleqaid/rust-chardet) library is used to detect the encoding. (If a sufficient confidence of the encoding detection is not reached, then *rgr* falls back to UTF-8.)
+
+Note that *rgr* _will never replace_ a portion of unexpected bytes. If when replacing a match the bytes to replace do not match those reported by *rg*, then the tool will bail out and the file will not be written. (Errors will be reported to STDERR.)
+
+HOMEPAGE
+--------
+https://github.com/acheronfail/repgrep
+
+BUGS AND FEATURES
+-----------------
+Please report bugs and feature requests in the issue tracker.
+Do your best to provide a reproducible test case for bugs.
+Also please include the version of *rgr* and *rg*.

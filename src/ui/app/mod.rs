@@ -19,7 +19,7 @@ use crate::util::clamp;
 pub use state::AppState;
 use state::AppUiState;
 
-const HELP_TEXT: &str = include_str!("../../../doc/help.txt");
+const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 
 pub struct App {
     pub state: AppState,
@@ -315,6 +315,7 @@ impl App {
                     }
                     _ => {}
                 },
+                // TODO: scroll help text
                 AppUiState::Help => match key.code {
                     KeyCode::Esc | KeyCode::Char('q') => self.ui_state = AppUiState::SelectMatches,
                     _ => {}

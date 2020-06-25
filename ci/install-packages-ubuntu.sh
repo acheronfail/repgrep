@@ -1,3 +1,3 @@
 #!/bin/sh
 
-# Nothing here yet
+sudo apt-get install -y --no-install-recommends asciidoctor

@@ -73,15 +73,15 @@ jobs:
       matrix:
         build: [linux, linux-arm, macos, win-msvc, win-gnu, win32-msvc]
         include:
-        - build: linux
+        - build: linux-gnu
           os: ubuntu-18.04
           rust: nightly
           target: x86_64-unknown-linux-gnu
-        - build: linux
+        - build: linux-musl
           os: ubuntu-18.04
           rust: nightly
           target: x86_64-unknown-linux-musl
-        - build: linux-arm
+        - build: linux-arm-gnueabihf
           os: ubuntu-18.04
           rust: nightly
           target: arm-unknown-linux-gnueabihf

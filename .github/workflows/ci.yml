@@ -2,11 +2,10 @@
 
 name: ci
 on:
-  # pull_request:
+  pull_request:
   push:
     branches:
     - master
-    - ci/github-actions
   schedule:
   - cron: '00 01 * * *'
 jobs:

@@ -7,11 +7,27 @@ rgr - An interactive replacer for ripgrep that makes it easy to find and replace
 
 DESCRIPTION
 -----------
+In order to use this tool you must have first installed *rg* (AKA: *ripgrep*).
+See: https://github.com/BurntSushi/ripgrep/#installation.
+
 Upon start all command line arguments are passed down to *rg* (adding *--json*).
 The JSON output is then parsed, and you are presented with a terminal interface (described below).
 
-Thus, in order to use this tool you must have first installed *rg* (AKA: *ripgrep*).
-See: https://github.com/BurntSushi/ripgrep/#installation.
+Note since we use the *--json* flag, a number of *rg*'s flags are unavailable.
+This tool will filter out the following flags before running *rg*:
+
+* -h --help
+* -V --version
+* -r --replace
+* -o --only-matching
+* --heading
+* -M --max-columns
+* --no-json
+* --files
+* -l --files-with-matches
+* --files-without-match
+* -c --count
+* --count-matches
 
 To see the keybindings, press *?* while in the **SELECT** mode.
 

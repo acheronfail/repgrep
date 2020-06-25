@@ -30,8 +30,10 @@ impl Args {
         self.rg_args
             .iter()
             .filter(|arg| match &arg[..] {
-                "-h"
+                "-h" // shorthand for --help
                 | "--help"
+                | "-V" // shorthand for --version
+                | "--version"
                 | "-r" // shorthand for --replace
                 | "--replace"
                 | "-o" // shorthand for --only-matching

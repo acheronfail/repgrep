@@ -6,7 +6,7 @@ use chardet::charset2encoding;
 use encoding::label::encoding_from_whatwg_label;
 use encoding::EncoderTrap;
 
-use crate::model::{ReplacementCriteria, ReplacementResult};
+use crate::model::{ReplacementAttempt, ReplacementCriteria, ReplacementResult};
 use crate::rg::de::{RgMessageKind, SubMatch};
 
 const BOM_UTF8: [u8; 3] = [0xEF, 0xBB, 0xBF];
@@ -96,15 +96,16 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
                             let matched_bytes = encoder
                                 .map_or_else(|| text.to_vec(), |e| text.to_vec_with_encoding(e));
 
-                            assert_eq!(
-                                &matched_bytes,
-                                &removed_bytes,
-                                "Matched bytes do not match bytes to replace in {}@{}!",
-                                file_path.display(),
-                                offset + range.start,
-                            );
-
-                            text.lossy_utf8()
+                            if matched_bytes == removed_bytes {
+                                ReplacementAttempt::Success(text.lossy_utf8())
+                            } else {
+                                let reason = format!(
+                                    "Matched bytes do not match bytes to replace in {}@{}!",
+                                    file_path.display(),
+                                    offset + range.start,
+                                );
+                                ReplacementAttempt::Failure(reason)
+                            }
                         })
                         .collect()
                 },
@@ -134,7 +135,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
 
             res.add_replacement(
                 &file_path,
-                &replaced_matches,
+                replaced_matches,
                 match encoder {
                     Some(_) => encoding,
                     None => "UTF-8".to_owned(),

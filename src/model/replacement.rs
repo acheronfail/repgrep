@@ -27,10 +27,25 @@ impl ReplacementCriteria {
 }
 
 #[derive(Debug)]
+pub enum ReplacementAttempt {
+    Success(String),
+    Failure(String),
+}
+
+impl Display for ReplacementAttempt {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            ReplacementAttempt::Success(matched_text) => write!(f, "Replaced: {}", matched_text),
+            ReplacementAttempt::Failure(reason) => write!(f, "Error replacing match: {}", reason),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ReplacementResult {
     pub text: String,
     /// Map of (Path, DetectedEncoding) -> [List, Of, Matches, Replaced]
-    pub replacements: HashMap<(PathBuf, String), Vec<String>>,
+    pub replacements: HashMap<(PathBuf, String), Vec<ReplacementAttempt>>,
 }
 
 impl ReplacementResult {
@@ -42,14 +57,17 @@ impl ReplacementResult {
         }
     }
 
-    pub fn add_replacement<P, S>(&mut self, path: P, matches: &[S], detected_encoding: S)
-    where
+    pub fn add_replacement<P, S>(
+        &mut self,
+        path: P,
+        mut matches: Vec<ReplacementAttempt>,
+        detected_encoding: S,
+    ) where
         P: AsRef<Path>,
         S: AsRef<str>,
     {
         let path = path.as_ref().to_owned();
         let detected_encoding = detected_encoding.as_ref().to_owned();
-        let mut matches = matches.iter().map(|s| s.as_ref().to_owned()).collect();
 
         self.replacements
             .entry((path, detected_encoding))
@@ -65,7 +83,7 @@ impl Display for ReplacementResult {
             if !replacements.is_empty() {
                 writeln!(f, "file: {} <{}>", path.display(), encoding)?;
                 for r in replacements {
-                    writeln!(f, "  replaced: {}", r)?;
+                    writeln!(f, "  {}", r)?;
                     total_replacements += 1;
                 }
             }

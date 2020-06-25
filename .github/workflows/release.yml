@@ -174,7 +174,6 @@ jobs:
           arm-linux-gnueabihf-strip \
           /target/arm-unknown-linux-gnueabihf/release/rgr
 
-    # TODO: combine `doc/help.txt` and `doc/rgr.1` and generate manpage with asciidoctor
     - name: Build archive
       shell: bash
       run: |
@@ -190,7 +189,7 @@ jobs:
           7z a "$staging.zip" "$staging"
           echo "::set-env name=ASSET::$staging.zip"
         else
-          cp "doc/rgr.1" "$staging/doc/"
+          cp "$outdir"/rgr.1 "$staging/doc/"
           cp "target/${{ matrix.target }}/release/rgr" "$staging/"
           tar czf "$staging.tar.gz" "$staging"
           echo "::set-env name=ASSET::$staging.tar.gz"

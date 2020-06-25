@@ -160,7 +160,7 @@ jobs:
       shell: bash
       run: |
         outdir="$(ci/cargo-out-dir.sh "${{ env.TARGET_DIR }}")"
-        for f in _rgr rgr.bash rgr.fish; do
+        for f in rgr.1 _rgr rgr.bash rgr.fish; do
           # We could use file -E here, but it isn't supported on macOS.
           ls "$outdir/$f" && file "$outdir/$f"
         done

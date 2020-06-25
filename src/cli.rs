@@ -20,10 +20,39 @@ const RG_ENCODING_FLAGS: [&str; 5] = [" -E ", " -E=", " -E", " --encoding ", " -
 pub struct Args {
     /// Arguments to pass to `rg`. Bear in mind that the `--json` flag is always passed down.
     /// See the `--json` section under `rg --help` for more details.
-    pub rg_args: Vec<String>,
+    rg_args: Vec<String>,
 }
 
 impl Args {
+    /// Get the arguments to pass to `rg`.
+    /// This method filters out some invalid arguments that conflict with `--json`.
+    pub fn rg_args(&self) -> Vec<String> {
+        self.rg_args
+            .iter()
+            .filter(|arg| match &arg[..] {
+                "-h"
+                | "--help"
+                | "-r" // shorthand for --replace
+                | "--replace"
+                | "-o" // shorthand for --only-matching
+                | "--only-matching"
+                | "--heading"
+                | "-M" // shorthand for --max-columns
+                | "--max-columns"
+                | "--no-json"
+                | "--files"
+                | "-l" // shorthand for --files-with-matches
+                | "--files-with-matches"
+                | "--files-without-match"
+                | "-c" // shorthand for --count
+                | "--count"
+                | "--count-matches" => false,
+                _ => true,
+            })
+            .cloned()
+            .collect()
+    }
+
     /// If the encoding was passed to `rg` then this is the value of that flag.
     pub fn rg_encoding(&self) -> Option<String> {
         let rg_args_as_string = self.rg_args.join(" ");

@@ -13,7 +13,7 @@ use ui::tui::Tui;
 fn main() {
     let args = cli::parse_arguments();
 
-    match run_ripgrep(&args.rg_args) {
+    match run_ripgrep(&args.rg_args()) {
         Ok(rg_results) => {
             let result = Tui::new(&args, rg_results).start();
 
@@ -49,7 +49,7 @@ fn main() {
             }
         }
         Err(e) => {
-            eprintln!("Failed to run `rg`! Please make sure it's installed and available in PATH.\nError was: {}", e);
+            eprintln!("{}", e);
             process::exit(1);
         }
     }

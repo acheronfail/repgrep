@@ -53,7 +53,7 @@ impl App {
         App {
             state: AppState::Running,
 
-            rg_cmdline: format!("rg {}", args.rg_args.join(" ")),
+            rg_cmdline: format!("rg {}", args.rg_args().join(" ")),
             stats: maybe_stats.expect("failed to find RgMessage::Summary from rg!"),
             list_state,
             list,

@@ -108,12 +108,12 @@ jobs:
     - name: Install packages (Ubuntu)
       if: matrix.os == 'ubuntu-18.04'
       run: |
-        ci2/install-packages-ubuntu.sh
+        ci/install-packages-ubuntu.sh
 
     - name: Install packages (macOS)
       if: matrix.os == 'macos-latest'
       run: |
-        ci2/install-packages-macos.sh
+        ci/install-packages-macos.sh
 
     - name: Install Rust
       uses: actions-rs/toolchain@v1
@@ -174,7 +174,7 @@ jobs:
     - name: Build archive
       shell: bash
       run: |
-        outdir="$(ci2/cargo-out-dir.sh "${{ env.TARGET_DIR }}")"
+        outdir="$(ci/cargo-out-dir.sh "${{ env.TARGET_DIR }}")"
         staging="repgrep-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
         mkdir -p "$staging"/{complete,doc}
 

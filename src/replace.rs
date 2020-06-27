@@ -112,7 +112,12 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
             );
 
             // Create a temporary file.
+            #[cfg(not(windows))]
             let temp_file_path = &file_path.with_extension("rgr");
+            // FIXME: for reasons unknown to me Windows fails with permissions errors if we try to create a new file
+            // next to the original, so for now, we don't create a temporary file.
+            #[cfg(windows)]
+            let temp_file_path = &file_path;
 
             // Write modified string into a temporary file.
             OpenOptions::new()
@@ -125,10 +130,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
                 .unwrap();
 
             // Overwrite the original file with the patched temp file.
-            // NOTE: on Windows systems calling fs::rename fails with a permissions error
-            // if the destination already exists.
-            #[cfg(windows)]
-            fs::remove_file(&file_path).unwrap();
+            #[cfg(not(windows))]
             fs::rename(temp_file_path, &file_path).unwrap();
 
             res.add_replacement(

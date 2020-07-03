@@ -12,7 +12,6 @@ use tui::style::{Color, Modifier, Style};
 use tui::widgets::{Block, Borders, List, ListState, Paragraph, Row, Table, Text};
 use tui::Frame;
 
-use crate::cli::Args;
 use crate::model::{Item, Movement, ReplacementCriteria};
 use crate::rg::de::{RgMessage, RgMessageKind, Stats};
 use crate::util::clamp;
@@ -33,7 +32,7 @@ pub struct App {
 
 // General impl.
 impl App {
-    pub fn new(args: &Args, mut rg_results: VecDeque<RgMessage>) -> App {
+    pub fn new(rg_cmdline: String, mut rg_results: VecDeque<RgMessage>) -> App {
         let mut list = vec![];
         let mut maybe_stats = None;
         while let Some(rg_type) = rg_results.pop_front() {
@@ -53,7 +52,7 @@ impl App {
         App {
             state: AppState::Running,
 
-            rg_cmdline: format!("rg {}", args.rg_args().join(" ")),
+            rg_cmdline,
             stats: maybe_stats.expect("failed to find RgMessage::Summary from rg!"),
             list_state,
             list,

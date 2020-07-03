@@ -156,7 +156,7 @@ mod tests {
     use crate::model::*;
     use crate::replace::perform_replacements;
     use crate::rg::de::test_utilities::RgMessageBuilder;
-    use crate::rg::de::{Duration, RgMessageKind, Stats, SubMatch};
+    use crate::rg::de::{Duration, RgMessage, RgMessageKind, Stats, SubMatch};
 
     fn temp_rg_msg(
         mut f: &NamedTempFile,
@@ -364,6 +364,30 @@ mod tests {
     }
 
     // Encodings
+
+    #[test]
+    fn encoding_multiline_utf16le() {
+        let start_bytes = b"\xff\xfe\x61\x00\x0a\x00\x62\x00\x0a\x00\x63\x00\x0a\x00";
+        let end_bytes = b"\xff\xfe\x61\x00\x0a\x00\x66\x00\x6f\x00\x6f\x00\x0a\x00\x63\x00\x0a\x00";
+
+        let mut f = NamedTempFile::new().unwrap();
+        f.write_all(start_bytes).unwrap();
+
+        let item = Item::new(serde_json::from_str::<RgMessage>(r#"{"type":"match","data":{"path":{"text":"utf16le"},"lines":{"text":"b\n"},"line_number":2,"absolute_offset":2,"submatches":[{"match":{"text":"b"},"start":0,"end":1}]}}"#).unwrap());
+        perform_replacements(ReplacementCriteria::new("foo", vec![item])).unwrap();
+
+        // Read file bytes.
+        let mut file_bytes = vec![];
+        OpenOptions::new()
+            .read(true)
+            .open(f.path())
+            .unwrap()
+            .read_to_end(&mut file_bytes)
+            .unwrap();
+
+        // Check real bytes are the same as expected bytes.
+        assert_eq!(file_bytes, end_bytes);
+    }
 
     macro_rules! test_encoding_simple {
         ($name:ident, $src_bytes:expr, $range:expr, $dst_bytes:expr) => {

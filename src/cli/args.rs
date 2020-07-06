@@ -1,9 +1,10 @@
+use std::env;
+use std::ffi::OsString;
 use std::path::PathBuf;
-use std::process;
 
 use clap::AppSettings::ColoredHelp;
 use clap::Clap;
-use clap::{crate_authors, crate_version, IntoApp};
+use clap::{crate_authors, crate_version};
 
 // TODO: options to support in the future
 // -P/--pcre2
@@ -27,7 +28,7 @@ pub struct Args {
     #[clap(name = "PATH", parse(from_os_str))]
     pub paths: Vec<PathBuf>,
     /// Used to provide multiple patterns.
-    #[clap(short = "e", long = "regexp")]
+    #[clap(short = "e", long = "regexp", multiple = true, number_of_values = 1)]
     pub patterns: Vec<String>,
 
     /// How many lines of context should be shown after each match.
@@ -76,10 +77,10 @@ pub struct Args {
     #[clap(long = "trim")]
     pub trim: bool,
     /// Search only a specific type of file.
-    #[clap(short = "t", long = "type")]
+    #[clap(short = "t", long = "type", multiple = true, number_of_values = 1)]
     pub r#type: Vec<String>,
     /// Inverse of --type.
-    #[clap(short = "T", long = "type-not")]
+    #[clap(short = "T", long = "type-not", multiple = true, number_of_values = 1)]
     pub type_not: Vec<String>,
     /// Set the "unrestricted" searching options for ripgrep.
     /// Note that this is currently limited to only two occurrences `-uu` since
@@ -91,10 +92,10 @@ pub struct Args {
     pub word_regexp: bool,
 
     /// A list of globs to match files.
-    #[clap(short = "g", long = "glob")]
+    #[clap(short = "g", long = "glob", multiple = true, number_of_values = 1)]
     pub glob: Vec<String>,
     /// A list of case insensitive globs to match files.
-    #[clap(long = "iglob")]
+    #[clap(long = "iglob", multiple = true, number_of_values = 1)]
     pub iglob: Vec<String>,
     /// Search hidden files.
     #[clap(long = "hidden")]
@@ -112,65 +113,18 @@ pub struct Args {
 
 impl Args {
     /// Provides the command line arguments to pass down to ripgrep.
-    pub fn rg_args(&self) -> impl Iterator<Item = std::ffi::OsString> {
+    pub fn rg_args(&self) -> impl Iterator<Item = OsString> {
         // Skip the first argument, which _should_ be the binary name.
-        std::env::args_os().skip(1)
+        env::args_os().skip(1)
     }
 
     /// Returns the patterns used by `rg` in the search.
+    #[allow(unused)]
     pub fn rg_patterns(&self) -> Vec<&str> {
         if let Some(pattern) = &self.pattern {
             vec![pattern]
         } else {
             self.patterns.iter().map(|p| p.as_ref()).collect()
         }
-    }
-}
-
-pub fn parse_arguments() -> Args {
-    let mut args = Args::parse();
-
-    // Check we have a pattern.
-    if args.pattern.is_none() && args.patterns.is_empty() {
-        eprintln!("\nNo pattern was provided!\n");
-        Args::into_app().print_help().unwrap();
-        process::exit(1);
-    }
-
-    // If a positional pattern was passed _and_ patterns via flags were passed, then
-    // assume that the positional pattern is a path.
-    if args.pattern.is_some() && !args.patterns.is_empty() {
-        args.paths.push(PathBuf::from(args.pattern.take().unwrap()));
-    }
-
-    // We don't support binary searches.
-    if args.unrestricted > 2 {
-        eprintln!("Binary file searching is not supported. Changing -uuu to -uu");
-        args.unrestricted = 2;
-    }
-
-    args
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn checks_if_no_pattern_was_passed() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn reads_pattern_as_path_if_pattern_flag_given() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn does_not_allow_unrestricted_above_two() {
-        unimplemented!();
-    }
-
-    #[test]
-    fn returns_rg_patterns() {
-        unimplemented!();
     }
 }

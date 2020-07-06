@@ -11,7 +11,14 @@ use rg::exec::run_ripgrep;
 use ui::tui::Tui;
 
 fn main() {
-    let args = cli::parse_arguments();
+    let args = match cli::parse_arguments() {
+        Ok(args) => args,
+        Err(e) => {
+            cli::print_help();
+            eprintln!("\nFailed to parse arguments, error: {}", e);
+            process::exit(1);
+        }
+    };
 
     match run_ripgrep(args.rg_args()) {
         Ok(rg_results) => {

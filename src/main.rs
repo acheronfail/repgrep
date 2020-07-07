@@ -1,4 +1,5 @@
 mod cli;
+mod encoding;
 mod model;
 mod replace;
 mod rg;

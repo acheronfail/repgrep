@@ -4,7 +4,7 @@ This is an interactive command line tool to make find and replacement easy.
 It uses [`ripgrep`] to find, and then provides you with a simple interface to see
 the replacements in real-time and conditionally replace matches.
 
-**DISCLAIMER**: This project doesn't have extensive tests and until it's tested against multiple different encodings and strings, use it at your own risk!
+Right now this only works with ascii or UTF-8 encoded files, other common encodings (such as UTF-16{le,be} are [planned for the future](https://github.com/acheronfail/repgrep/issues/12)).
 
 ## Usage
 

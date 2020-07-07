@@ -8,7 +8,7 @@ use std::path::Path;
 use std::process::Command;
 
 #[allow(dead_code)]
-#[path = "src/cli.rs"]
+#[path = "src/cli/args.rs"]
 mod cli;
 
 fn generate_manpage<P: AsRef<Path>>(outdir: P) -> io::Result<()> {

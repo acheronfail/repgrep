@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::ffi::OsStr;
 use std::fmt::Display;
 use std::io::ErrorKind;
 use std::process::Command;
@@ -15,14 +16,19 @@ fn rg_run_error(msg: impl Display) -> Error {
     anyhow!("An error occurred when running `rg`:\n\n{}", msg)
 }
 
-pub fn run_ripgrep(args: &[String]) -> Result<VecDeque<RgMessage>> {
-    if args.is_empty() {
-        return Err(anyhow!(
-            "No arguments provided. Please pass arguments that will be forwarded to rg.\nSee rgr --help."
-        ));
-    }
-
-    let output = match Command::new("rg").arg("--json").args(args).output() {
+pub fn run_ripgrep<I, S>(args: I) -> Result<VecDeque<RgMessage>>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
+    let output = match Command::new("rg")
+        // We use the JSON output
+        .arg("--json")
+        // We don't (yet?) support reading `rg`'s config files
+        .arg("--no-config")
+        .args(args)
+        .output()
+    {
         Ok(output) => output,
         Err(e) => {
             if let ErrorKind::NotFound = e.kind() {

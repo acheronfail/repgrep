@@ -9,7 +9,6 @@ use crossterm::execute;
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use tui::{backend::CrosstermBackend, Terminal};
 
-use crate::cli::Args;
 use crate::model::ReplacementCriteria;
 use crate::rg::de::RgMessage;
 use crate::ui::app::{App, AppState};
@@ -19,9 +18,9 @@ pub struct Tui {
 }
 
 impl Tui {
-    pub fn new(args: &Args, rg_results: VecDeque<RgMessage>) -> Tui {
+    pub fn new(rg_cmdline: String, rg_results: VecDeque<RgMessage>) -> Tui {
         Tui {
-            app: App::new(args, rg_results),
+            app: App::new(rg_cmdline, rg_results),
         }
     }
 

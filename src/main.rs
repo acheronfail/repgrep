@@ -11,11 +11,24 @@ use rg::exec::run_ripgrep;
 use ui::tui::Tui;
 
 fn main() {
-    let args = cli::parse_arguments();
+    let args = match cli::parse_arguments() {
+        Ok(args) => args,
+        Err(e) => {
+            cli::print_help();
+            eprintln!("\nFailed to parse arguments, error: {}", e);
+            process::exit(1);
+        }
+    };
 
-    match run_ripgrep(&args.rg_args()) {
+    match run_ripgrep(args.rg_args()) {
         Ok(rg_results) => {
-            let result = Tui::new(&args, rg_results).start();
+            let rg_cmdline: String = args
+                .rg_args()
+                .map(|s| s.to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            let result = Tui::new(rg_cmdline, rg_results).start();
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {
@@ -29,7 +42,7 @@ fn main() {
             match result {
                 Ok(Some(mut replacement_criteria)) => {
                     // If we detected an encoding passed to `rg`, then use that.
-                    if let Some(encoding) = args.rg_encoding() {
+                    if let Some(encoding) = args.encoding {
                         replacement_criteria.set_encoding(encoding);
                     }
 

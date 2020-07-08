@@ -429,7 +429,7 @@ mod tests {
 
     const UTF8_FOO: &str =
         "666f6f206261722062617a0a2e2e2e0a62617a20666f6f206261720a2e2e2e0a6261722062617a20666f6f";
-    const UTF8_FOO_BOM: &str = "efbbbf666f6f206261722062617a0a2e2e2e0a62617a20666f6f206261720a2e2e2e0a6261722062617a20666f6f";
+    const UTF8BOM_FOO: &str = "efbbbf666f6f206261722062617a0a2e2e2e0a62617a20666f6f206261720a2e2e2e0a6261722062617a20666f6f";
     const UTF16BE_FOO: &str = "feff0066006f006f0020006200610072002000620061007a000a002e002e002e000a00620061007a00200066006f006f0020006200610072000a002e002e002e000a006200610072002000620061007a00200066006f006f";
     const UTF16LE_FOO: &str = "fffe66006f006f0020006200610072002000620061007a000a002e002e002e000a00620061007a00200066006f006f0020006200610072000a002e002e002e000a006200610072002000620061007a00200066006f006f00";
 
@@ -437,12 +437,22 @@ mod tests {
     //   printf "<BOM>%s" $(printf "RUST bar baz\n...\nbaz RUST bar\n...\nbar baz RUST" | iconv -f UTF8 -t <ENCODING> | xxd -p -c 128)
 
     const UTF8_RUST: &str = "52555354206261722062617a0a2e2e2e0a62617a2052555354206261720a2e2e2e0a6261722062617a2052555354";
-    const UTF8_RUST_BOM: &str = "efbbbf52555354206261722062617a0a2e2e2e0a62617a2052555354206261720a2e2e2e0a6261722062617a2052555354";
+    const UTF8BOM_RUST: &str = "efbbbf52555354206261722062617a0a2e2e2e0a62617a2052555354206261720a2e2e2e0a6261722062617a2052555354";
     const UTF16BE_RUST: &str = "feff00520055005300540020006200610072002000620061007a000a002e002e002e000a00620061007a002000520055005300540020006200610072000a002e002e002e000a006200610072002000620061007a00200052005500530054";
     const UTF16LE_RUST: &str = "fffe520055005300540020006200610072002000620061007a000a002e002e002e000a00620061007a002000520055005300540020006200610072000a002e002e002e000a006200610072002000620061007a0020005200550053005400";
 
+    // The following are generated with:
+    //   printf "<BOM>%s" $(printf "A bar baz\n...\nbaz A bar\n...\nbar baz A" | iconv -f UTF8 -t <ENCODING> | xxd -p -c 128)
+
+    const UTF8_A: &str =
+        "41206261722062617a0a2e2e2e0a62617a2041206261720a2e2e2e0a6261722062617a2041";
+    const UTF8BOM_A: &str =
+        "efbbbf41206261722062617a0a2e2e2e0a62617a2041206261720a2e2e2e0a6261722062617a2041";
+    const UTF16BE_A: &str = "feff00410020006200610072002000620061007a000a002e002e002e000a00620061007a002000410020006200610072000a002e002e002e000a006200610072002000620061007a00200041";
+    const UTF16LE_A: &str = "fffe410020006200610072002000620061007a000a002e002e002e000a00620061007a002000410020006200610072000a002e002e002e000a006200610072002000620061007a0020004100";
+
     simple_test!(
-        multiline_utf8,
+        multiline_longer_utf8,
         UTF8_FOO,
         UTF8_RUST,
         ("foo", "RUST"),
@@ -450,15 +460,15 @@ mod tests {
     );
 
     simple_test!(
-        multiline_utf8_bom,
-        UTF8_FOO_BOM,
-        UTF8_RUST_BOM,
+        multiline_longer_utf8_bom,
+        UTF8BOM_FOO,
+        UTF8BOM_RUST,
         ("foo", "RUST"),
         &[(0, 3..6), (19, 4..7), (35, 8..11)]
     );
 
     simple_test!(
-        multiline_utf16be,
+        multiline_longer_utf16be,
         UTF16BE_FOO,
         UTF16BE_RUST,
         ("foo", "RUST"),
@@ -466,10 +476,42 @@ mod tests {
     );
 
     simple_test!(
-        multiline_utf16le,
+        multiline_longer_utf16le,
         UTF16LE_FOO,
         UTF16LE_RUST,
         ("foo", "RUST"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test!(
+        multiline_shorter_utf8,
+        UTF8_FOO,
+        UTF8_A,
+        ("foo", "A"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test!(
+        multiline_shorter_utf8_bom,
+        UTF8BOM_FOO,
+        UTF8BOM_A,
+        ("foo", "A"),
+        &[(0, 3..6), (19, 4..7), (35, 8..11)]
+    );
+
+    simple_test!(
+        multiline_shorter_utf16be,
+        UTF16BE_FOO,
+        UTF16BE_A,
+        ("foo", "A"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test!(
+        multiline_shorter_utf16le,
+        UTF16LE_FOO,
+        UTF16LE_A,
+        ("foo", "A"),
         &[(0, 0..3), (16, 4..7), (32, 8..11)]
     );
 }

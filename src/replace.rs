@@ -2,24 +2,28 @@ use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 
 use anyhow::Result;
-use chardet::charset2encoding;
 use encoding::label::encoding_from_whatwg_label;
-use encoding::EncoderTrap;
+use encoding::{DecoderTrap, EncoderTrap};
 
+use crate::encoding::{get_encoder, Bom};
 use crate::model::{ReplacementAttempt, ReplacementCriteria, ReplacementResult};
 use crate::rg::de::{RgMessageKind, SubMatch};
-
-const BOM_UTF8: [u8; 3] = [0xEF, 0xBB, 0xBF];
-const BOM_UTF16LE: [u8; 2] = [0xFF, 0xFE];
-const BOM_UTF16BE: [u8; 2] = [0xFE, 0xFF];
+use crate::rg::RgEncoding;
 
 // TODO: better error handling and messaging to the user when any of this fails
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<ReplacementResult> {
     // If we've been passed an encoding, then try to create an encoder from it.
-    let rg_override_encoder = criteria
-        .encoding
-        .as_ref()
-        .map(|enc| encoding_from_whatwg_label(&enc));
+    let rg_encoding = match criteria.encoding.as_ref() {
+        Some(label) => {
+            if label == "none" {
+                RgEncoding::NoneExplicit
+            } else {
+                encoding_from_whatwg_label(label)
+                    .map_or_else(|| RgEncoding::None, |e| RgEncoding::Some(e))
+            }
+        }
+        None => RgEncoding::None,
+    };
 
     Ok(criteria
         .items
@@ -32,35 +36,47 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
         .fold(ReplacementResult::new(&criteria.text), |mut res, item| {
             let file_path = item.path().expect("match item did not have a path!");
 
-            // TODO: don't read file completely into memory, but use a buffered approach instead
-            let mut file_contents = vec![];
-            OpenOptions::new()
-                .read(true)
-                .open(&file_path)
-                .unwrap()
-                .read_to_end(&mut file_contents)
-                .unwrap();
+            // Decode file.
+            let (bom, encoder, mut file_as_str) = {
+                // TODO: don't read file completely into memory, but use a buffered approach instead
+                let mut file_contents = vec![];
+                OpenOptions::new()
+                    .read(true)
+                    .open(&file_path)
+                    .unwrap()
+                    .read_to_end(&mut file_contents)
+                    .unwrap();
 
-            // If `rg_override_encoder` is present then we've detected an encoding sent through to `rg`.
-            // When given an encoding `rg` will use it on _all_ files searched.
-            let (encoding, encoder, replacement_bytes) = if let Some(Some(encoder)) =
-                rg_override_encoder
-            {
-                (
-                    criteria.encoding.as_ref().unwrap().to_owned(),
-                    Some(encoder),
-                    encoder.encode(&criteria.text, EncoderTrap::Ignore).unwrap(),
-                )
-            } else {
-                // Guess the file's encoding. We only use the encoding if the confidence is greater than 80%.
-                let (encoding, confidence, _) = chardet::detect(&file_contents);
-                if confidence > 0.80 {
-                    let encoder = encoding_from_whatwg_label(charset2encoding(&encoding)).unwrap();
-                    let encoded_replacement =
-                        encoder.encode(&criteria.text, EncoderTrap::Ignore).unwrap();
-                    (encoding, Some(encoder), encoded_replacement)
-                } else {
-                    (encoding, None, criteria.text.as_bytes().to_vec())
+                // Search for a BOM and attempt to detect file encoding.
+                let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
+
+                // Strip the BOM before we decode.
+                match bom {
+                    // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
+                    // See: https://github.com/BurntSushi/ripgrep/issues/1638
+                    None | Some(Bom::Utf8) => {}
+                    Some(_) => {
+                        file_contents = file_contents
+                            .iter()
+                            .skip(bom.unwrap().len())
+                            .copied()
+                            .collect();
+                    }
+                }
+
+                match encoder.decode(&file_contents, DecoderTrap::Strict) {
+                    Ok(s) => (bom, encoder, s),
+                    Err(e) => {
+                        res.add_replacement(
+                            &file_path,
+                            vec![ReplacementAttempt::Failure(format!(
+                                "Failed to decode file: {}",
+                                e
+                            ))],
+                            encoder.name(),
+                        );
+                        return res;
+                    }
                 }
             };
 
@@ -68,48 +84,47 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
             let replaced_matches = item.matches().map_or_else(
                 || vec![],
                 |submatches| {
-                    let mut offset = item.offset().unwrap_or(0);
-
-                    // Increase offset to take into account the BOM if it exists.
-                    if (encoding == "UTF-16LE" && file_contents[0..2] == BOM_UTF16LE)
-                        || (encoding == "UTF-16BE" && file_contents[0..2] == BOM_UTF16BE)
-                    {
-                        offset += 2;
-                    } else if encoding == "UTF-8" && file_contents[0..3] == BOM_UTF8 {
-                        offset += 3;
-                    }
+                    let offset = item.offset().unwrap();
 
                     // Iterate backwards so the offset doesn't change as we make replacements.
                     submatches
                         .iter()
                         .rev()
-                        .map(|submatch| {
-                            let SubMatch { text, range } = submatch;
-                            let removed_bytes = file_contents
-                                .splice(
-                                    (offset + range.start)..(offset + range.end),
-                                    replacement_bytes.clone(),
-                                )
-                                .collect::<Vec<_>>();
-
-                            // Assert that the portion we replaced matches the matched portion.
-                            let matched_bytes = encoder
-                                .map_or_else(|| text.to_vec(), |e| text.to_vec_with_encoding(e));
-
-                            if matched_bytes == removed_bytes {
-                                ReplacementAttempt::Success(text.lossy_utf8())
+                        .map(|SubMatch { text, range }| {
+                            let normalised_range = (offset + range.start)..(offset + range.end);
+                            dbg!(&normalised_range);
+                            let str_to_remove = &file_as_str[normalised_range.clone()];
+                            if str_to_remove.as_bytes() == text.to_vec().as_slice() {
+                                let removed_str = str_to_remove.to_string();
+                                file_as_str.replace_range(normalised_range, &criteria.text);
+                                ReplacementAttempt::Success(removed_str)
                             } else {
-                                let reason = format!(
+                                ReplacementAttempt::Failure(format!(
                                     "Matched bytes do not match bytes to replace in {}@{}!",
                                     file_path.display(),
                                     offset + range.start,
-                                );
-                                ReplacementAttempt::Failure(reason)
+                                ))
                             }
                         })
                         .collect()
                 },
             );
+
+            // Convert back into the detected encoding.
+            let replaced_contents = match encoder.encode(&file_as_str, EncoderTrap::Strict) {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    res.add_replacement(
+                        &file_path,
+                        vec![ReplacementAttempt::Failure(format!(
+                            "Failed to encode replaced string: {}",
+                            e
+                        ))],
+                        encoder.name(),
+                    );
+                    return res;
+                }
+            };
 
             // Create a temporary file.
             #[cfg(not(windows))]
@@ -120,27 +135,30 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
             let temp_file_path = &file_path;
 
             // Write modified string into a temporary file.
-            OpenOptions::new()
+            let mut dest_file = OpenOptions::new()
                 .create(true)
                 .write(true)
                 .truncate(true)
                 .open(&temp_file_path)
-                .unwrap()
-                .write_all(&file_contents)
                 .unwrap();
+
+            // Write a BOM if one existed beforehand.
+            if let Some(bom) = bom {
+                // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either therefore no need to re-write one
+                // See: https://github.com/BurntSushi/ripgrep/issues/1638
+                if !matches!(bom, Bom::Utf8) {
+                    dest_file.write_all(bom.bytes()).unwrap();
+                }
+            }
+            dest_file.write_all(&replaced_contents).unwrap();
 
             // Overwrite the original file with the patched temp file.
             #[cfg(not(windows))]
             fs::rename(temp_file_path, &file_path).unwrap();
 
-            res.add_replacement(
-                &file_path,
-                replaced_matches,
-                match encoder {
-                    Some(_) => encoding,
-                    None => "UTF-8".to_owned(),
-                },
-            );
+            // Add the results of the replacement.
+            // TODO: potentially log these as they occur to avoid hanging on a lot of files.
+            res.add_replacement(&file_path, replaced_matches, encoder.name());
             res
         }))
 }
@@ -156,7 +174,7 @@ mod tests {
     use crate::model::*;
     use crate::replace::perform_replacements;
     use crate::rg::de::test_utilities::RgMessageBuilder;
-    use crate::rg::de::{Duration, RgMessage, RgMessageKind, Stats, SubMatch};
+    use crate::rg::de::{Duration, RgMessageKind, Stats, SubMatch};
 
     fn temp_rg_msg(
         mut f: &NamedTempFile,
@@ -365,28 +383,135 @@ mod tests {
 
     // Encodings
 
-    #[ignore] // FIXME: make this test work by fixing encodings
-    #[test]
-    fn encoding_multiline_utf16le() {
-        let start_bytes = b"\xff\xfe\x61\x00\x0a\x00\x62\x00\x0a\x00\x63\x00\x0a\x00";
-        let end_bytes = b"\xff\xfe\x61\x00\x0a\x00\x66\x00\x6f\x00\x6f\x00\x0a\x00\x63\x00\x0a\x00";
+    macro_rules! simple_test {
+        ($name:ident, $src:expr, $dst:expr, ($needle:expr, $replace:expr), $submatches:expr) => {
+            #[test]
+            fn $name() {
+                let src_bytes = hex::decode($src).unwrap();
 
-        let mut f = NamedTempFile::new().unwrap();
-        f.write_all(start_bytes).unwrap();
+                let mut f = NamedTempFile::new().unwrap();
+                f.write_all(&src_bytes).unwrap();
 
-        let item = Item::new(serde_json::from_str::<RgMessage>(r#"{"type":"match","data":{"path":{"text":"utf16le"},"lines":{"text":"b\n"},"line_number":2,"absolute_offset":2,"submatches":[{"match":{"text":"b"},"start":0,"end":1}]}}"#).unwrap());
-        perform_replacements(ReplacementCriteria::new("foo", vec![item])).unwrap();
+                let items: Vec<Item> = $submatches
+                    .iter()
+                    .map(|(offset, range)| {
+                        Item::new(
+                            RgMessageBuilder::new(RgMessageKind::Match)
+                                .with_path_text(f.path().to_string_lossy())
+                                .with_lines_text(&format!("{}\n", $needle))
+                                .with_submatches(vec![SubMatch::new_text($needle, range.clone())])
+                                .with_offset(*offset)
+                                .build(),
+                        )
+                    })
+                    .collect();
 
-        // Read file bytes.
-        let mut file_bytes = vec![];
-        OpenOptions::new()
-            .read(true)
-            .open(f.path())
-            .unwrap()
-            .read_to_end(&mut file_bytes)
-            .unwrap();
+                perform_replacements(ReplacementCriteria::new($replace, items)).unwrap();
 
-        // Check real bytes are the same as expected bytes.
-        assert_eq!(file_bytes, end_bytes);
+                // Read file bytes.
+                let mut file_bytes = vec![];
+                OpenOptions::new()
+                    .read(true)
+                    .open(f.path())
+                    .unwrap()
+                    .read_to_end(&mut file_bytes)
+                    .unwrap();
+
+                // Check real bytes are the same as expected bytes.
+                assert_eq!(file_bytes, hex::decode($dst).unwrap());
+            }
+        };
     }
+
+    // The following are generated with:
+    //   printf "<BOM>%s" $(printf "foo bar baz\n...\nbaz foo bar\n...\nbar baz foo" | iconv -f UTF8 -t <ENCODING> | xxd -p -c 128)
+    // printf "efbbbf%s" $(printf "RUST bar baz\n...\nbaz RUST bar\n...\nbar baz RUST" | iconv -f UTF8 -t UTF8 | xxd -p -c 128)
+
+    const UTF8_FOO: &str =
+        "666f6f206261722062617a0a2e2e2e0a62617a20666f6f206261720a2e2e2e0a6261722062617a20666f6f";
+    const UTF8BOM_FOO: &str = "efbbbf666f6f206261722062617a0a2e2e2e0a62617a20666f6f206261720a2e2e2e0a6261722062617a20666f6f";
+    const UTF16BE_FOO: &str = "feff0066006f006f0020006200610072002000620061007a000a002e002e002e000a00620061007a00200066006f006f0020006200610072000a002e002e002e000a006200610072002000620061007a00200066006f006f";
+    const UTF16LE_FOO: &str = "fffe66006f006f0020006200610072002000620061007a000a002e002e002e000a00620061007a00200066006f006f0020006200610072000a002e002e002e000a006200610072002000620061007a00200066006f006f00";
+
+    // The following are generated with:
+    //   printf "<BOM>%s" $(printf "RUST bar baz\n...\nbaz RUST bar\n...\nbar baz RUST" | iconv -f UTF8 -t <ENCODING> | xxd -p -c 128)
+
+    const UTF8_RUST: &str = "52555354206261722062617a0a2e2e2e0a62617a2052555354206261720a2e2e2e0a6261722062617a2052555354";
+    const UTF8BOM_RUST: &str = "efbbbf52555354206261722062617a0a2e2e2e0a62617a2052555354206261720a2e2e2e0a6261722062617a2052555354";
+    const UTF16BE_RUST: &str = "feff00520055005300540020006200610072002000620061007a000a002e002e002e000a00620061007a002000520055005300540020006200610072000a002e002e002e000a006200610072002000620061007a00200052005500530054";
+    const UTF16LE_RUST: &str = "fffe520055005300540020006200610072002000620061007a000a002e002e002e000a00620061007a002000520055005300540020006200610072000a002e002e002e000a006200610072002000620061007a0020005200550053005400";
+
+    // The following are generated with:
+    //   printf "<BOM>%s" $(printf "A bar baz\n...\nbaz A bar\n...\nbar baz A" | iconv -f UTF8 -t <ENCODING> | xxd -p -c 128)
+
+    const UTF8_A: &str =
+        "41206261722062617a0a2e2e2e0a62617a2041206261720a2e2e2e0a6261722062617a2041";
+    const UTF8BOM_A: &str =
+        "efbbbf41206261722062617a0a2e2e2e0a62617a2041206261720a2e2e2e0a6261722062617a2041";
+    const UTF16BE_A: &str = "feff00410020006200610072002000620061007a000a002e002e002e000a00620061007a002000410020006200610072000a002e002e002e000a006200610072002000620061007a00200041";
+    const UTF16LE_A: &str = "fffe410020006200610072002000620061007a000a002e002e002e000a00620061007a002000410020006200610072000a002e002e002e000a006200610072002000620061007a0020004100";
+
+    simple_test!(
+        multiline_longer_utf8,
+        UTF8_FOO,
+        UTF8_RUST,
+        ("foo", "RUST"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test!(
+        multiline_longer_utf8_bom,
+        UTF8BOM_FOO,
+        UTF8BOM_RUST,
+        ("foo", "RUST"),
+        &[(0, 3..6), (19, 4..7), (35, 8..11)]
+    );
+
+    simple_test!(
+        multiline_longer_utf16be,
+        UTF16BE_FOO,
+        UTF16BE_RUST,
+        ("foo", "RUST"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test!(
+        multiline_longer_utf16le,
+        UTF16LE_FOO,
+        UTF16LE_RUST,
+        ("foo", "RUST"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test!(
+        multiline_shorter_utf8,
+        UTF8_FOO,
+        UTF8_A,
+        ("foo", "A"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test!(
+        multiline_shorter_utf8_bom,
+        UTF8BOM_FOO,
+        UTF8BOM_A,
+        ("foo", "A"),
+        &[(0, 3..6), (19, 4..7), (35, 8..11)]
+    );
+
+    simple_test!(
+        multiline_shorter_utf16be,
+        UTF16BE_FOO,
+        UTF16BE_A,
+        ("foo", "A"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test!(
+        multiline_shorter_utf16le,
+        UTF16LE_FOO,
+        UTF16LE_A,
+        ("foo", "A"),
+        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
 }

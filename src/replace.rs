@@ -49,8 +49,14 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
             let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
 
             // Strip the BOM before we decode.
-            if let Some(bom) = bom {
-                file_contents = file_contents.iter().skip(bom.len()).copied().collect();
+            // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
+            // See: https://github.com/BurntSushi/ripgrep/issues/1638
+            if bom.is_some() && !matches!(bom, Some(Bom::Utf8)) {
+                file_contents = file_contents
+                    .iter()
+                    .skip(bom.unwrap().len())
+                    .copied()
+                    .collect();
             }
 
             // Decode file.
@@ -73,13 +79,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
             let replaced_matches = item.matches().map_or_else(
                 || vec![],
                 |submatches| {
-                    let mut offset = item.offset().unwrap_or(0);
-
-                    // FIXME: UTF8 with BOM doesn't work
-                    // See: https://github.com/BurntSushi/ripgrep/issues/1638
-                    if let Some(Bom::Utf8) = bom {
-                        offset += bom.unwrap().len();
-                    }
+                    let offset = item.offset().unwrap();
 
                     // Iterate backwards so the offset doesn't change as we make replacements.
                     submatches
@@ -87,6 +87,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
                         .rev()
                         .map(|SubMatch { text, range }| {
                             let normalised_range = (offset + range.start)..(offset + range.end);
+                            dbg!(&normalised_range);
                             let str_to_remove = &file_as_str[normalised_range.clone()];
                             if str_to_remove.as_bytes() == text.to_vec().as_slice() {
                                 let removed_str = str_to_remove.to_string();
@@ -138,7 +139,11 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
 
             // Write a BOM if one existed beforehand.
             if let Some(bom) = bom {
-                dest_file.write_all(bom.bytes()).unwrap();
+                // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either therefore no need to re-write one
+                // See: https://github.com/BurntSushi/ripgrep/issues/1638
+                if !matches!(bom, Bom::Utf8) {
+                    dest_file.write_all(bom.bytes()).unwrap();
+                }
             }
             dest_file.write_all(&replaced_contents).unwrap();
 

@@ -1,3 +1,10 @@
+/// Note that while we duplicate a log of ripgrep's command line options here, we don't appear to
+/// use many of them at all. This is because the Clap arguments defined here act as a whitelist of
+/// supported ripgrep options: if this fails to pass, then the user has passed some options which we
+/// don't yet support.
+///
+/// We do use some of this information, for instance the `encoding` is sniffed from the argument
+/// parsing we do here.
 use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
@@ -113,6 +120,9 @@ pub struct Args {
 
 impl Args {
     /// Provides the command line arguments to pass down to ripgrep.
+    /// At the moment this just proxies down _all_ command line arguments (excluding the program name)
+    /// directly to ripgrep. We assume that the arguments contain a supported set of flags and options
+    /// since we'll have used Clap to parse this struct and validate our program's arguments.
     pub fn rg_args(&self) -> impl Iterator<Item = OsString> {
         // Skip the first argument, which _should_ be the binary name.
         env::args_os().skip(1)

@@ -4,7 +4,15 @@ This is an interactive command line tool to make find and replacement easy.
 It uses [`ripgrep`] to find, and then provides you with a simple interface to see
 the replacements in real-time and conditionally replace matches.
 
-Right now this only works with ascii or UTF-8 encoded files, other common encodings (such as UTF-16{le,be} are [planned for the future](https://github.com/acheronfail/repgrep/issues/12)).
+Supported file encodings:
+
+* ASCII
+* UTF8
+* UTF16BE
+* UTF16LE
+
+Other encodings are possibly supported but untested at the moment.
+See [this issue](https://github.com/acheronfail/repgrep/issues/12) for more information.
 
 ## Usage
 

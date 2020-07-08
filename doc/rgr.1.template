@@ -10,24 +10,11 @@ DESCRIPTION
 In order to use this tool you must have first installed *rg* (AKA: *ripgrep*).
 See: https://github.com/BurntSushi/ripgrep/#installation.
 
-Upon start all command line arguments are passed down to *rg* (adding *--json*).
+Upon start all command line arguments are passed down to *rg* (adding *--json* and *--no-config*).
 The JSON output is then parsed, and you are presented with a terminal interface (described below).
 
 Note since we use the *--json* flag, a number of *rg*'s flags are unavailable.
-This tool will filter out the following flags before running *rg*:
-
-* -h --help
-* -V --version
-* -r --replace
-* -o --only-matching
-* --heading
-* -M --max-columns
-* --no-json
-* --files
-* -l --files-with-matches
-* --files-without-match
-* -c --count
-* --count-matches
+See *rgr --help* for a list of supported flags that will be sent through to *ripgrep*.
 
 To see the keybindings, press *?* while in the **SELECT** mode.
 
@@ -64,14 +51,17 @@ FILE ENCODING
 Handling of file encoding happens in two places: the **SELECT** mode and when the replacements are written to disk.
 
 _In the **SELECT** mode_, non UTF-8 bytes are shown with the UTF-8 replacement character.
-This occurs because the files themselves have not yet been read, and thus the encoding of the file is unknown.
+This occurs because the files themselves have not yet been read (the information is directly from ripgrep) and thus the encoding of the file is unknown.
 
-_During replacement_ encoding is handled in two ways:
+_During replacement_ encoding is handled in the following manner:
 
-    1. If the encoding flag was passed to *rg* (see *rg --help*) then that encoding is forced for all files.
-    2. Otherwise, the *chardet* (https://github.com/thuleqaid/rust-chardet) library is used to detect the encoding. (If a sufficient confidence of the encoding detection is not reached, then *rgr* falls back to UTF-8.)
+* If a BOM (Byte Order Mark) is found, then that encoding is used, otherwise
+* If an encoding was passed to ripgrep, then that encoding is used, otherwise
+* The *chardet* (https://github.com/thuleqaid/rust-chardet) library is used to detect the encoding
+* If that fails, then ASCII is assumed
 
-Note that *rgr* _will never replace_ a portion of unexpected bytes. If when replacing a match the bytes to replace do not match those reported by *rg*, then the tool will bail out and the file will not be written. (Errors will be reported to STDERR.)
+Note that *rgr* _will never replace_ a match that it doesn't expect.
+If when replacing a match the bytes to replace do not match those matched by ripgrep, then the tool will bail out and the file will not be written. (Errors will be reported to STDERR.)
 
 HOMEPAGE
 --------

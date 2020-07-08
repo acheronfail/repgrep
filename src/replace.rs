@@ -36,42 +36,47 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
         .fold(ReplacementResult::new(&criteria.text), |mut res, item| {
             let file_path = item.path().expect("match item did not have a path!");
 
-            // TODO: don't read file completely into memory, but use a buffered approach instead
-            let mut file_contents = vec![];
-            OpenOptions::new()
-                .read(true)
-                .open(&file_path)
-                .unwrap()
-                .read_to_end(&mut file_contents)
-                .unwrap();
-
-            // Search for a BOM and attempt to detect file encoding.
-            let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
-
-            // Strip the BOM before we decode.
-            // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
-            // See: https://github.com/BurntSushi/ripgrep/issues/1638
-            if bom.is_some() && !matches!(bom, Some(Bom::Utf8)) {
-                file_contents = file_contents
-                    .iter()
-                    .skip(bom.unwrap().len())
-                    .copied()
-                    .collect();
-            }
-
             // Decode file.
-            let mut file_as_str = match encoder.decode(&file_contents, DecoderTrap::Strict) {
-                Ok(s) => s,
-                Err(e) => {
-                    res.add_replacement(
-                        &file_path,
-                        vec![ReplacementAttempt::Failure(format!(
-                            "Failed to decode file: {}",
-                            e
-                        ))],
-                        encoder.name(),
-                    );
-                    return res;
+            let (bom, encoder, mut file_as_str) = {
+                // TODO: don't read file completely into memory, but use a buffered approach instead
+                let mut file_contents = vec![];
+                OpenOptions::new()
+                    .read(true)
+                    .open(&file_path)
+                    .unwrap()
+                    .read_to_end(&mut file_contents)
+                    .unwrap();
+
+                // Search for a BOM and attempt to detect file encoding.
+                let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
+
+                // Strip the BOM before we decode.
+                match bom {
+                    // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
+                    // See: https://github.com/BurntSushi/ripgrep/issues/1638
+                    None | Some(Bom::Utf8) => {}
+                    Some(_) => {
+                        file_contents = file_contents
+                            .iter()
+                            .skip(bom.unwrap().len())
+                            .copied()
+                            .collect();
+                    }
+                }
+
+                match encoder.decode(&file_contents, DecoderTrap::Strict) {
+                    Ok(s) => (bom, encoder, s),
+                    Err(e) => {
+                        res.add_replacement(
+                            &file_path,
+                            vec![ReplacementAttempt::Failure(format!(
+                                "Failed to decode file: {}",
+                                e
+                            ))],
+                            encoder.name(),
+                        );
+                        return res;
+                    }
                 }
             };
 

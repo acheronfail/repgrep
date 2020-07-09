@@ -1,6 +1,9 @@
 pub mod de;
 pub mod exec;
 
+use std::convert::From;
+
+use encoding::label::encoding_from_whatwg_label;
 use encoding::EncodingRef;
 
 /// A small wrapper to help describe the encoding that we think ripgrep will use.
@@ -19,6 +22,25 @@ impl RgEncoding {
         match &self {
             RgEncoding::Some(enc) => Some(*enc),
             _ => None,
+        }
+    }
+}
+
+impl From<&str> for RgEncoding {
+    fn from(s: &str) -> Self {
+        if s == "none" {
+            RgEncoding::NoneExplicit
+        } else {
+            encoding_from_whatwg_label(s).map_or_else(|| RgEncoding::None, |e| RgEncoding::Some(e))
+        }
+    }
+}
+
+impl From<&Option<String>> for RgEncoding {
+    fn from(input: &Option<String>) -> Self {
+        match input {
+            Some(label) => Self::from(label.as_str()),
+            None => RgEncoding::None,
         }
     }
 }

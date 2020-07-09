@@ -1,33 +1,9 @@
-use std::ffi::OsString;
 use std::path::PathBuf;
 
-use anyhow::Result;
 use tui::style::{Color, Style};
 use tui::widgets::Text;
 
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
-
-// TODO: tests for Base64 decoding on separate platforms
-
-/// Convert Base64 encoded data to an OsString on Unix platforms.
-/// https://doc.rust-lang.org/std/ffi/index.html#on-unix
-#[cfg(unix)]
-fn base64_to_os_string(bytes: Vec<u8>) -> Result<OsString> {
-    use std::os::unix::ffi::OsStringExt;
-    Ok(OsString::from_vec(bytes))
-}
-
-/// Convert Base64 encoded data to an OsString on Windows platforms.
-/// https://doc.rust-lang.org/std/ffi/index.html#on-windows
-#[cfg(not(unix))]
-fn base64_to_os_string(bytes: Vec<u8>) -> Result<OsString> {
-    use safe_transmute::transmute_vec;
-    use std::os::windows::ffi::OsStringExt;
-
-    // Transmute decoded Base64 bytes as UTF-16 since that's what underlying paths are on Windows.
-    let bytes_u16 = transmute_vec::<u8, u16>(bytes)?;
-    Ok(OsString::from_wide(&bytes_u16))
-}
 
 #[derive(Debug, Clone)]
 pub struct Item {
@@ -81,40 +57,25 @@ impl Item {
         }
     }
 
-    pub fn path(&self) -> Option<PathBuf> {
-        let path_data = match &self.rg_message {
-            RgMessage::Begin { path, .. } => path,
-            RgMessage::Match { path, .. } => path,
-            RgMessage::Context { path, .. } => path,
-            RgMessage::End { path, .. } => path,
-            RgMessage::Summary { .. } => return None,
-        };
+    pub fn path(&self) -> Option<&ArbitraryData> {
+        match &self.rg_message {
+            RgMessage::Begin { path, .. } => Some(path),
+            RgMessage::Match { path, .. } => Some(path),
+            RgMessage::Context { path, .. } => Some(path),
+            RgMessage::End { path, .. } => Some(path),
+            RgMessage::Summary { .. } => None,
+        }
+    }
 
-        Some(match path_data {
-            ArbitraryData::Text { text } => PathBuf::from(text),
-            ArbitraryData::Base64 { bytes } => {
-                // Decode the Base64 into u8 bytes.
-                let data = match base64::decode(bytes) {
-                    Ok(data) => data,
-                    Err(e) => panic!("Error deserialising Base64 data: {}", e),
-                };
-
-                // Convert the bytes into an OsString.
-                let os_string = match base64_to_os_string(data) {
-                    Ok(os_string) => os_string,
-                    Err(e) => panic!("Error transmuting Base64 data to OsString: {}", e),
-                };
-
-                PathBuf::from(os_string)
-            }
-        })
+    pub fn path_buf(&self) -> Option<PathBuf> {
+        self.path().and_then(|data| data.to_path_buf().ok())
     }
 
     pub fn to_text(&self, replacement: Option<&str>) -> Text {
         // TODO: handle multiline matches
         match &self.rg_message {
             RgMessage::Begin { .. } => Text::styled(
-                format!("{}", self.path().unwrap().display()),
+                format!("{}", self.path_buf().unwrap().display()),
                 Style::default().fg(Color::Magenta),
             ),
             RgMessage::Context {
@@ -251,11 +212,11 @@ mod tests {
     #[test]
     fn path_with_text() {
         let path = PathBuf::from("src/model/item.rs");
-        assert_eq!(new_item(RG_JSON_BEGIN).path().as_ref(), Some(&path));
-        assert_eq!(new_item(RG_JSON_MATCH).path().as_ref(), Some(&path));
-        assert_eq!(new_item(RG_JSON_CONTEXT).path().as_ref(), Some(&path));
-        assert_eq!(new_item(RG_JSON_END).path().as_ref(), Some(&path));
-        assert_eq!(new_item(RG_JSON_SUMMARY).path().as_ref(), None);
+        assert_eq!(new_item(RG_JSON_BEGIN).path_buf().as_ref(), Some(&path));
+        assert_eq!(new_item(RG_JSON_MATCH).path_buf().as_ref(), Some(&path));
+        assert_eq!(new_item(RG_JSON_CONTEXT).path_buf().as_ref(), Some(&path));
+        assert_eq!(new_item(RG_JSON_END).path_buf().as_ref(), Some(&path));
+        assert_eq!(new_item(RG_JSON_SUMMARY).path_buf().as_ref(), None);
     }
 
     // TODO: write a similar test for Windows systems
@@ -286,23 +247,31 @@ mod tests {
         };
 
         assert_eq!(
-            new_item_path_base64(RgMessageKind::Begin).path().as_ref(),
+            new_item_path_base64(RgMessageKind::Begin)
+                .path_buf()
+                .as_ref(),
             Some(&invalid_utf8_path)
         );
         assert_eq!(
-            new_item_path_base64(RgMessageKind::Match).path().as_ref(),
+            new_item_path_base64(RgMessageKind::Match)
+                .path_buf()
+                .as_ref(),
             Some(&invalid_utf8_path)
         );
         assert_eq!(
-            new_item_path_base64(RgMessageKind::Context).path().as_ref(),
+            new_item_path_base64(RgMessageKind::Context)
+                .path_buf()
+                .as_ref(),
             Some(&invalid_utf8_path)
         );
         assert_eq!(
-            new_item_path_base64(RgMessageKind::End).path().as_ref(),
+            new_item_path_base64(RgMessageKind::End).path_buf().as_ref(),
             Some(&invalid_utf8_path)
         );
         assert_eq!(
-            new_item_path_base64(RgMessageKind::Summary).path().as_ref(),
+            new_item_path_base64(RgMessageKind::Summary)
+                .path_buf()
+                .as_ref(),
             None
         );
     }

@@ -17,11 +17,17 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
         .or_else(|| rg_encoding.encoder())
         // nothing so far, try detecting the encoding
         .or_else(|| {
-            // TODO: use chardet::UniversalDetector to detect using a reader rather than a whole slice
             let (encoding, confidence, _) = chardet::detect(&bytes);
             // TODO: be able to adjust chardet confidence here
             if confidence > 0.80 {
-                encoding_from_whatwg_label(charset2encoding(&encoding))
+                // If we pass "ascii" to `encoding_from_whatwg_label` then it will default to using the "windows-1252"
+                // encoding. However, this may be confusing as most users are more familiar with ASCII encodings and may
+                // be unaware that "windows-1252" is an ASCII compatible encoding.
+                if encoding == "ascii" {
+                    Some(encoding::all::ASCII)
+                } else {
+                    encoding_from_whatwg_label(charset2encoding(&encoding))
+                }
             } else {
                 None
             }

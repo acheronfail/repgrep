@@ -81,16 +81,18 @@ impl Item {
         }
     }
 
-    pub fn path(&self) -> Option<PathBuf> {
-        let path_data = match &self.rg_message {
-            RgMessage::Begin { path, .. } => path,
-            RgMessage::Match { path, .. } => path,
-            RgMessage::Context { path, .. } => path,
-            RgMessage::End { path, .. } => path,
-            RgMessage::Summary { .. } => return None,
-        };
+    pub fn path(&self) -> Option<&ArbitraryData> {
+        match &self.rg_message {
+            RgMessage::Begin { path, .. } => Some(path),
+            RgMessage::Match { path, .. } => Some(path),
+            RgMessage::Context { path, .. } => Some(path),
+            RgMessage::End { path, .. } => Some(path),
+            RgMessage::Summary { .. } => None,
+        }
+    }
 
-        Some(match path_data {
+    pub fn path_buf(&self) -> Option<PathBuf> {
+        self.path().map(|data| match data {
             ArbitraryData::Text { text } => PathBuf::from(text),
             ArbitraryData::Base64 { bytes } => {
                 // Decode the Base64 into u8 bytes.
@@ -114,7 +116,7 @@ impl Item {
         // TODO: handle multiline matches
         match &self.rg_message {
             RgMessage::Begin { .. } => Text::styled(
-                format!("{}", self.path().unwrap().display()),
+                format!("{}", self.path_buf().unwrap().display()),
                 Style::default().fg(Color::Magenta),
             ),
             RgMessage::Context {
@@ -251,11 +253,11 @@ mod tests {
     #[test]
     fn path_with_text() {
         let path = PathBuf::from("src/model/item.rs");
-        assert_eq!(new_item(RG_JSON_BEGIN).path().as_ref(), Some(&path));
-        assert_eq!(new_item(RG_JSON_MATCH).path().as_ref(), Some(&path));
-        assert_eq!(new_item(RG_JSON_CONTEXT).path().as_ref(), Some(&path));
-        assert_eq!(new_item(RG_JSON_END).path().as_ref(), Some(&path));
-        assert_eq!(new_item(RG_JSON_SUMMARY).path().as_ref(), None);
+        assert_eq!(new_item(RG_JSON_BEGIN).path_buf().as_ref(), Some(&path));
+        assert_eq!(new_item(RG_JSON_MATCH).path_buf().as_ref(), Some(&path));
+        assert_eq!(new_item(RG_JSON_CONTEXT).path_buf().as_ref(), Some(&path));
+        assert_eq!(new_item(RG_JSON_END).path_buf().as_ref(), Some(&path));
+        assert_eq!(new_item(RG_JSON_SUMMARY).path_buf().as_ref(), None);
     }
 
     // TODO: write a similar test for Windows systems
@@ -286,23 +288,31 @@ mod tests {
         };
 
         assert_eq!(
-            new_item_path_base64(RgMessageKind::Begin).path().as_ref(),
+            new_item_path_base64(RgMessageKind::Begin)
+                .path_buf()
+                .as_ref(),
             Some(&invalid_utf8_path)
         );
         assert_eq!(
-            new_item_path_base64(RgMessageKind::Match).path().as_ref(),
+            new_item_path_base64(RgMessageKind::Match)
+                .path_buf()
+                .as_ref(),
             Some(&invalid_utf8_path)
         );
         assert_eq!(
-            new_item_path_base64(RgMessageKind::Context).path().as_ref(),
+            new_item_path_base64(RgMessageKind::Context)
+                .path_buf()
+                .as_ref(),
             Some(&invalid_utf8_path)
         );
         assert_eq!(
-            new_item_path_base64(RgMessageKind::End).path().as_ref(),
+            new_item_path_base64(RgMessageKind::End).path_buf().as_ref(),
             Some(&invalid_utf8_path)
         );
         assert_eq!(
-            new_item_path_base64(RgMessageKind::Summary).path().as_ref(),
+            new_item_path_base64(RgMessageKind::Summary)
+                .path_buf()
+                .as_ref(),
             None
         );
     }

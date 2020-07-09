@@ -1,19 +1,28 @@
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
+use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use encoding::label::encoding_from_whatwg_label;
 use encoding::{DecoderTrap, EncoderTrap};
 
 use crate::encoding::{get_encoder, Bom};
-use crate::model::ReplacementCriteria;
+use crate::model::{Item, ReplacementCriteria};
 use crate::rg::de::{RgMessageKind, SubMatch};
 use crate::rg::RgEncoding;
 
 // TODO: better error handling and messaging to the user when any of this fails
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
+    let ReplacementCriteria {
+        items,
+        text: replacement_text,
+        encoding,
+    } = criteria;
+
     // If we've been passed an encoding, then try to create an encoder from it.
-    let rg_encoding = match criteria.encoding.as_ref() {
+    let rg_encoding = match encoding.as_ref() {
         Some(label) => {
             if label == "none" {
                 RgEncoding::NoneExplicit
@@ -25,120 +34,124 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
         None => RgEncoding::None,
     };
 
-    criteria
-        .items
-        .iter()
-        // Iterate backwards so the offset doesn't change as we make replacements.
-        .rev()
+    // Group items by their file so we only open each file once.
+    let paths_to_items: HashMap<PathBuf, Vec<Item>> = items
+        .into_iter()
         // The only item kind we replace is the Match kind.
         .filter(|item| matches!(item.kind, RgMessageKind::Match) && item.should_replace)
-        // Perform the replacement on each match.
-        .for_each(|item| {
-            let file_path = item.path().expect("match item did not have a path!");
-
-            // Decode file.
-            let (bom, encoder, mut file_as_str) = {
-                let mut file_contents = vec![];
-                OpenOptions::new()
-                    .read(true)
-                    .open(&file_path)
-                    .unwrap()
-                    .read_to_end(&mut file_contents)
-                    .unwrap();
-
-                // Search for a BOM and attempt to detect file encoding.
-                let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
-
-                // Strip the BOM before we decode.
-                match bom {
-                    // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
-                    // See: https://github.com/BurntSushi/ripgrep/issues/1638
-                    None | Some(Bom::Utf8) => {}
-                    Some(_) => {
-                        file_contents = file_contents
-                            .iter()
-                            .skip(bom.unwrap().len())
-                            .copied()
-                            .collect();
-                    }
-                }
-
-                match encoder.decode(&file_contents, DecoderTrap::Strict) {
-                    Ok(s) => (bom, encoder, s),
-                    Err(e) => {
-                        eprintln!("Failed to decode file: {}", e);
-                        return;
-                    }
-                }
-            };
-
-            println!("file: {} <{}>", file_path.display(), encoder.name());
-
-            // Replace matches within the file contents with the given `replacement` string.
-            item.matches().iter().for_each(|submatches| {
-                let offset = item.offset().unwrap();
-
-                // Iterate backwards so the offset doesn't change as we make replacements.
-                submatches
-                    .iter()
-                    .rev()
-                    .map(|SubMatch { text, range }| {
-                        let normalised_range = (offset + range.start)..(offset + range.end);
-                        let str_to_remove = &file_as_str[normalised_range.clone()];
-                        if str_to_remove.as_bytes() == text.to_vec().as_slice() {
-                            let removed_str = str_to_remove.to_string();
-                            file_as_str.replace_range(normalised_range, &criteria.text);
-                            println!("Replaced: {}", removed_str);
-                        } else {
-                            eprintln!(
-                                "Matched bytes do not match bytes to replace in {}@{}!",
-                                file_path.display(),
-                                offset + range.start,
-                            )
-                        }
-                    })
-                    .collect()
-            });
-
-            // Convert back into the detected encoding.
-            let replaced_contents = match encoder.encode(&file_as_str, EncoderTrap::Strict) {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    eprintln!("Failed to encode replaced string: {}", e);
-                    return;
-                }
-            };
-
-            // Create a temporary file.
-            #[cfg(not(windows))]
-            let temp_file_path = &file_path.with_extension("rgr");
-            // FIXME: for reasons unknown to me Windows fails with permissions errors if we try to create a new file
-            // next to the original, so for now, we don't create a temporary file.
-            #[cfg(windows)]
-            let temp_file_path = &file_path;
-
-            // Write modified string into a temporary file.
-            let mut dest_file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(&temp_file_path)
-                .unwrap();
-
-            // Write a BOM if one existed beforehand.
-            if let Some(bom) = bom {
-                // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either therefore no need to re-write one
-                // See: https://github.com/BurntSushi/ripgrep/issues/1638
-                if !matches!(bom, Bom::Utf8) {
-                    dest_file.write_all(bom.bytes()).unwrap();
+        // Collect into a map of paths -> matches.
+        .fold(HashMap::new(), |mut map, item| {
+            match map.entry(item.path_buf().unwrap()) {
+                Entry::Occupied(e) => e.into_mut().push(item),
+                Entry::Vacant(e) => {
+                    e.insert(vec![item]);
                 }
             }
-            dest_file.write_all(&replaced_contents).unwrap();
 
-            // Overwrite the original file with the patched temp file.
-            #[cfg(not(windows))]
-            fs::rename(temp_file_path, &file_path).unwrap();
+            map
         });
+
+    for (path_buf, mut items) in paths_to_items {
+        // Check the file for a BOM, detect its encoding and then decode it into a string.
+        let (bom, encoder, mut file_as_str) = {
+            let mut file_contents = vec![];
+            OpenOptions::new()
+                .read(true)
+                .open(&path_buf)?
+                .read_to_end(&mut file_contents)?;
+
+            // Search for a BOM and attempt to detect file encoding.
+            let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
+
+            // Strip the BOM before we decode.
+            match bom {
+                // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
+                // See: https://github.com/BurntSushi/ripgrep/issues/1638
+                None | Some(Bom::Utf8) => {}
+                Some(_) => {
+                    file_contents = file_contents
+                        .iter()
+                        .skip(bom.unwrap().len())
+                        .copied()
+                        .collect();
+                }
+            }
+
+            let decoded = encoder
+                .decode(&file_contents, DecoderTrap::Strict)
+                .map_err(|e| anyhow!("Failed to decode file: {}", e))?;
+
+            (bom, encoder, decoded)
+        };
+
+        println!("file: {} <{}>", path_buf.display(), encoder.name());
+
+        // Sort the items so they're in order - ripgrep should give them to us in order anyway but we sort them here to
+        // future-proof against any changes.
+        // NOTE: we're sorting by the offset here with the assumption that no two Match items within one file will have
+        // the same offset.
+        items.sort_unstable_by_key(|i| i.offset());
+
+        // Iterate over the items in _reverse_ order -> this is so offsets can stay the same even though we're making
+        // changes to the string.
+        for item in items.iter().rev() {
+            item.matches().iter().for_each(|submatches| {
+                let offset = item.offset().unwrap();
+                // Iterate backwards so the offset doesn't change as we make replacements.
+                for SubMatch { text, range } in submatches.iter().rev() {
+                    let normalised_range = (offset + range.start)..(offset + range.end);
+                    let str_to_remove = &file_as_str[normalised_range.clone()];
+                    if str_to_remove.as_bytes() == text.to_vec().as_slice() {
+                        let removed_str = str_to_remove.to_string();
+                        file_as_str.replace_range(normalised_range, &replacement_text);
+                        println!("Replaced: {}", removed_str);
+                    } else {
+                        eprintln!(
+                            "Matched bytes do not match bytes to replace in {}@{}!",
+                            path_buf.display(),
+                            offset + range.start,
+                        )
+                    }
+                }
+            });
+        }
+
+        // Convert back into the detected encoding.
+        let replaced_contents = encoder
+            .encode(&file_as_str, EncoderTrap::Strict)
+            .map_err(|e| anyhow!("Failed to encode replaced string: {}", e))?;
+
+        // Create a temporary file.
+        #[cfg(not(windows))]
+        let temp_file_path = &path_buf.with_extension("rgr");
+        // FIXME: for reasons unknown to me Windows fails with permissions errors if we try to create a new file
+        // next to the original, so for now, we don't create a temporary file.
+        #[cfg(windows)]
+        let temp_file_path = &path_buf;
+
+        // Write modified string into a temporary file.
+        let mut dest_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&temp_file_path)?;
+
+        // Write a BOM if one existed beforehand.
+        if let Some(bom) = bom {
+            // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either therefore no need to re-write one
+            // See: https://github.com/BurntSushi/ripgrep/issues/1638
+            if !matches!(bom, Bom::Utf8) {
+                dest_file.write_all(bom.bytes())?;
+            }
+        }
+
+        // Write the replaced contents.
+        dest_file.write_all(&replaced_contents)?;
+
+        // Overwrite the original file with the patched temp file.
+        #[cfg(not(windows))]
+        fs::rename(temp_file_path, &path_buf)?;
+    }
 
     Ok(())
 }

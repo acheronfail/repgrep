@@ -1,4 +1,8 @@
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+
 use crate::model::Item;
+use crate::rg::de::{ArbitraryData, RgMessageKind};
 
 #[derive(Debug)]
 pub struct ReplacementCriteria {
@@ -19,5 +23,23 @@ impl ReplacementCriteria {
 
     pub fn set_encoding(&mut self, encoding: impl AsRef<str>) {
         self.encoding = Some(encoding.as_ref().to_owned());
+    }
+
+    pub fn as_map(&self) -> HashMap<&ArbitraryData, Vec<&Item>> {
+        self.items
+            .iter()
+            // The only item kind we replace is the Match kind.
+            .filter(|item| matches!(item.kind, RgMessageKind::Match) && item.should_replace)
+            // Collect into a map of paths -> matches.
+            .fold(HashMap::new(), |mut map, item| {
+                match map.entry(item.path().unwrap()) {
+                    Entry::Occupied(e) => e.into_mut().push(&item),
+                    Entry::Vacant(e) => {
+                        e.insert(vec![&item]);
+                    }
+                }
+
+                map
+            })
     }
 }

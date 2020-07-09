@@ -1,57 +1,22 @@
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
-use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
-use encoding::label::encoding_from_whatwg_label;
 use encoding::{DecoderTrap, EncoderTrap};
 
 use crate::encoding::{get_encoder, Bom};
-use crate::model::{Item, ReplacementCriteria};
-use crate::rg::de::{RgMessageKind, SubMatch};
+use crate::model::ReplacementCriteria;
+use crate::rg::de::SubMatch;
 use crate::rg::RgEncoding;
 
 // TODO: better error handling and messaging to the user when any of this fails
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
-    let ReplacementCriteria {
-        items,
-        text: replacement_text,
-        encoding,
-    } = criteria;
-
-    // If we've been passed an encoding, then try to create an encoder from it.
-    let rg_encoding = match encoding.as_ref() {
-        Some(label) => {
-            if label == "none" {
-                RgEncoding::NoneExplicit
-            } else {
-                encoding_from_whatwg_label(label)
-                    .map_or_else(|| RgEncoding::None, |e| RgEncoding::Some(e))
-            }
-        }
-        None => RgEncoding::None,
-    };
+    let rg_encoding = RgEncoding::from(&criteria.encoding);
 
     // Group items by their file so we only open each file once.
-    let paths_to_items: HashMap<PathBuf, Vec<Item>> = items
-        .into_iter()
-        // The only item kind we replace is the Match kind.
-        .filter(|item| matches!(item.kind, RgMessageKind::Match) && item.should_replace)
-        // Collect into a map of paths -> matches.
-        .fold(HashMap::new(), |mut map, item| {
-            match map.entry(item.path_buf().unwrap()) {
-                Entry::Occupied(e) => e.into_mut().push(item),
-                Entry::Vacant(e) => {
-                    e.insert(vec![item]);
-                }
-            }
+    for (path_data, mut items) in criteria.as_map() {
+        let path_buf = path_data.to_path_buf()?;
 
-            map
-        });
-
-    for (path_buf, mut items) in paths_to_items {
         // Check the file for a BOM, detect its encoding and then decode it into a string.
         let (bom, encoder, mut file_as_str) = {
             let mut file_contents = vec![];
@@ -103,7 +68,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
                     let str_to_remove = &file_as_str[normalised_range.clone()];
                     if str_to_remove.as_bytes() == text.to_vec().as_slice() {
                         let removed_str = str_to_remove.to_string();
-                        file_as_str.replace_range(normalised_range, &replacement_text);
+                        file_as_str.replace_range(normalised_range, &criteria.text);
                         println!("Replaced: {}", removed_str);
                     } else {
                         eprintln!(

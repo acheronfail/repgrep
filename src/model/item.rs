@@ -1,33 +1,9 @@
-use std::ffi::OsString;
 use std::path::PathBuf;
 
-use anyhow::Result;
 use tui::style::{Color, Style};
 use tui::widgets::Text;
 
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
-
-// TODO: tests for Base64 decoding on separate platforms
-
-/// Convert Base64 encoded data to an OsString on Unix platforms.
-/// https://doc.rust-lang.org/std/ffi/index.html#on-unix
-#[cfg(unix)]
-fn base64_to_os_string(bytes: Vec<u8>) -> Result<OsString> {
-    use std::os::unix::ffi::OsStringExt;
-    Ok(OsString::from_vec(bytes))
-}
-
-/// Convert Base64 encoded data to an OsString on Windows platforms.
-/// https://doc.rust-lang.org/std/ffi/index.html#on-windows
-#[cfg(not(unix))]
-fn base64_to_os_string(bytes: Vec<u8>) -> Result<OsString> {
-    use safe_transmute::transmute_vec;
-    use std::os::windows::ffi::OsStringExt;
-
-    // Transmute decoded Base64 bytes as UTF-16 since that's what underlying paths are on Windows.
-    let bytes_u16 = transmute_vec::<u8, u16>(bytes)?;
-    Ok(OsString::from_wide(&bytes_u16))
-}
 
 #[derive(Debug, Clone)]
 pub struct Item {
@@ -92,24 +68,7 @@ impl Item {
     }
 
     pub fn path_buf(&self) -> Option<PathBuf> {
-        self.path().map(|data| match data {
-            ArbitraryData::Text { text } => PathBuf::from(text),
-            ArbitraryData::Base64 { bytes } => {
-                // Decode the Base64 into u8 bytes.
-                let data = match base64::decode(bytes) {
-                    Ok(data) => data,
-                    Err(e) => panic!("Error deserialising Base64 data: {}", e),
-                };
-
-                // Convert the bytes into an OsString.
-                let os_string = match base64_to_os_string(data) {
-                    Ok(os_string) => os_string,
-                    Err(e) => panic!("Error transmuting Base64 data to OsString: {}", e),
-                };
-
-                PathBuf::from(os_string)
-            }
-        })
+        self.path().and_then(|data| data.to_path_buf().ok())
     }
 
     pub fn to_text(&self, replacement: Option<&str>) -> Text {

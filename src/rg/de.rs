@@ -1,8 +1,11 @@
 // NOTE: Originally adapted from the `grep_json_deserialize` crate.
 // See: https://github.com/Avi-D-coder/grep_json_deserialize/blob/master/src/lib.rs
 
+use std::ffi::OsString;
 use std::ops::Range;
+use std::path::PathBuf;
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 /// A helper to easily select the `RgMessage` kind.
@@ -52,7 +55,7 @@ pub enum RgMessage {
 }
 
 /// As specified in: [object-arbitrary-data](https://docs.rs/grep-printer/0.1.5/grep_printer/struct.JSON.html#object-arbitrary-data).
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone, Hash)]
 #[serde(untagged)]
 pub enum ArbitraryData {
     Text { text: String },
@@ -65,6 +68,42 @@ impl ArbitraryData {
             ArbitraryData::Text { text } => text.as_bytes().to_vec(),
             ArbitraryData::Base64 { bytes } => base64::decode(bytes).unwrap(),
         }
+    }
+
+    // TODO: tests for Base64 decoding on separate platforms
+
+    /// Converts to an `OsString`.
+    #[cfg(unix)]
+    pub fn to_os_string(&self) -> Result<OsString> {
+        /// Convert Base64 encoded data to an OsString on Unix platforms.
+        /// https://doc.rust-lang.org/std/ffi/index.html#on-unix
+        use std::os::unix::ffi::OsStringExt;
+
+        Ok(match self {
+            ArbitraryData::Text { text } => OsString::from(text),
+            ArbitraryData::Base64 { .. } => OsString::from_vec(self.to_vec()),
+        })
+    }
+
+    /// Converts to an `OsString`.
+    #[cfg(not(unix))]
+    pub fn to_os_string(&self) -> Result<OsString> {
+        /// Convert Base64 encoded data to an OsString on Windows platforms.
+        /// https://doc.rust-lang.org/std/ffi/index.html#on-windows
+        use std::os::windows::ffi::OsStringExt;
+
+        Ok(match self {
+            ArbitraryData::Text { text } => OsString::from(text),
+            ArbitraryData::Base64 { .. } => {
+                // Transmute decoded Base64 bytes as UTF-16 since that's what underlying paths are on Windows.
+                let bytes_u16 = safe_transmute::transmute_vec::<u8, u16>(self.to_vec())?;
+                OsString::from_wide(&bytes_u16)
+            }
+        })
+    }
+
+    pub fn to_path_buf(&self) -> Result<PathBuf> {
+        self.to_os_string().map(PathBuf::from)
     }
 
     pub fn lossy_utf8(&self) -> String {

@@ -17,7 +17,6 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
         .or_else(|| rg_encoding.encoder())
         // nothing so far, try detecting the encoding
         .or_else(|| {
-            // TODO: use chardet::UniversalDetector to detect using a reader rather than a whole slice
             let (encoding, confidence, _) = chardet::detect(&bytes);
             // TODO: be able to adjust chardet confidence here
             if confidence > 0.80 {

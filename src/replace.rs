@@ -6,12 +6,12 @@ use encoding::label::encoding_from_whatwg_label;
 use encoding::{DecoderTrap, EncoderTrap};
 
 use crate::encoding::{get_encoder, Bom};
-use crate::model::{ReplacementAttempt, ReplacementCriteria, ReplacementResult};
+use crate::model::ReplacementCriteria;
 use crate::rg::de::{RgMessageKind, SubMatch};
 use crate::rg::RgEncoding;
 
 // TODO: better error handling and messaging to the user when any of this fails
-pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<ReplacementResult> {
+pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
     // If we've been passed an encoding, then try to create an encoder from it.
     let rg_encoding = match criteria.encoding.as_ref() {
         Some(label) => {
@@ -25,7 +25,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
         None => RgEncoding::None,
     };
 
-    Ok(criteria
+    criteria
         .items
         .iter()
         // Iterate backwards so the offset doesn't change as we make replacements.
@@ -33,12 +33,11 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
         // The only item kind we replace is the Match kind.
         .filter(|item| matches!(item.kind, RgMessageKind::Match) && item.should_replace)
         // Perform the replacement on each match.
-        .fold(ReplacementResult::new(&criteria.text), |mut res, item| {
+        .for_each(|item| {
             let file_path = item.path().expect("match item did not have a path!");
 
             // Decode file.
             let (bom, encoder, mut file_as_str) = {
-                // TODO: don't read file completely into memory, but use a buffered approach instead
                 let mut file_contents = vec![];
                 OpenOptions::new()
                     .read(true)
@@ -67,62 +66,46 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
                 match encoder.decode(&file_contents, DecoderTrap::Strict) {
                     Ok(s) => (bom, encoder, s),
                     Err(e) => {
-                        res.add_replacement(
-                            &file_path,
-                            vec![ReplacementAttempt::Failure(format!(
-                                "Failed to decode file: {}",
-                                e
-                            ))],
-                            encoder.name(),
-                        );
-                        return res;
+                        eprintln!("Failed to decode file: {}", e);
+                        return;
                     }
                 }
             };
 
-            // Replace matches within the file contents with the given `replacement` string.
-            let replaced_matches = item.matches().map_or_else(
-                || vec![],
-                |submatches| {
-                    let offset = item.offset().unwrap();
+            println!("file: {} <{}>", file_path.display(), encoder.name());
 
-                    // Iterate backwards so the offset doesn't change as we make replacements.
-                    submatches
-                        .iter()
-                        .rev()
-                        .map(|SubMatch { text, range }| {
-                            let normalised_range = (offset + range.start)..(offset + range.end);
-                            dbg!(&normalised_range);
-                            let str_to_remove = &file_as_str[normalised_range.clone()];
-                            if str_to_remove.as_bytes() == text.to_vec().as_slice() {
-                                let removed_str = str_to_remove.to_string();
-                                file_as_str.replace_range(normalised_range, &criteria.text);
-                                ReplacementAttempt::Success(removed_str)
-                            } else {
-                                ReplacementAttempt::Failure(format!(
-                                    "Matched bytes do not match bytes to replace in {}@{}!",
-                                    file_path.display(),
-                                    offset + range.start,
-                                ))
-                            }
-                        })
-                        .collect()
-                },
-            );
+            // Replace matches within the file contents with the given `replacement` string.
+            item.matches().iter().for_each(|submatches| {
+                let offset = item.offset().unwrap();
+
+                // Iterate backwards so the offset doesn't change as we make replacements.
+                submatches
+                    .iter()
+                    .rev()
+                    .map(|SubMatch { text, range }| {
+                        let normalised_range = (offset + range.start)..(offset + range.end);
+                        let str_to_remove = &file_as_str[normalised_range.clone()];
+                        if str_to_remove.as_bytes() == text.to_vec().as_slice() {
+                            let removed_str = str_to_remove.to_string();
+                            file_as_str.replace_range(normalised_range, &criteria.text);
+                            println!("Replaced: {}", removed_str);
+                        } else {
+                            eprintln!(
+                                "Matched bytes do not match bytes to replace in {}@{}!",
+                                file_path.display(),
+                                offset + range.start,
+                            )
+                        }
+                    })
+                    .collect()
+            });
 
             // Convert back into the detected encoding.
             let replaced_contents = match encoder.encode(&file_as_str, EncoderTrap::Strict) {
                 Ok(bytes) => bytes,
                 Err(e) => {
-                    res.add_replacement(
-                        &file_path,
-                        vec![ReplacementAttempt::Failure(format!(
-                            "Failed to encode replaced string: {}",
-                            e
-                        ))],
-                        encoder.name(),
-                    );
-                    return res;
+                    eprintln!("Failed to encode replaced string: {}", e);
+                    return;
                 }
             };
 
@@ -155,12 +138,9 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<Replacement
             // Overwrite the original file with the patched temp file.
             #[cfg(not(windows))]
             fs::rename(temp_file_path, &file_path).unwrap();
+        });
 
-            // Add the results of the replacement.
-            // TODO: potentially log these as they occur to avoid hanging on a lot of files.
-            res.add_replacement(&file_path, replaced_matches, encoder.name());
-            res
-        }))
+    Ok(())
 }
 
 #[cfg(test)]
@@ -225,8 +205,7 @@ mod tests {
             build_item(RgMessageKind::Summary, &f5),
         ];
 
-        let result = perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
-        assert_eq!(result.replacements.len(), 1);
+        perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
 
         assert_eq!(fs::read_to_string(f1.path()).unwrap(), text);
         assert_eq!(fs::read_to_string(f2.path()).unwrap(), text);

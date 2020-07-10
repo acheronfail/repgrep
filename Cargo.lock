@@ -299,15 +299,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "itertools"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
-dependencies = [
- "either",
-]
-
-[[package]]
 name = "itoa"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -719,14 +710,11 @@ dependencies = [
 [[package]]
 name = "tui"
 version = "0.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9533d39bef0ae8f510e8a99d78702e68d1bbf0b98a78ec9740509d287010ae1e"
+source = "git+https://github.com/fdehau/tui-rs#72ba4ff2d45d1e436dbfde31b2791aa15a9097b5"
 dependencies = [
  "bitflags",
  "cassowary",
  "crossterm",
- "either",
- "itertools",
  "unicode-segmentation",
  "unicode-width",
 ]

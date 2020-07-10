@@ -8,8 +8,9 @@ use crossterm::event::{Event, KeyCode, KeyModifiers};
 use either::Either;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Modifier, Style};
-use tui::widgets::{Block, Borders, List, ListState, Paragraph, Row, Table, Text};
+use tui::style::{Color, Modifier, Style, StyleDiff};
+use tui::text::{Span, Spans};
+use tui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Row, Table, Wrap};
 use tui::Frame;
 
 use crate::model::{Item, Movement, ReplacementCriteria};
@@ -98,24 +99,24 @@ impl App {
 
     fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
         let text_items = match &self.ui_state {
-            AppUiState::Help => vec![Text::raw("Viewing Help. Press <esc> or <q> to return...")],
-            AppUiState::SelectMatches => vec![Text::raw(
+            AppUiState::Help => vec![Spans::from("Viewing Help. Press <esc> or <q> to return...")],
+            AppUiState::SelectMatches => vec![Spans::from(
                 "Select (or deselect) Matches with <space> then press <Enter>. Press <?> for help.",
             )],
-            AppUiState::InputReplacement(input) => vec![
-                Text::raw("Replacement: "),
+            AppUiState::InputReplacement(input) => vec![Spans::from(vec![
+                Span::from("Replacement: "),
                 if input.is_empty() {
-                    Text::styled("<empty>", Style::default().fg(Color::DarkGray))
+                    Span::styled("<empty>", StyleDiff::default().fg(Color::DarkGray))
                 } else {
-                    Text::raw(input)
+                    Span::from(input.as_str())
                 },
-            ],
-            AppUiState::ConfirmReplacement(_) => vec![Text::raw(
+            ])],
+            AppUiState::ConfirmReplacement(_) => vec![Spans::from(
                 "Press <enter> to write changes, <esc> to cancel.",
             )],
         };
 
-        f.render_widget(Paragraph::new(text_items.iter()), r);
+        f.render_widget(Paragraph::new(text_items), r);
     }
 
     fn draw_stats_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
@@ -138,31 +139,31 @@ impl App {
             .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
             .split(r);
 
-        let left_side_items = [self.ui_state.to_text()];
-        let right_side_items = [
-            Text::styled(
+        let left_side_items = vec![self.ui_state.to_text()];
+        let right_side_items = vec![Spans::from(vec![
+            Span::styled(
                 format!(" {} ", self.rg_cmdline),
-                Style::default().bg(Color::Blue).fg(Color::Black),
+                StyleDiff::default().bg(Color::Blue).fg(Color::Black),
             ),
-            Text::styled(
+            Span::styled(
                 format!(" Matches: {} ", self.stats.matches),
-                Style::default().bg(Color::Cyan).fg(Color::Black),
+                StyleDiff::default().bg(Color::Cyan).fg(Color::Black),
             ),
-            Text::styled(
+            Span::styled(
                 format!(" Replacements: {} ", replacement_count),
-                Style::default().bg(Color::Magenta).fg(Color::Black),
+                StyleDiff::default().bg(Color::Magenta).fg(Color::Black),
             ),
-        ];
+        ])];
 
         let stats_line_style = Style::default().bg(Color::DarkGray).fg(Color::White);
         f.render_widget(
-            Paragraph::new(left_side_items.iter())
+            Paragraph::new(left_side_items)
                 .style(stats_line_style)
                 .alignment(Alignment::Left),
             hsplit[0],
         );
         f.render_widget(
-            Paragraph::new(right_side_items.iter())
+            Paragraph::new(right_side_items)
                 .style(stats_line_style)
                 .alignment(Alignment::Right),
             hsplit[1],
@@ -207,8 +208,7 @@ impl App {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Keybindings")
-                .title_style(title_style),
+                .title(Span::styled("Keybindings", StyleDiff::from(title_style))),
         )
         .header_style(Style::default().fg(Color::Yellow).modifier(Modifier::BOLD))
         .widths(&[Constraint::Length(20), Constraint::Length(50)])
@@ -216,14 +216,14 @@ impl App {
 
         f.render_widget(help_table, hsplit[1]);
 
-        let help_title = format!("{} help", crate_name!());
-        let help_text = [Text::raw(HELP_TEXT)];
-        let help_paragraph = Paragraph::new(help_text.iter()).wrap(true).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(&help_title)
-                .title_style(title_style),
+        let help_title = Span::styled(
+            format!("{} help", crate_name!()),
+            StyleDiff::from(title_style),
         );
+        let help_text = vec![Spans::from(HELP_TEXT)];
+        let help_paragraph = Paragraph::new(help_text)
+            .wrap(Wrap { trim: false })
+            .block(Block::default().borders(Borders::ALL).title(help_title));
 
         f.render_widget(help_paragraph, hsplit[0]);
     }
@@ -239,29 +239,20 @@ impl App {
             _ => None,
         };
 
-        let match_items = self.list.iter().map(|item| item.to_text(replacement));
+        let curr_pos = self.curr_pos();
+        let match_items = self
+            .list
+            .iter()
+            .enumerate()
+            .map(|(idx, item)| ListItem::new(vec![item.to_text(replacement, idx == curr_pos)]))
+            .collect::<Vec<ListItem>>();
 
-        let curr_item = &self.list[self.curr_pos()];
-        let highlight_style =
-            Style::default().fg(if matches!(curr_item.kind, RgMessageKind::Match) {
-                if curr_item.should_replace {
-                    Color::Yellow
-                } else {
-                    Color::Red
-                }
-            } else if matches!(curr_item.kind, RgMessageKind::Begin) {
-                Color::Yellow
-            } else {
-                Color::DarkGray
-            });
-
-        // TODO: highlight the whole line (not just the text on it), currently not possible
+        // TODO: highlight the bg of whole line (not just the text on it), currently not possible
         // See: https://github.com/fdehau/tui-rs/issues/239
         let match_list = List::new(match_items)
             .block(Block::default())
             .style(Style::default().fg(Color::White))
-            .highlight_symbol("-> ")
-            .highlight_style(highlight_style);
+            .highlight_symbol("-> ");
 
         f.render_stateful_widget(match_list, r, &mut self.list_state);
     }

@@ -94,6 +94,14 @@ impl Item {
         matches!(self.kind, RgMessageKind::Begin | RgMessageKind::Match)
     }
 
+    pub fn line_number(&self) -> Option<&usize> {
+        match &self.rg_message {
+            RgMessage::Context { line_number, .. } => line_number.as_ref(),
+            RgMessage::Match { line_number, .. } => line_number.as_ref(),
+            _ => None,
+        }
+    }
+
     pub fn offset(&self) -> Option<usize> {
         match &self.rg_message {
             RgMessage::End { binary_offset, .. } => *binary_offset,

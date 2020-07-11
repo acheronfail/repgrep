@@ -11,6 +11,8 @@ use crate::rg::RgEncoding;
 
 // TODO: better error handling and messaging to the user when any of this fails
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
+    let mut replacement_count = 0;
+
     let rg_encoding = RgEncoding::from(&criteria.encoding);
 
     // Group items by their file so we only open each file once.
@@ -61,7 +63,6 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
         // changes to the string.
         for item in items.iter().rev() {
             let offset = item.offset().unwrap();
-            // TODO: clean up
             for sub_item in item.sub_items().iter().rev().filter(|s| s.should_replace) {
                 let SubMatch { range, text } = &sub_item.sub_match;
 
@@ -71,7 +72,11 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
                 if str_to_remove.as_bytes() == text.to_vec().as_slice() {
                     let removed_str = str_to_remove.to_string();
                     file_as_str.replace_range(normalised_range, &criteria.text);
-                    println!("Replaced: {}", removed_str);
+                    if let Some(line_number) = item.line_number() {
+                        println!("Replaced[line:{}]: {}", line_number, removed_str);
+                    } else {
+                        println!("Replaced: {}", removed_str);
+                    }
                 } else {
                     eprintln!(
                         "Matched bytes do not match bytes to replace in {}@{}!",
@@ -79,6 +84,8 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
                         offset + range.start,
                     )
                 }
+
+                replacement_count += 1;
             }
         }
 
@@ -118,6 +125,10 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
         #[cfg(not(windows))]
         std::fs::rename(temp_file_path, &path_buf)?;
     }
+
+    println!();
+    println!("Replacement string: \"{}\"", criteria.text);
+    println!("Replacements made: {}", replacement_count);
 
     Ok(())
 }

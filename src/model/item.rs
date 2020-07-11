@@ -6,16 +6,31 @@ use tui::text::{Span, Spans};
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
 
 #[derive(Debug, Clone)]
+pub struct SubItem {
+    pub submatch: SubMatch,
+    pub should_replace: bool,
+}
+
+impl SubItem {
+    pub fn new(submatch: SubMatch) -> SubItem {
+        SubItem {
+            submatch,
+            should_replace: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Item {
+    pub kind: RgMessageKind,
     rg_message: RgMessage,
 
-    pub kind: RgMessageKind,
-    pub should_replace: bool,
+    sub_items: Vec<SubItem>,
 }
 
 impl Item {
     pub fn new(rg_message: RgMessage) -> Item {
-        let kind = match rg_message {
+        let kind = match &rg_message {
             RgMessage::Begin { .. } => RgMessageKind::Begin,
             RgMessage::End { .. } => RgMessageKind::End,
             RgMessage::Match { .. } => RgMessageKind::Match,
@@ -23,10 +38,36 @@ impl Item {
             RgMessage::Summary { .. } => RgMessageKind::Summary,
         };
 
+        let sub_items = match &rg_message {
+            RgMessage::Match { submatches, .. } => {
+                submatches.iter().map(|s| SubItem::new(s.clone())).collect()
+            }
+            // TODO: ?
+            _ => vec![],
+        };
+
         Item {
-            rg_message,
             kind,
-            should_replace: true,
+            rg_message,
+            sub_items,
+        }
+    }
+
+    pub fn get_should_replace(&self, idx: usize) -> bool {
+        self.sub_items[idx].should_replace
+    }
+
+    pub fn set_should_replace(&mut self, idx: usize, should_replace: bool) {
+        self.sub_items[idx].should_replace = should_replace
+    }
+
+    pub fn get_should_replace_all(&self) -> bool {
+        self.sub_items.iter().all(|s| s.should_replace)
+    }
+
+    pub fn set_should_replace_all(&mut self, should_replace: bool) {
+        for sub_item in &mut self.sub_items {
+            sub_item.should_replace = should_replace;
         }
     }
 
@@ -44,17 +85,12 @@ impl Item {
         }
     }
 
-    pub fn match_count(&self) -> usize {
-        self.matches()
-            .map(|submatches| submatches.len())
-            .unwrap_or(0)
+    pub fn replace_count(&self) -> usize {
+        self.sub_items.iter().filter(|s| s.should_replace).count()
     }
 
-    pub fn matches(&self) -> Option<&[SubMatch]> {
-        match &self.rg_message {
-            RgMessage::Match { submatches, .. } => Some(submatches),
-            _ => None,
-        }
+    pub fn sub_items(&self) -> &[SubItem] {
+        &self.sub_items
     }
 
     pub fn path(&self) -> Option<&ArbitraryData> {
@@ -82,9 +118,9 @@ impl Item {
         )
     }
 
-    pub fn to_text(&self, replacement: Option<&str>, selected: bool) -> Spans {
+    pub fn to_text(&self, replacement: Option<&str>, selected: Option<usize>) -> Spans {
         let mut base_style = Style::default();
-        if selected {
+        if selected.is_some() {
             base_style = base_style.fg(Color::Yellow);
         }
 
@@ -92,7 +128,7 @@ impl Item {
         match &self.rg_message {
             RgMessage::Begin { .. } => Spans::from(Span::styled(
                 format!("{}", self.path_buf().unwrap().display()),
-                if selected {
+                if selected.is_some() {
                     StyleDiff::from(base_style)
                 } else {
                     StyleDiff::from(base_style).fg(Color::Magenta)
@@ -103,7 +139,11 @@ impl Item {
             } => {
                 let mut spans = vec![];
                 if let Some(n) = line_number {
-                    spans.push(Item::line_number_to_text(base_style, selected, *n));
+                    spans.push(Item::line_number_to_text(
+                        base_style,
+                        selected.is_some(),
+                        *n,
+                    ));
                 }
 
                 spans.push(Span::styled(
@@ -113,25 +153,28 @@ impl Item {
                 Spans::from(spans)
             }
             RgMessage::Match {
-                lines,
-                line_number,
-                submatches,
-                ..
+                lines, line_number, ..
             } => {
                 let mut spans = vec![];
                 if let Some(n) = line_number {
-                    spans.push(Item::line_number_to_text(base_style, selected, *n));
+                    spans.push(Item::line_number_to_text(
+                        base_style,
+                        selected.is_some(),
+                        *n,
+                    ));
                 }
 
                 let lines_text = lines.lossy_utf8();
-                let matched_style = StyleDiff::from(base_style).fg(if self.should_replace {
-                    Color::Green
-                } else {
-                    Color::DarkGray
-                });
 
                 let mut start = 0;
-                for submatch in submatches.iter() {
+                for (
+                    idx,
+                    SubItem {
+                        should_replace,
+                        submatch,
+                    },
+                ) in self.sub_items.iter().enumerate()
+                {
                     // Text inbetween start (or last submatch) and this submatch.
                     let before_submatch = start..submatch.range.start;
                     start = submatch.range.end;
@@ -144,24 +187,41 @@ impl Item {
                         ));
                     }
 
+                    // TODO: simplify and clean up
+                    let mut submatch_style = selected
+                        .map(|i| {
+                            let mut s = base_style;
+                            if i == idx && replacement.is_none() {
+                                s = s.bg(Color::Yellow);
+                            }
+
+                            if *should_replace {
+                                s.fg(Color::Red)
+                            } else {
+                                s.fg(Color::DarkGray)
+                            }
+                        })
+                        .or_else(|| {
+                            if *should_replace {
+                                Some(base_style.fg(Color::Red))
+                            } else {
+                                Some(base_style.fg(Color::DarkGray))
+                            }
+                        })
+                        .unwrap();
+
+                    if *should_replace && replacement.is_some() {
+                        submatch_style = submatch_style.modifier(Modifier::CROSSED_OUT);
+                    }
+
                     // This submatch.
                     spans.push(Span::styled(
                         lines_text[submatch.range.clone()].to_string(),
-                        // TODO: have a `should_replace` per submatch
-                        if self.should_replace {
-                            (if replacement.is_some() {
-                                matched_style.modifier(Modifier::CROSSED_OUT)
-                            } else {
-                                matched_style
-                            })
-                            .fg(Color::Red)
-                        } else {
-                            matched_style
-                        },
+                        StyleDiff::from(submatch_style),
                     ));
 
                     // Replacement text.
-                    if self.should_replace {
+                    if *should_replace {
                         if let Some(replacement) = replacement {
                             spans.push(Span::styled(
                                 replacement.to_owned(),

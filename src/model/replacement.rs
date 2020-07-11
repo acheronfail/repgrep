@@ -29,7 +29,7 @@ impl ReplacementCriteria {
         self.items
             .iter()
             // The only item kind we replace is the Match kind.
-            .filter(|item| matches!(item.kind, RgMessageKind::Match) && item.should_replace)
+            .filter(|item| matches!(item.kind, RgMessageKind::Match))
             // Collect into a map of paths -> matches.
             .fold(HashMap::new(), |mut map, item| {
                 match map.entry(item.path().unwrap()) {

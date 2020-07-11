@@ -60,25 +60,26 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
         // Iterate over the items in _reverse_ order -> this is so offsets can stay the same even though we're making
         // changes to the string.
         for item in items.iter().rev() {
-            item.matches().iter().for_each(|submatches| {
-                let offset = item.offset().unwrap();
+            let offset = item.offset().unwrap();
+            // TODO: clean up
+            for sub_item in item.sub_items().iter().rev().filter(|s| s.should_replace) {
+                let SubMatch { range, text } = &sub_item.submatch;
+
                 // Iterate backwards so the offset doesn't change as we make replacements.
-                for SubMatch { text, range } in submatches.iter().rev() {
-                    let normalised_range = (offset + range.start)..(offset + range.end);
-                    let str_to_remove = &file_as_str[normalised_range.clone()];
-                    if str_to_remove.as_bytes() == text.to_vec().as_slice() {
-                        let removed_str = str_to_remove.to_string();
-                        file_as_str.replace_range(normalised_range, &criteria.text);
-                        println!("Replaced: {}", removed_str);
-                    } else {
-                        eprintln!(
-                            "Matched bytes do not match bytes to replace in {}@{}!",
-                            path_buf.display(),
-                            offset + range.start,
-                        )
-                    }
+                let normalised_range = (offset + range.start)..(offset + range.end);
+                let str_to_remove = &file_as_str[normalised_range.clone()];
+                if str_to_remove.as_bytes() == text.to_vec().as_slice() {
+                    let removed_str = str_to_remove.to_string();
+                    file_as_str.replace_range(normalised_range, &criteria.text);
+                    println!("Replaced: {}", removed_str);
+                } else {
+                    eprintln!(
+                        "Matched bytes do not match bytes to replace in {}@{}!",
+                        path_buf.display(),
+                        offset + range.start,
+                    )
                 }
-            });
+            }
         }
 
         // Convert back into the detected encoding.
@@ -121,7 +122,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(test_ignore)]
 mod tests {
     use std::fs::{self, OpenOptions};
     use std::io::{Read, Write};

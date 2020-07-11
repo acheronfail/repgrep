@@ -177,7 +177,9 @@ impl Item {
                     ));
                 }
 
-                let lines_text = lines.lossy_utf8();
+                // Read the lines as bytes since we convert each span to a string when it's created.
+                // This ensures our alignments are correct.
+                let lines_bytes = lines.to_vec();
                 let replacement_span =
                     replacement.map(|r| Span::styled(r.to_string(), base_style.fg(Color::Green)));
 
@@ -189,7 +191,10 @@ impl Item {
                     let leading = offset..start;
                     #[allow(clippy::len_zero)]
                     if leading.len() > 0 {
-                        spans.push(Span::styled(lines_text[leading].to_string(), base_style));
+                        spans.push(Span::styled(
+                            String::from_utf8_lossy(&lines_bytes[leading]).to_string(),
+                            base_style,
+                        ));
                     }
 
                     spans.push(sub_item.to_span(replacement.is_some(), Some(idx) == selected_col));
@@ -205,10 +210,13 @@ impl Item {
                 }
 
                 // Text after the last SubMatch and before the end of the line.
-                let trailing = offset..lines_text.len();
+                let trailing = offset..lines_bytes.len();
                 #[allow(clippy::len_zero)]
                 if trailing.len() > 0 {
-                    spans.push(Span::styled(lines_text[trailing].to_string(), base_style));
+                    spans.push(Span::styled(
+                        String::from_utf8_lossy(&lines_bytes[trailing]).to_string(),
+                        base_style,
+                    ));
                 }
 
                 Spans::from(spans)
@@ -231,7 +239,6 @@ mod tests {
     use tui::text::{Span, Spans};
 
     use crate::model::*;
-    use crate::rg::de::test_utilities::*;
     use crate::rg::de::*;
 
     const RG_JSON_BEGIN: &str = r#"{"type":"begin","data":{"path":{"text":"src/model/item.rs"}}}"#;
@@ -315,6 +322,7 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn path_with_base64() {
+        use crate::rg::de::test_utilities::RgMessageBuilder;
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
 

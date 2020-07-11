@@ -1,4 +1,4 @@
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 
 use anyhow::{anyhow, Result};
@@ -116,7 +116,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
 
         // Overwrite the original file with the patched temp file.
         #[cfg(not(windows))]
-        fs::rename(temp_file_path, &path_buf)?;
+        std::fs::rename(temp_file_path, &path_buf)?;
     }
 
     Ok(())

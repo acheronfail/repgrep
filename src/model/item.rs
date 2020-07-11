@@ -453,7 +453,7 @@ mod tests {
         // End:     already tested via the `path_with_base64` test.
         // Summary: doesn't include an `ArbitraryData` struct.
 
-        let b64_json_match = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIEl0ZW06Ov9uZXcocmdfbXNnKQo="},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"rg_msg"},"start":15,"end":21}]}}"#;
+        let b64_json_match = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
         let b64_json_context = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
 
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
@@ -463,7 +463,9 @@ mod tests {
             new_item(b64_json_match).to_spans(None, None),
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
-                Span::styled("    Item::�new(", s),
+                Span::styled("    �", s),
+                Span::styled("Item", s.fg(Color::Red)),
+                Span::styled("::�new(", s),
                 Span::styled("rg_msg", s.fg(Color::Red)),
                 Span::styled(")\n", s),
             ])
@@ -482,7 +484,10 @@ mod tests {
             new_item(b64_json_match).to_spans(Some(replacement), None),
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
-                Span::styled("    Item::�new(", s),
+                Span::styled("    �", s),
+                Span::styled("Item", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled("foobar", s.fg(Color::Green)),
+                Span::styled("::�new(", s),
                 Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled(")\n", s),

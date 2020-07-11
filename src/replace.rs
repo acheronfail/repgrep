@@ -77,15 +77,14 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
                     } else {
                         println!("Replaced: {}", removed_str);
                     }
+                    replacement_count += 1;
                 } else {
                     eprintln!(
                         "Matched bytes do not match bytes to replace in {}@{}!",
                         path_buf.display(),
                         offset + range.start,
-                    )
+                    );
                 }
-
-                replacement_count += 1;
             }
         }
 

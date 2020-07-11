@@ -10,7 +10,6 @@ use crate::ui::app::{App, AppState, AppUiState};
 use crate::util::clamp;
 
 impl App {
-    // TODO: support toggling the whole line at once
     pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
         if let Event::Key(key) = event {
             // Common Ctrl+Key scroll keybindings that apply to multiple modes.

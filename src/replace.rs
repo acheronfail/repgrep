@@ -63,7 +63,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
             let offset = item.offset().unwrap();
             // TODO: clean up
             for sub_item in item.sub_items().iter().rev().filter(|s| s.should_replace) {
-                let SubMatch { range, text } = &sub_item.submatch;
+                let SubMatch { range, text } = &sub_item.sub_match;
 
                 // Iterate backwards so the offset doesn't change as we make replacements.
                 let normalised_range = (offset + range.start)..(offset + range.end);

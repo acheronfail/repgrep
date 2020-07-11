@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::path::PathBuf;
 
 use tui::style::{Color, Modifier, Style, StyleDiff};
@@ -7,16 +8,35 @@ use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
 
 #[derive(Debug, Clone)]
 pub struct SubItem {
-    pub submatch: SubMatch,
+    pub sub_match: SubMatch,
     pub should_replace: bool,
 }
 
 impl SubItem {
-    pub fn new(submatch: SubMatch) -> SubItem {
+    pub fn new(sub_match: SubMatch) -> SubItem {
         SubItem {
-            submatch,
+            sub_match,
             should_replace: true,
         }
+    }
+
+    pub fn to_span(&self, is_replacing: bool, is_selected: bool) -> Span {
+        let mut s = Style::default();
+        if is_selected && !is_replacing {
+            s = s.bg(Color::Yellow);
+        }
+
+        s = s.fg(if self.should_replace {
+            Color::Red
+        } else {
+            Color::DarkGray
+        });
+
+        if self.should_replace && is_replacing {
+            s = s.modifier(Modifier::CROSSED_OUT);
+        }
+
+        Span::styled(self.sub_match.text.lossy_utf8(), StyleDiff::from(s))
     }
 }
 
@@ -42,7 +62,6 @@ impl Item {
             RgMessage::Match { submatches, .. } => {
                 submatches.iter().map(|s| SubItem::new(s.clone())).collect()
             }
-            // TODO: ?
             _ => vec![],
         };
 
@@ -107,20 +126,17 @@ impl Item {
         self.path().and_then(|data| data.to_path_buf().ok())
     }
 
-    fn line_number_to_text<'a>(base_style: Style, selected: bool, line_number: usize) -> Span<'a> {
-        Span::styled(
-            format!("{}:", line_number),
-            if selected {
-                StyleDiff::from(base_style)
-            } else {
-                StyleDiff::from(base_style).fg(Color::DarkGray)
-            },
-        )
+    fn line_number_to_span<'a>(mut style: StyleDiff, is_selected: bool, n: usize) -> Span<'a> {
+        if !is_selected {
+            style = style.fg(Color::DarkGray);
+        }
+
+        Span::styled(format!("{}:", n), style)
     }
 
-    pub fn to_text(&self, replacement: Option<&str>, selected: Option<usize>) -> Spans {
-        let mut base_style = Style::default();
-        if selected.is_some() {
+    pub fn to_spans(&self, replacement: Option<&str>, selected_col: Option<usize>) -> Spans {
+        let mut base_style = StyleDiff::default();
+        if replacement.is_none() && selected_col.is_some() {
             base_style = base_style.fg(Color::Yellow);
         }
 
@@ -128,10 +144,10 @@ impl Item {
         match &self.rg_message {
             RgMessage::Begin { .. } => Spans::from(Span::styled(
                 format!("{}", self.path_buf().unwrap().display()),
-                if selected.is_some() {
-                    StyleDiff::from(base_style)
+                if selected_col.is_some() {
+                    base_style
                 } else {
-                    StyleDiff::from(base_style).fg(Color::Magenta)
+                    base_style.fg(Color::Magenta)
                 },
             )),
             RgMessage::Context {
@@ -139,17 +155,14 @@ impl Item {
             } => {
                 let mut spans = vec![];
                 if let Some(n) = line_number {
-                    spans.push(Item::line_number_to_text(
+                    spans.push(Item::line_number_to_span(
                         base_style,
-                        selected.is_some(),
+                        selected_col.is_some(),
                         *n,
                     ));
                 }
 
-                spans.push(Span::styled(
-                    lines.lossy_utf8(),
-                    StyleDiff::from(base_style),
-                ));
+                spans.push(Span::styled(lines.lossy_utf8(), base_style));
                 Spans::from(spans)
             }
             RgMessage::Match {
@@ -157,88 +170,45 @@ impl Item {
             } => {
                 let mut spans = vec![];
                 if let Some(n) = line_number {
-                    spans.push(Item::line_number_to_text(
+                    spans.push(Item::line_number_to_span(
                         base_style,
-                        selected.is_some(),
+                        selected_col.is_some(),
                         *n,
                     ));
                 }
 
                 let lines_text = lines.lossy_utf8();
+                let replacement_span =
+                    replacement.map(|r| Span::styled(r.to_string(), base_style.fg(Color::Green)));
 
-                let mut start = 0;
-                for (
-                    idx,
-                    SubItem {
-                        should_replace,
-                        submatch,
-                    },
-                ) in self.sub_items.iter().enumerate()
-                {
-                    // Text inbetween start (or last submatch) and this submatch.
-                    let before_submatch = start..submatch.range.start;
-                    start = submatch.range.end;
+                let mut offset = 0;
+                for (idx, sub_item) in self.sub_items.iter().enumerate() {
+                    let Range { start, end } = sub_item.sub_match.range;
 
+                    // Text in between start (or last SubMatch) and this SubMatch.
+                    let leading = offset..start;
                     #[allow(clippy::len_zero)]
-                    if before_submatch.len() > 0 {
-                        spans.push(Span::styled(
-                            lines_text[before_submatch].to_string(),
-                            StyleDiff::from(base_style),
-                        ));
+                    if leading.len() > 0 {
+                        spans.push(Span::styled(lines_text[leading].to_string(), base_style));
                     }
 
-                    // TODO: simplify and clean up
-                    let mut submatch_style = selected
-                        .map(|i| {
-                            let mut s = base_style;
-                            if i == idx && replacement.is_none() {
-                                s = s.bg(Color::Yellow);
-                            }
-
-                            if *should_replace {
-                                s.fg(Color::Red)
-                            } else {
-                                s.fg(Color::DarkGray)
-                            }
-                        })
-                        .or_else(|| {
-                            if *should_replace {
-                                Some(base_style.fg(Color::Red))
-                            } else {
-                                Some(base_style.fg(Color::DarkGray))
-                            }
-                        })
-                        .unwrap();
-
-                    if *should_replace && replacement.is_some() {
-                        submatch_style = submatch_style.modifier(Modifier::CROSSED_OUT);
-                    }
-
-                    // This submatch.
-                    spans.push(Span::styled(
-                        lines_text[submatch.range.clone()].to_string(),
-                        StyleDiff::from(submatch_style),
-                    ));
+                    spans.push(sub_item.to_span(replacement.is_some(), Some(idx) == selected_col));
 
                     // Replacement text.
-                    if *should_replace {
-                        if let Some(replacement) = replacement {
-                            spans.push(Span::styled(
-                                replacement.to_owned(),
-                                StyleDiff::from(base_style).fg(Color::Green),
-                            ));
+                    if sub_item.should_replace {
+                        if let Some(span) = replacement_span.as_ref() {
+                            spans.push(span.clone());
                         }
                     }
+
+                    offset = end;
                 }
 
-                // Text after the last submatch and before the end of the line.
-                let trailing = start..lines_text.len();
+                // Text after the last SubMatch and before the end of the line.
+                let trailing = offset..lines_text.len();
                 #[allow(clippy::len_zero)]
                 if trailing.len() > 0 {
-                    spans.push(Span::styled(
-                        lines_text[trailing].to_string(),
-                        StyleDiff::from(base_style),
-                    ));
+                    spans.push(Span::styled(lines_text[trailing].to_string(), base_style));
                 }
 
                 Spans::from(spans)
@@ -246,7 +216,7 @@ impl Item {
             RgMessage::End { .. } => Spans::from(""),
             RgMessage::Summary { elapsed_total, .. } => Spans::from(Span::styled(
                 format!("Search duration: {}", elapsed_total.human),
-                StyleDiff::from(base_style),
+                base_style,
             )),
         }
     }
@@ -399,54 +369,54 @@ mod tests {
     }
 
     #[test]
-    fn to_text_with_text() {
+    fn to_span_with_text() {
         let s = Style::default();
 
         // Without replacement.
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_text(None),
+            new_item(RG_JSON_BEGIN).to_span(None),
             Text::styled("src/model/item.rs", s.fg(Color::Magenta))
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_text(None),
+            new_item(RG_JSON_MATCH).to_span(None),
             Text::styled("197:    Item::new(rg_msg)\n", s)
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_text(None),
+            new_item(RG_JSON_CONTEXT).to_span(None),
             Text::styled("198:  }\n", s.fg(Color::DarkGray))
         );
-        assert_eq!(new_item(RG_JSON_END).to_text(None), Text::raw(""));
+        assert_eq!(new_item(RG_JSON_END).to_span(None), Text::raw(""));
         assert_eq!(
-            new_item(RG_JSON_SUMMARY).to_text(None),
+            new_item(RG_JSON_SUMMARY).to_span(None),
             Text::raw("Search duration: 0.013911s")
         );
 
         // With replacement.
         let replacement = "foobar";
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_text(Some(replacement)),
+            new_item(RG_JSON_BEGIN).to_span(Some(replacement)),
             Text::styled("src/model/item.rs", s.fg(Color::Magenta))
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_text(Some(replacement)),
+            new_item(RG_JSON_MATCH).to_span(Some(replacement)),
             Text::styled("197:    Item::new(foobar)\n", s)
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_text(Some(replacement)),
+            new_item(RG_JSON_CONTEXT).to_span(Some(replacement)),
             Text::styled("198:  }\n", s.fg(Color::DarkGray))
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_text(Some(replacement)),
+            new_item(RG_JSON_END).to_span(Some(replacement)),
             Text::raw("")
         );
         assert_eq!(
-            new_item(RG_JSON_SUMMARY).to_text(Some(replacement)),
+            new_item(RG_JSON_SUMMARY).to_span(Some(replacement)),
             Text::raw("Search duration: 0.013911s")
         );
     }
 
     #[test]
-    fn to_text_with_base64_lossy() {
+    fn to_span_with_base64_lossy() {
         // The following types are skipped because:
         // Begin:   already tested via the `path_with_base64` test.
         // End:     already tested via the `path_with_base64` test.
@@ -459,22 +429,22 @@ mod tests {
         // Without replacement.
         let s = Style::default();
         assert_eq!(
-            new_item(b64_json_match).to_text(None),
+            new_item(b64_json_match).to_span(None),
             Text::styled("197:    Item::�new(rg_msg)\n", s)
         );
         assert_eq!(
-            new_item(b64_json_context).to_text(None),
+            new_item(b64_json_context).to_span(None),
             Text::styled("198:  �}\n", s.fg(Color::DarkGray))
         );
 
         // With replacement.
         let replacement = "foobar";
         assert_eq!(
-            new_item(b64_json_match).to_text(Some(replacement)),
+            new_item(b64_json_match).to_span(Some(replacement)),
             Text::styled("197:    Item::�new(foobar)\n", s)
         );
         assert_eq!(
-            new_item(b64_json_context).to_text(Some(replacement)),
+            new_item(b64_json_context).to_span(Some(replacement)),
             Text::styled("198:  �}\n", s.fg(Color::DarkGray))
         );
     }

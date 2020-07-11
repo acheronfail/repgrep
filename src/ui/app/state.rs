@@ -1,5 +1,5 @@
 use tui::style::{Color, StyleDiff};
-use tui::text::{Span, Spans};
+use tui::text::Span;
 use tui::widgets::ListState;
 
 use crate::model::ReplacementCriteria;
@@ -67,19 +67,13 @@ pub enum AppUiState {
 impl AppUiState {
     /// Represent the `AppUiState` as a `Text`.
     /// This is displayed as the "mode" in the stats line.
-    pub fn to_text(&self) -> Spans {
+    pub fn to_span(&self) -> Span {
         let style = StyleDiff::default().fg(Color::Black);
         match self {
-            AppUiState::Help => Spans::from(Span::styled(" HELP ", style.bg(Color::Green))),
-            AppUiState::SelectMatches => {
-                Spans::from(Span::styled(" SELECT ", style.bg(Color::Cyan)))
-            }
-            AppUiState::InputReplacement(_) => {
-                Spans::from(Span::styled(" REPLACE ", style.bg(Color::White)))
-            }
-            AppUiState::ConfirmReplacement(_) => {
-                Spans::from(Span::styled(" CONFIRM ", style.bg(Color::Red)))
-            }
+            AppUiState::Help => Span::styled(" HELP ", style.bg(Color::Green)),
+            AppUiState::SelectMatches => Span::styled(" SELECT ", style.bg(Color::Cyan)),
+            AppUiState::InputReplacement(_) => Span::styled(" REPLACE ", style.bg(Color::White)),
+            AppUiState::ConfirmReplacement(_) => Span::styled(" CONFIRM ", style.bg(Color::Red)),
         }
     }
 }

@@ -84,11 +84,11 @@ impl App {
         // Split the stats line into halves, so we can render left and right aligned portions.
         let hsplit = Layout::default()
             .direction(Direction::Horizontal)
-            // NOTE: Length is 10 because the longest `AppUiState.to_text()` is 10 characters.
+            // NOTE: Length is 10 because the longest `AppUiState.to_span()` is 10 characters.
             .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
             .split(r);
 
-        let left_side_items = vec![self.ui_state.to_text()];
+        let left_side_items = vec![Spans::from(self.ui_state.to_span())];
         let right_side_items = vec![Spans::from(vec![
             Span::styled(
                 format!(" {} ", self.rg_cmdline),
@@ -191,7 +191,7 @@ impl App {
             .enumerate()
             .map(|(idx, item)| {
                 let selected = if idx == row { Some(col) } else { None };
-                ListItem::new(vec![item.to_text(replacement, selected)])
+                ListItem::new(vec![item.to_spans(replacement, selected)])
             })
             .collect::<Vec<ListItem>>();
 

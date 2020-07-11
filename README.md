@@ -37,7 +37,7 @@ See the [releases] page for pre-compiled binaries.
 
 #### Via Cargo
 
-**NOTE**: The minimum Rust version required is `1.42.0`.
+**NOTE**: The minimum Rust version required is `1.43.0`.
 
 ```bash
 cargo install repgrep

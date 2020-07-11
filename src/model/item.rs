@@ -1,12 +1,12 @@
 use std::ops::Range;
 use std::path::PathBuf;
 
-use tui::style::{Color, Modifier, Style, StyleDiff};
+use tui::style::{Color, Modifier, StyleDiff};
 use tui::text::{Span, Spans};
 
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubItem {
     pub sub_match: SubMatch,
     pub should_replace: bool,
@@ -21,7 +21,7 @@ impl SubItem {
     }
 
     pub fn to_span(&self, is_replacing: bool, is_selected: bool) -> Span {
-        let mut s = Style::default();
+        let mut s = StyleDiff::default();
         if is_selected && !is_replacing {
             s = s.bg(Color::Yellow);
         }
@@ -36,7 +36,7 @@ impl SubItem {
             s = s.modifier(Modifier::CROSSED_OUT);
         }
 
-        Span::styled(self.sub_match.text.lossy_utf8(), StyleDiff::from(s))
+        Span::styled(self.sub_match.text.lossy_utf8(), s)
     }
 }
 
@@ -222,13 +222,13 @@ impl Item {
     }
 }
 
-#[cfg(test_ignored)]
+#[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
     use pretty_assertions::assert_eq;
-    use tui::style::{Color, Style};
-    use tui::widgets::Text;
+    use tui::style::{Color, Modifier, StyleDiff};
+    use tui::text::{Span, Spans};
 
     use crate::model::*;
     use crate::rg::de::test_utilities::*;
@@ -265,23 +265,23 @@ mod tests {
 
     #[test]
     fn match_count() {
-        assert_eq!(new_item(RG_JSON_BEGIN).match_count(), 0);
-        assert_eq!(new_item(RG_JSON_MATCH).match_count(), 1);
-        assert_eq!(new_item(RG_JSON_CONTEXT).match_count(), 0);
-        assert_eq!(new_item(RG_JSON_END).match_count(), 0);
-        assert_eq!(new_item(RG_JSON_SUMMARY).match_count(), 0);
+        assert_eq!(new_item(RG_JSON_BEGIN).sub_items().len(), 0);
+        assert_eq!(new_item(RG_JSON_MATCH).sub_items().len(), 1);
+        assert_eq!(new_item(RG_JSON_CONTEXT).sub_items().len(), 0);
+        assert_eq!(new_item(RG_JSON_END).sub_items().len(), 0);
+        assert_eq!(new_item(RG_JSON_SUMMARY).sub_items().len(), 0);
     }
 
     #[test]
-    fn matches() {
-        assert_eq!(new_item(RG_JSON_BEGIN).matches(), None);
+    fn sub_items() {
+        assert_eq!(new_item(RG_JSON_BEGIN).sub_items(), &[]);
         assert_eq!(
-            new_item(RG_JSON_MATCH).matches(),
-            Some([SubMatch::new_text("rg_msg", 14..20)].as_ref())
+            new_item(RG_JSON_MATCH).sub_items(),
+            &[SubItem::new(SubMatch::new_text("rg_msg", 14..20))]
         );
-        assert_eq!(new_item(RG_JSON_CONTEXT).matches(), None);
-        assert_eq!(new_item(RG_JSON_END).matches(), None);
-        assert_eq!(new_item(RG_JSON_SUMMARY).matches(), None);
+        assert_eq!(new_item(RG_JSON_CONTEXT).sub_items(), &[]);
+        assert_eq!(new_item(RG_JSON_END).sub_items(), &[]);
+        assert_eq!(new_item(RG_JSON_SUMMARY).sub_items(), &[]);
     }
 
     #[test]
@@ -370,48 +370,71 @@ mod tests {
 
     #[test]
     fn to_span_with_text() {
-        let s = Style::default();
+        let s = StyleDiff::default();
 
         // Without replacement.
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_span(None),
-            Text::styled("src/model/item.rs", s.fg(Color::Magenta))
+            new_item(RG_JSON_BEGIN).to_spans(None, None),
+            Spans::from(vec![Span::styled(
+                "src/model/item.rs",
+                s.fg(Color::Magenta)
+            )])
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_span(None),
-            Text::styled("197:    Item::new(rg_msg)\n", s)
+            new_item(RG_JSON_MATCH).to_spans(None, None),
+            Spans::from(vec![
+                Span::styled("197:", s.fg(Color::DarkGray)),
+                Span::styled("    Item::new(", s),
+                Span::styled("rg_msg", s.fg(Color::Red)),
+                Span::styled(")\n", s),
+            ])
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_span(None),
-            Text::styled("198:  }\n", s.fg(Color::DarkGray))
+            new_item(RG_JSON_CONTEXT).to_spans(None, None),
+            Spans::from(vec![
+                Span::styled("198:", s.fg(Color::DarkGray)),
+                Span::styled("  }\n", s),
+            ])
         );
-        assert_eq!(new_item(RG_JSON_END).to_span(None), Text::raw(""));
+        assert_eq!(new_item(RG_JSON_END).to_spans(None, None), Spans::from(""));
         assert_eq!(
-            new_item(RG_JSON_SUMMARY).to_span(None),
-            Text::raw("Search duration: 0.013911s")
+            new_item(RG_JSON_SUMMARY).to_spans(None, None),
+            Spans::from("Search duration: 0.013911s")
         );
 
         // With replacement.
         let replacement = "foobar";
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_span(Some(replacement)),
-            Text::styled("src/model/item.rs", s.fg(Color::Magenta))
+            new_item(RG_JSON_BEGIN).to_spans(Some(replacement), None),
+            Spans::from(vec![Span::styled(
+                "src/model/item.rs",
+                s.fg(Color::Magenta)
+            )])
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_span(Some(replacement)),
-            Text::styled("197:    Item::new(foobar)\n", s)
+            new_item(RG_JSON_MATCH).to_spans(Some(replacement), None),
+            Spans::from(vec![
+                Span::styled("197:", s.fg(Color::DarkGray)),
+                Span::styled("    Item::new(", s),
+                Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled("foobar", s.fg(Color::Green)),
+                Span::styled(")\n", s),
+            ])
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_span(Some(replacement)),
-            Text::styled("198:  }\n", s.fg(Color::DarkGray))
+            new_item(RG_JSON_CONTEXT).to_spans(Some(replacement), None),
+            Spans::from(vec![
+                Span::styled("198:", s.fg(Color::DarkGray)),
+                Span::styled("  }\n", s),
+            ])
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_span(Some(replacement)),
-            Text::raw("")
+            new_item(RG_JSON_END).to_spans(Some(replacement), None),
+            Spans::from("")
         );
         assert_eq!(
-            new_item(RG_JSON_SUMMARY).to_span(Some(replacement)),
-            Text::raw("Search duration: 0.013911s")
+            new_item(RG_JSON_SUMMARY).to_spans(Some(replacement), None),
+            Spans::from("Search duration: 0.013911s")
         );
     }
 
@@ -427,25 +450,42 @@ mod tests {
 
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         // Without replacement.
-        let s = Style::default();
+        let s = StyleDiff::default();
         assert_eq!(
-            new_item(b64_json_match).to_span(None),
-            Text::styled("197:    Item::�new(rg_msg)\n", s)
+            new_item(b64_json_match).to_spans(None, None),
+            Spans::from(vec![
+                Span::styled("197:", s.fg(Color::DarkGray)),
+                Span::styled("    Item::�new(", s),
+                Span::styled("rg_msg", s.fg(Color::Red)),
+                Span::styled(")\n", s),
+            ])
         );
         assert_eq!(
-            new_item(b64_json_context).to_span(None),
-            Text::styled("198:  �}\n", s.fg(Color::DarkGray))
+            new_item(b64_json_context).to_spans(None, None),
+            Spans::from(vec![
+                Span::styled("198:", s.fg(Color::DarkGray)),
+                Span::styled("  �}\n", s)
+            ])
         );
 
         // With replacement.
         let replacement = "foobar";
         assert_eq!(
-            new_item(b64_json_match).to_span(Some(replacement)),
-            Text::styled("197:    Item::�new(foobar)\n", s)
+            new_item(b64_json_match).to_spans(Some(replacement), None),
+            Spans::from(vec![
+                Span::styled("197:", s.fg(Color::DarkGray)),
+                Span::styled("    Item::�new(", s),
+                Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled("foobar", s.fg(Color::Green)),
+                Span::styled(")\n", s),
+            ])
         );
         assert_eq!(
-            new_item(b64_json_context).to_span(Some(replacement)),
-            Text::styled("198:  �}\n", s.fg(Color::DarkGray))
+            new_item(b64_json_context).to_spans(Some(replacement), None),
+            Spans::from(vec![
+                Span::styled("198:", s.fg(Color::DarkGray)),
+                Span::styled("  �}\n", s)
+            ])
         );
     }
 }

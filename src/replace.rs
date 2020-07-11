@@ -122,7 +122,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
     Ok(())
 }
 
-#[cfg(test_ignore)]
+#[cfg(test)]
 mod tests {
     use std::fs::{self, OpenOptions};
     use std::io::{Read, Write};
@@ -233,9 +233,9 @@ mod tests {
             ),
         ];
 
-        items[0].should_replace = false;
-        items[1].should_replace = true;
-        items[2].should_replace = false;
+        items[0].set_should_replace(0, false);
+        items[1].set_should_replace(0, true);
+        items[2].set_should_replace(0, false);
 
         perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
         assert_eq!(fs::read_to_string(f1.path()).unwrap(), "foo bar baz");

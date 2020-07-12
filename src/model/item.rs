@@ -153,7 +153,7 @@ impl Item {
             RgMessage::Begin { .. } => Spans::from(Span::styled(
                 format!("{}", self.path_buf().unwrap().display()),
                 if selected_col.is_some() {
-                    base_style
+                    base_style.fg(Color::Black).bg(Color::Yellow)
                 } else {
                     base_style.fg(Color::Magenta)
                 },
@@ -460,7 +460,10 @@ mod tests {
         let s = StyleDiff::default();
         assert_eq!(
             new_item(RG_JSON_BEGIN).to_spans(None, Some(0)),
-            Spans::from(vec![Span::styled("src/model/item.rs", s.fg(Color::Yellow))])
+            Spans::from(vec![Span::styled(
+                "src/model/item.rs",
+                s.fg(Color::Black).bg(Color::Yellow)
+            )])
         );
         assert_eq!(
             new_item(RG_JSON_MATCH).to_spans(None, Some(0)),
@@ -497,7 +500,10 @@ mod tests {
         let replacement = "foobar";
         assert_eq!(
             new_item(RG_JSON_BEGIN).to_spans(Some(replacement), Some(0)),
-            Spans::from(vec![Span::styled("src/model/item.rs", s)])
+            Spans::from(vec![Span::styled(
+                "src/model/item.rs",
+                s.fg(Color::Black).bg(Color::Yellow)
+            )])
         );
         assert_eq!(
             new_item(RG_JSON_MATCH).to_spans(Some(replacement), Some(0)),

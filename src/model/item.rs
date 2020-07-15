@@ -40,7 +40,7 @@ impl SubItem {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Item {
     pub kind: RgMessageKind,
     rg_message: RgMessage,
@@ -247,22 +247,11 @@ mod tests {
     use tui::text::{Span, Spans};
 
     use crate::model::*;
+    use crate::rg::de::test_utilities::*;
     use crate::rg::de::*;
 
-    const RG_JSON_BEGIN: &str = r#"{"type":"begin","data":{"path":{"text":"src/model/item.rs"}}}"#;
-    const RG_JSON_MATCH: &str = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"text":"    Item::new(rg_msg)\n"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"rg_msg"},"start":14,"end":20}]}}"#;
-    const RG_JSON_CONTEXT: &str = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"text":"  }\n"},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
-    const RG_JSON_END: &str = r#"{"type":"end","data":{"path":{"text":"src/model/item.rs"},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":97924,"human":"0.000098s"},"searches":1,"searches_with_match":1,"bytes_searched":5956,"bytes_printed":674,"matched_lines":2,"matches":2}}}"#;
-    const RG_JSON_SUMMARY: &str = r#"{"data":{"elapsed_total":{"human":"0.013911s","nanos":13911027,"secs":0},"stats":{"bytes_printed":3248,"bytes_searched":18789,"elapsed":{"human":"0.000260s","nanos":260276,"secs":0},"matched_lines":10,"matches":10,"searches":2,"searches_with_match":2}},"type":"summary"}"#;
-
-    const RG_B64_JSON_BEGIN: &str = r#"{"type":"begin","data":{"path":{"bytes":"Li9hL2Zv/28="}}}"#;
-    const RG_B64_JSON_MATCH: &str = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
-    const RG_B64_JSON_CONTEXT: &str = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
-    const RG_B64_JSON_END: &str = r#"{"type":"end","data":{"path":{"bytes":"Li9hL2Zv/28="},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":64302,"human":"0.000064s"},"searches":1,"searches_with_match":1,"bytes_searched":4,"bytes_printed":235,"matched_lines":1,"matches":1}}}"#;
-
-    fn new_item(raw_json: &str) -> Item {
-        let rg_msg = serde_json::from_str::<RgMessage>(raw_json).unwrap();
-        Item::new(rg_msg)
+    pub fn new_item(raw_json: &str) -> Item {
+        Item::new(RgMessage::from_str(raw_json))
     }
 
     #[test]
@@ -286,7 +275,7 @@ mod tests {
     #[test]
     fn match_count() {
         assert_eq!(new_item(RG_JSON_BEGIN).sub_items().len(), 0);
-        assert_eq!(new_item(RG_JSON_MATCH).sub_items().len(), 1);
+        assert_eq!(new_item(RG_JSON_MATCH).sub_items().len(), 2);
         assert_eq!(new_item(RG_JSON_CONTEXT).sub_items().len(), 0);
         assert_eq!(new_item(RG_JSON_END).sub_items().len(), 0);
         assert_eq!(new_item(RG_JSON_SUMMARY).sub_items().len(), 0);
@@ -297,7 +286,10 @@ mod tests {
         assert_eq!(new_item(RG_JSON_BEGIN).sub_items(), &[]);
         assert_eq!(
             new_item(RG_JSON_MATCH).sub_items(),
-            &[SubItem::new(SubMatch::new_text("rg_msg", 14..20))]
+            &[
+                SubItem::new(SubMatch::new_text("Item", 4..8)),
+                SubItem::new(SubMatch::new_text("rg_msg", 14..20))
+            ]
         );
         assert_eq!(new_item(RG_JSON_CONTEXT).sub_items(), &[]);
         assert_eq!(new_item(RG_JSON_END).sub_items(), &[]);
@@ -403,7 +395,9 @@ mod tests {
             new_item(RG_JSON_MATCH).to_spans(None, None),
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
-                Span::styled("    Item::new(", s),
+                Span::styled("    ", s),
+                Span::styled("Item", s.fg(Color::Red)),
+                Span::styled("::new(", s),
                 Span::styled("rg_msg", s.fg(Color::Red)),
                 Span::styled(")\n", s),
             ])
@@ -437,7 +431,10 @@ mod tests {
             new_item(RG_JSON_MATCH).to_spans(Some(replacement), None),
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
-                Span::styled("    Item::new(", s),
+                Span::styled("    ", s),
+                Span::styled("Item", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled("foobar", s.fg(Color::Green)),
+                Span::styled("::new(", s),
                 Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled(")\n", s),
@@ -474,8 +471,10 @@ mod tests {
             new_item(RG_JSON_MATCH).to_spans(None, Some(0)),
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::Yellow)),
-                Span::styled("    Item::new(", s.fg(Color::Yellow)),
-                Span::styled("rg_msg", s.fg(Color::Red).bg(Color::Yellow)),
+                Span::styled("    ", s.fg(Color::Yellow)),
+                Span::styled("Item", s.fg(Color::Red).bg(Color::Yellow)),
+                Span::styled("::new(", s.fg(Color::Yellow)),
+                Span::styled("rg_msg", s.fg(Color::Red)),
                 Span::styled(")\n", s.fg(Color::Yellow)),
             ])
         );
@@ -514,7 +513,10 @@ mod tests {
             new_item(RG_JSON_MATCH).to_spans(Some(replacement), Some(0)),
             Spans::from(vec![
                 Span::styled("197:", s),
-                Span::styled("    Item::new(", s),
+                Span::styled("    ", s),
+                Span::styled("Item", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled(replacement, s.fg(Color::Green)),
+                Span::styled("::new(", s),
                 Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled(")\n", s),

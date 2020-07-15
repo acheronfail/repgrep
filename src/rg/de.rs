@@ -284,6 +284,25 @@ mod tests {
 pub mod test_utilities {
     use crate::rg::de::*;
 
+    pub const RG_JSON_BEGIN: &str =
+        r#"{"type":"begin","data":{"path":{"text":"src/model/item.rs"}}}"#;
+    pub const RG_JSON_MATCH: &str = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"text":"    Item::new(rg_msg)\n"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":4,"end":8},{"match":{"text":"rg_msg"},"start":14,"end":20}]}}"#;
+    pub const RG_JSON_CONTEXT: &str = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"text":"  }\n"},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
+    pub const RG_JSON_END: &str = r#"{"type":"end","data":{"path":{"text":"src/model/item.rs"},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":97924,"human":"0.000098s"},"searches":1,"searches_with_match":1,"bytes_searched":5956,"bytes_printed":674,"matched_lines":2,"matches":2}}}"#;
+    pub const RG_JSON_SUMMARY: &str = r#"{"data":{"elapsed_total":{"human":"0.013911s","nanos":13911027,"secs":0},"stats":{"bytes_printed":3248,"bytes_searched":18789,"elapsed":{"human":"0.000260s","nanos":260276,"secs":0},"matched_lines":10,"matches":10,"searches":2,"searches_with_match":2}},"type":"summary"}"#;
+
+    pub const RG_B64_JSON_BEGIN: &str =
+        r#"{"type":"begin","data":{"path":{"bytes":"Li9hL2Zv/28="}}}"#;
+    pub const RG_B64_JSON_MATCH: &str = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
+    pub const RG_B64_JSON_CONTEXT: &str = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
+    pub const RG_B64_JSON_END: &str = r#"{"type":"end","data":{"path":{"bytes":"Li9hL2Zv/28="},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":64302,"human":"0.000064s"},"searches":1,"searches_with_match":1,"bytes_searched":4,"bytes_printed":235,"matched_lines":1,"matches":1}}}"#;
+
+    impl RgMessage {
+        pub fn from_str(raw_json: &str) -> RgMessage {
+            serde_json::from_str::<RgMessage>(raw_json).unwrap()
+        }
+    }
+
     impl ArbitraryData {
         pub fn new_with_text(text: String) -> ArbitraryData {
             ArbitraryData::Text { text }

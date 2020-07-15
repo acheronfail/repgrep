@@ -223,10 +223,122 @@ impl App {
     }
 
     pub(crate) fn toggle_all_items(&mut self) {
-        let should_replace = self.list.iter().all(|i| !i.get_should_replace_all());
+        let should_replace = !self.list.iter().all(|i| i.get_should_replace_all());
 
         for item in self.list.iter_mut() {
             item.set_should_replace_all(should_replace);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::VecDeque;
+
+    use pretty_assertions::assert_eq;
+
+    use crate::rg::de::test_utilities::*;
+    use crate::rg::de::*;
+    use crate::ui::app::*;
+
+    fn rg_messages() -> Vec<RgMessage> {
+        vec![
+            RgMessage::from_str(RG_JSON_BEGIN),
+            RgMessage::from_str(RG_JSON_MATCH),
+            RgMessage::from_str(RG_JSON_CONTEXT),
+            RgMessage::from_str(RG_JSON_MATCH),
+            RgMessage::from_str(RG_JSON_CONTEXT),
+            RgMessage::from_str(RG_JSON_END),
+            RgMessage::from_str(RG_JSON_SUMMARY),
+        ]
+    }
+
+    fn items() -> Vec<Item> {
+        let mut messages = rg_messages();
+        messages
+            .drain(..messages.len() - 1)
+            .map(|m| Item::new(m))
+            .collect()
+    }
+
+    fn new_app() -> App {
+        App::new("TESTS".to_string(), VecDeque::from(rg_messages()))
+    }
+
+    #[test]
+    fn it_toggles_item_all_sub_items() {
+        let mut app = new_app();
+        let mut expected_items = items();
+        assert_eq!(app.list, expected_items);
+
+        // Toggle all sub items
+        app.list_state.set_row_col(1, 0);
+        app.toggle_item(true);
+
+        // Should have only toggled that one.
+        expected_items[1].set_should_replace(0, false);
+        expected_items[1].set_should_replace(1, false);
+        assert_eq!(app.list, expected_items);
+    }
+
+    #[test]
+    fn it_toggles_item_sub_item() {
+        let mut app = new_app();
+        let mut expected_items = items();
+        assert_eq!(app.list, expected_items);
+
+        // Toggle a single sub item
+        app.list_state.set_row_col(1, 0);
+        app.toggle_item(false);
+
+        // Should have only toggled that one.
+        expected_items[1].set_should_replace(0, false);
+        assert_eq!(app.list, expected_items);
+    }
+
+    #[test]
+    fn it_toggles_all_items() {
+        let mut app = new_app();
+        let mut expected_items = items();
+        assert_eq!(app.list, expected_items);
+
+        // Toggle them all off
+        app.toggle_all_items();
+        expected_items[1].set_should_replace_all(false);
+        expected_items[3].set_should_replace_all(false);
+        assert_eq!(app.list, expected_items);
+
+        // Toggle them all back on
+        app.toggle_all_items();
+        expected_items[1].set_should_replace_all(true);
+        expected_items[3].set_should_replace_all(true);
+        assert_eq!(app.list, expected_items);
+    }
+
+    #[test]
+    fn it_toggles_all_items_with_item_off() {
+        let mut app = new_app();
+        let expected_items = items();
+        assert_eq!(app.list, expected_items);
+
+        // Turn off a single item
+        app.list[1].set_should_replace(0, false);
+        app.list[1].set_should_replace(1, false);
+        // Now toggle all, they should all be on
+        app.toggle_all_items();
+        assert_eq!(app.list, expected_items);
+    }
+
+    #[test]
+    fn it_toggles_all_items_with_sub_item_off() {
+        let mut app = new_app();
+        let expected_items = items();
+        assert_eq!(app.list, expected_items);
+
+        // Turn off a single sub item
+        app.list[1].set_should_replace(1, false);
+        // Now toggle all, they should all be on
+        app.toggle_all_items();
+        assert_eq!(app.list, expected_items);
     }
 }

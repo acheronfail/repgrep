@@ -70,8 +70,6 @@ impl ArbitraryData {
         }
     }
 
-    // TODO: tests for Base64 decoding on separate platforms
-
     /// Converts to an `OsString`.
     #[cfg(unix)]
     pub fn to_os_string(&self) -> Result<OsString> {
@@ -86,7 +84,7 @@ impl ArbitraryData {
     }
 
     /// Converts to an `OsString`.
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     pub fn to_os_string(&self) -> Result<OsString> {
         /// Convert Base64 encoded data to an OsString on Windows platforms.
         /// https://doc.rust-lang.org/std/ffi/index.html#on-windows
@@ -96,7 +94,9 @@ impl ArbitraryData {
             ArbitraryData::Text { text } => OsString::from(text),
             ArbitraryData::Base64 { .. } => {
                 // Transmute decoded Base64 bytes as UTF-16 since that's what underlying paths are on Windows.
-                let bytes_u16 = safe_transmute::transmute_vec::<u8, u16>(self.to_vec())?;
+                let bytes_u16 = safe_transmute::transmute_vec::<u8, u16>(self.to_vec())
+                    .or_else(|e| e.copy())?;
+
                 OsString::from_wide(&bytes_u16)
             }
         })
@@ -151,10 +151,12 @@ pub struct SubMatch {
 mod tests {
     // tests based on [`grep_printer` example output](https://docs.rs/grep-printer/0.1.5/grep_printer/struct.JSON.html#example)
 
+    use pretty_assertions::assert_eq;
+
     use crate::rg::de::{ArbitraryData::*, RgMessage::*, *};
 
     #[test]
-    fn arbitrarydata() {
+    fn arbitrary_data() {
         let json = r#"{"text":"/home/andrew/sherlock"}"#;
         assert_eq!(
             Text {
@@ -162,6 +164,44 @@ mod tests {
             },
             serde_json::from_str(json).unwrap()
         )
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn arbitrary_data_to_os_string_unix() {
+        use std::os::unix::ffi::OsStringExt;
+
+        // Here, the values 0x66 and 0x6f correspond to 'f' and 'o'
+        // respectively. The value 0x80 is a lone continuation byte, invalid
+        // in a UTF-8 sequence.
+        let invalid_utf8 = vec![0x66, 0x6f, 0x80, 0x6f];
+        let invalid_utf8_os_string = OsString::from_vec(invalid_utf8.clone());
+
+        let data = ArbitraryData::Base64 {
+            bytes: base64::encode(&invalid_utf8[..]),
+        };
+
+        assert_eq!(data.to_os_string().unwrap(), invalid_utf8_os_string);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn arbitrary_data_to_os_string_windows() {
+        use std::os::windows::ffi::OsStringExt;
+
+        // Here, the values 0x66 and 0x6f correspond to 'f' and 'o'
+        // respectively. The value 0x80 is a lone continuation byte, invalid
+        // in a UTF-8 sequence.
+        // They're encoded as u16 bytes here since that's what the should be on Windows. (I think?)
+        let invalid_utf8_wide = vec![0x0066, 0x006f, 0x0080, 0x006f];
+        let invalid_utf8_os_string = OsString::from_wide(&invalid_utf8_wide[..]);
+
+        let bytes_as_u8 = safe_transmute::transmute_to_bytes(&invalid_utf8_wide[..]);
+        let data = ArbitraryData::Base64 {
+            bytes: base64::encode(&bytes_as_u8[..]),
+        };
+
+        assert_eq!(data.to_os_string().unwrap(), invalid_utf8_os_string);
     }
 
     #[test]

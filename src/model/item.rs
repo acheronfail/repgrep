@@ -536,6 +536,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
     fn to_span_with_base64_lossy() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
@@ -568,6 +569,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
     fn to_span_with_base64_lossy_replacement() {
         let s = StyleDiff::default();
@@ -602,6 +604,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
     fn to_span_with_base64_lossy_selected() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
@@ -637,6 +640,7 @@ mod tests {
         );
     }
 
+    #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
     fn to_span_with_base64_lossy_replacement_selected() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.

@@ -152,7 +152,7 @@ impl Item {
         match &self.rg_message {
             RgMessage::Begin { .. } => Spans::from(Span::styled(
                 format!("{}", self.path_buf().unwrap().display()),
-                if selected_col.is_some() {
+                if replacement.is_none() && selected_col.is_some() {
                     base_style.fg(Color::Black).bg(Color::Yellow)
                 } else {
                     base_style.fg(Color::Magenta)
@@ -254,6 +254,11 @@ mod tests {
     const RG_JSON_CONTEXT: &str = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"text":"  }\n"},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
     const RG_JSON_END: &str = r#"{"type":"end","data":{"path":{"text":"src/model/item.rs"},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":97924,"human":"0.000098s"},"searches":1,"searches_with_match":1,"bytes_searched":5956,"bytes_printed":674,"matched_lines":2,"matches":2}}}"#;
     const RG_JSON_SUMMARY: &str = r#"{"data":{"elapsed_total":{"human":"0.013911s","nanos":13911027,"secs":0},"stats":{"bytes_printed":3248,"bytes_searched":18789,"elapsed":{"human":"0.000260s","nanos":260276,"secs":0},"matched_lines":10,"matches":10,"searches":2,"searches_with_match":2}},"type":"summary"}"#;
+
+    const RG_B64_JSON_BEGIN: &str = r#"{"type":"begin","data":{"path":{"bytes":"Li9hL2Zv/28="}}}"#;
+    const RG_B64_JSON_MATCH: &str = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
+    const RG_B64_JSON_CONTEXT: &str = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
+    const RG_B64_JSON_END: &str = r#"{"type":"end","data":{"path":{"bytes":"Li9hL2Zv/28="},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":64302,"human":"0.000064s"},"searches":1,"searches_with_match":1,"bytes_searched":4,"bytes_printed":235,"matched_lines":1,"matches":1}}}"#;
 
     fn new_item(raw_json: &str) -> Item {
         let rg_msg = serde_json::from_str::<RgMessage>(raw_json).unwrap();
@@ -502,7 +507,7 @@ mod tests {
             new_item(RG_JSON_BEGIN).to_spans(Some(replacement), Some(0)),
             Spans::from(vec![Span::styled(
                 "src/model/item.rs",
-                s.fg(Color::Black).bg(Color::Yellow)
+                s.fg(Color::Magenta)
             )])
         );
         assert_eq!(
@@ -531,19 +536,18 @@ mod tests {
 
     #[test]
     fn to_span_with_base64_lossy() {
-        // The following types are skipped because:
-        // Begin:   already tested via the `path_with_base64` test.
-        // End:     already tested via the `path_with_base64` test.
-        // Summary: doesn't include an `ArbitraryData` struct.
-
-        let b64_json_match = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
-        let b64_json_context = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
-
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
-        // Without replacement.
         let s = StyleDiff::default();
         assert_eq!(
-            new_item(b64_json_match).to_spans(None, None),
+            new_item(RG_B64_JSON_BEGIN).to_spans(None, None),
+            Spans::from(vec![Span::styled("./a/fo�o", s.fg(Color::Magenta))])
+        );
+        assert_eq!(
+            new_item(RG_B64_JSON_END).to_spans(None, None),
+            Spans::from("")
+        );
+        assert_eq!(
+            new_item(RG_B64_JSON_MATCH).to_spans(None, None),
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
@@ -554,7 +558,7 @@ mod tests {
             ])
         );
         assert_eq!(
-            new_item(b64_json_context).to_spans(None, None),
+            new_item(RG_B64_JSON_CONTEXT).to_spans(None, None),
             Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
                 Span::styled("  �}\n", s)
@@ -564,19 +568,18 @@ mod tests {
 
     #[test]
     fn to_span_with_base64_lossy_replacement() {
-        // The following types are skipped because:
-        // Begin:   already tested via the `path_with_base64` test.
-        // End:     already tested via the `path_with_base64` test.
-        // Summary: doesn't include an `ArbitraryData` struct.
-
-        let b64_json_match = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
-        let b64_json_context = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
-
-        // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = StyleDiff::default();
         let replacement = "foobar";
         assert_eq!(
-            new_item(b64_json_match).to_spans(Some(replacement), None),
+            new_item(RG_B64_JSON_BEGIN).to_spans(Some(replacement), None),
+            Spans::from(vec![Span::styled("./a/fo�o", s.fg(Color::Magenta)),])
+        );
+        assert_eq!(
+            new_item(RG_B64_JSON_END).to_spans(Some(replacement), None),
+            Spans::from("")
+        );
+        assert_eq!(
+            new_item(RG_B64_JSON_MATCH).to_spans(Some(replacement), None),
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
@@ -589,7 +592,7 @@ mod tests {
             ])
         );
         assert_eq!(
-            new_item(b64_json_context).to_spans(Some(replacement), None),
+            new_item(RG_B64_JSON_CONTEXT).to_spans(Some(replacement), None),
             Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
                 Span::styled("  �}\n", s)
@@ -599,18 +602,21 @@ mod tests {
 
     #[test]
     fn to_span_with_base64_lossy_selected() {
-        // The following types are skipped because:
-        // Begin:   already tested via the `path_with_base64` test.
-        // End:     already tested via the `path_with_base64` test.
-        // Summary: doesn't include an `ArbitraryData` struct.
-
-        let b64_json_match = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
-        let b64_json_context = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
-
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = StyleDiff::default();
         assert_eq!(
-            new_item(b64_json_match).to_spans(None, Some(0)),
+            new_item(RG_B64_JSON_BEGIN).to_spans(None, Some(0)),
+            Spans::from(vec![Span::styled(
+                "./a/fo�o",
+                s.fg(Color::Black).bg(Color::Yellow)
+            )])
+        );
+        assert_eq!(
+            new_item(RG_B64_JSON_END).to_spans(None, Some(0)),
+            Spans::from("")
+        );
+        assert_eq!(
+            new_item(RG_B64_JSON_MATCH).to_spans(None, Some(0)),
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::Yellow)),
                 Span::styled("    �", s.fg(Color::Yellow)),
@@ -621,7 +627,7 @@ mod tests {
             ])
         );
         assert_eq!(
-            new_item(b64_json_context).to_spans(None, Some(0)),
+            new_item(RG_B64_JSON_CONTEXT).to_spans(None, Some(0)),
             Spans::from(vec![
                 Span::styled("198:", s.fg(Color::Yellow)),
                 Span::styled("  �}\n", s.fg(Color::Yellow))
@@ -631,19 +637,19 @@ mod tests {
 
     #[test]
     fn to_span_with_base64_lossy_replacement_selected() {
-        // The following types are skipped because:
-        // Begin:   already tested via the `path_with_base64` test.
-        // End:     already tested via the `path_with_base64` test.
-        // Summary: doesn't include an `ArbitraryData` struct.
-
-        let b64_json_match = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
-        let b64_json_context = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
-
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = StyleDiff::default();
         let replacement = "foobar";
         assert_eq!(
-            new_item(b64_json_match).to_spans(Some(replacement), Some(0)),
+            new_item(RG_B64_JSON_BEGIN).to_spans(Some(replacement), Some(0)),
+            Spans::from(vec![Span::styled("./a/fo�o", s.fg(Color::Magenta))])
+        );
+        assert_eq!(
+            new_item(RG_B64_JSON_END).to_spans(Some(replacement), Some(0)),
+            Spans::from("")
+        );
+        assert_eq!(
+            new_item(RG_B64_JSON_MATCH).to_spans(Some(replacement), Some(0)),
             Spans::from(vec![
                 Span::styled("197:", s),
                 Span::styled("    �", s),
@@ -656,7 +662,7 @@ mod tests {
             ])
         );
         assert_eq!(
-            new_item(b64_json_context).to_spans(Some(replacement), Some(0)),
+            new_item(RG_B64_JSON_CONTEXT).to_spans(Some(replacement), Some(0)),
             Spans::from(vec![Span::styled("198:", s), Span::styled("  �}\n", s)])
         );
     }

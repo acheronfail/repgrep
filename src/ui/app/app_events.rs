@@ -78,9 +78,8 @@ impl App {
                         KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
                             self.move_pos(Movement::Next)
                         }
-                        // FIXME: shift doesn't work with space
-                        // See: https://github.com/crossterm-rs/crossterm/issues/460
-                        KeyCode::Char(' ') => self.toggle_item(shift),
+                        KeyCode::Char(' ') => self.toggle_item(false),
+                        KeyCode::Char('s') | KeyCode::Char('S') => self.toggle_item(true),
                         KeyCode::Char('a') | KeyCode::Char('A') => self.toggle_all_items(),
                         KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
                         KeyCode::Char('?') => self.ui_state = AppUiState::Help,

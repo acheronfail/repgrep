@@ -132,11 +132,13 @@ impl App {
 
     fn move_vertically(&mut self, movement: &Movement) {
         // Reverse the iterator depending on movement direction.
-        let iterator = self.list.iter().enumerate();
-        let iterator = if movement.is_forward() {
-            Either::Right(iterator)
-        } else {
-            Either::Left(iterator.rev())
+        let iterator = {
+            let iter = self.list.iter().enumerate();
+            if movement.is_forward() {
+                Either::Right(iter)
+            } else {
+                Either::Left(iter.rev())
+            }
         };
 
         // Determine how far to skip down the list.

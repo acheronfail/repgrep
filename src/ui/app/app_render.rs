@@ -140,6 +140,7 @@ impl App {
                 Row::Data(["J, shift + down", "move to next file"].iter()),
                 Row::Data(["space", "toggle selection"].iter()),
                 Row::Data(["a, A", "toggle selection for all matches"].iter()),
+                Row::Data(["s, S", "toggle selection for whole line"].iter()),
                 Row::Data(["enter, r, R", "accept selection"].iter()),
                 Row::Data(["q, esc", "quit"].iter()),
                 Row::Data(["?", "show help and keybindings"].iter()),

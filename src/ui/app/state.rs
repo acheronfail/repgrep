@@ -1,4 +1,4 @@
-use tui::style::{Color, StyleDiff};
+use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::ListState;
 
@@ -68,7 +68,7 @@ impl AppUiState {
     /// Represent the `AppUiState` as a `Text`.
     /// This is displayed as the "mode" in the stats line.
     pub fn to_span(&self) -> Span {
-        let style = StyleDiff::default().fg(Color::Black);
+        let style = Style::default().fg(Color::Black);
         match self {
             AppUiState::Help => Span::styled(" HELP ", style.bg(Color::Green)),
             AppUiState::SelectMatches => Span::styled(" SELECT ", style.bg(Color::Cyan)),

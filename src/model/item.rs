@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::path::PathBuf;
 
-use tui::style::{Color, Modifier, StyleDiff};
+use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
@@ -21,7 +21,7 @@ impl SubItem {
     }
 
     pub fn to_span(&self, is_replacing: bool, is_selected: bool) -> Span {
-        let mut s = StyleDiff::default();
+        let mut s = Style::default();
         if is_selected && !is_replacing {
             s = s.bg(Color::Yellow);
         }
@@ -33,7 +33,7 @@ impl SubItem {
         });
 
         if self.should_replace && is_replacing {
-            s = s.modifier(Modifier::CROSSED_OUT);
+            s = s.add_modifier(Modifier::CROSSED_OUT);
         }
 
         Span::styled(self.sub_match.text.lossy_utf8(), s)
@@ -134,7 +134,7 @@ impl Item {
         self.path().and_then(|data| data.to_path_buf().ok())
     }
 
-    fn line_number_to_span<'a>(mut style: StyleDiff, is_selected: bool, n: usize) -> Span<'a> {
+    fn line_number_to_span<'a>(mut style: Style, is_selected: bool, n: usize) -> Span<'a> {
         if !is_selected {
             style = style.fg(Color::DarkGray);
         }
@@ -143,7 +143,7 @@ impl Item {
     }
 
     pub fn to_spans(&self, replacement: Option<&str>, selected_col: Option<usize>) -> Spans {
-        let mut base_style = StyleDiff::default();
+        let mut base_style = Style::default();
         if replacement.is_none() && selected_col.is_some() {
             base_style = base_style.fg(Color::Yellow);
         }
@@ -243,7 +243,7 @@ mod tests {
     use std::path::PathBuf;
 
     use pretty_assertions::assert_eq;
-    use tui::style::{Color, Modifier, StyleDiff};
+    use tui::style::{Color, Modifier, Style};
     use tui::text::{Span, Spans};
 
     use crate::model::*;
@@ -383,7 +383,7 @@ mod tests {
 
     #[test]
     fn to_span_with_text() {
-        let s = StyleDiff::default();
+        let s = Style::default();
         assert_eq!(
             new_item(RG_JSON_BEGIN).to_spans(None, None),
             Spans::from(vec![Span::styled(
@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     fn to_span_with_text_replacement() {
-        let s = StyleDiff::default();
+        let s = Style::default();
         let replacement = "foobar";
         assert_eq!(
             new_item(RG_JSON_BEGIN).to_spans(Some(replacement), None),
@@ -432,10 +432,13 @@ mod tests {
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    ", s),
-                Span::styled("Item", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled("::new(", s),
-                Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled(
+                    "rg_msg",
+                    s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)
+                ),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled(")\n", s),
             ])
@@ -459,7 +462,7 @@ mod tests {
 
     #[test]
     fn to_span_with_text_selected() {
-        let s = StyleDiff::default();
+        let s = Style::default();
         assert_eq!(
             new_item(RG_JSON_BEGIN).to_spans(None, Some(0)),
             Spans::from(vec![Span::styled(
@@ -500,7 +503,7 @@ mod tests {
 
     #[test]
     fn to_span_with_text_replacement_selected() {
-        let s = StyleDiff::default();
+        let s = Style::default();
         let replacement = "foobar";
         assert_eq!(
             new_item(RG_JSON_BEGIN).to_spans(Some(replacement), Some(0)),
@@ -514,10 +517,13 @@ mod tests {
             Spans::from(vec![
                 Span::styled("197:", s),
                 Span::styled("    ", s),
-                Span::styled("Item", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled("::new(", s),
-                Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled(
+                    "rg_msg",
+                    s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)
+                ),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled(")\n", s),
             ])
@@ -540,7 +546,7 @@ mod tests {
     #[test]
     fn to_span_with_base64_lossy() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
-        let s = StyleDiff::default();
+        let s = Style::default();
         assert_eq!(
             new_item(RG_B64_JSON_BEGIN).to_spans(None, None),
             Spans::from(vec![Span::styled("./a/fo�o", s.fg(Color::Magenta))])
@@ -572,7 +578,7 @@ mod tests {
     #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
     fn to_span_with_base64_lossy_replacement() {
-        let s = StyleDiff::default();
+        let s = Style::default();
         let replacement = "foobar";
         assert_eq!(
             new_item(RG_B64_JSON_BEGIN).to_spans(Some(replacement), None),
@@ -587,10 +593,13 @@ mod tests {
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
-                Span::styled("Item", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled("::�new(", s),
-                Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled(
+                    "rg_msg",
+                    s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)
+                ),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled(")\n", s),
             ])
@@ -608,7 +617,7 @@ mod tests {
     #[test]
     fn to_span_with_base64_lossy_selected() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
-        let s = StyleDiff::default();
+        let s = Style::default();
         assert_eq!(
             new_item(RG_B64_JSON_BEGIN).to_spans(None, Some(0)),
             Spans::from(vec![Span::styled(
@@ -644,7 +653,7 @@ mod tests {
     #[test]
     fn to_span_with_base64_lossy_replacement_selected() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
-        let s = StyleDiff::default();
+        let s = Style::default();
         let replacement = "foobar";
         assert_eq!(
             new_item(RG_B64_JSON_BEGIN).to_spans(Some(replacement), Some(0)),
@@ -659,10 +668,13 @@ mod tests {
             Spans::from(vec![
                 Span::styled("197:", s),
                 Span::styled("    �", s),
-                Span::styled("Item", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled("::�new(", s),
-                Span::styled("rg_msg", s.fg(Color::Red).modifier(Modifier::CROSSED_OUT)),
+                Span::styled(
+                    "rg_msg",
+                    s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)
+                ),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled(")\n", s),
             ])

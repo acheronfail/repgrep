@@ -2,7 +2,7 @@
 use clap::crate_name;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Modifier, Style, StyleDiff};
+use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
 use tui::Frame;
@@ -55,7 +55,7 @@ impl App {
             AppUiState::InputReplacement(input) => vec![Spans::from(vec![
                 Span::from("Replacement: "),
                 if input.is_empty() {
-                    Span::styled("<empty>", StyleDiff::default().fg(Color::DarkGray))
+                    Span::styled("<empty>", Style::default().fg(Color::DarkGray))
                 } else {
                     Span::from(input.as_str())
                 },
@@ -92,15 +92,15 @@ impl App {
         let right_side_items = vec![Spans::from(vec![
             Span::styled(
                 format!(" {} ", self.rg_cmdline),
-                StyleDiff::default().bg(Color::Blue).fg(Color::Black),
+                Style::default().bg(Color::Blue).fg(Color::Black),
             ),
             Span::styled(
                 format!(" Matches: {} ", self.stats.matches),
-                StyleDiff::default().bg(Color::Cyan).fg(Color::Black),
+                Style::default().bg(Color::Cyan).fg(Color::Black),
             ),
             Span::styled(
                 format!(" Replacements: {} ", replacement_count),
-                StyleDiff::default().bg(Color::Magenta).fg(Color::Black),
+                Style::default().bg(Color::Magenta).fg(Color::Black),
             ),
         ])];
 
@@ -158,18 +158,19 @@ impl App {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(Span::styled("Keybindings", StyleDiff::from(title_style))),
+                .title(Span::styled("Keybindings", Style::from(title_style))),
         )
-        .header_style(Style::default().fg(Color::Yellow).modifier(Modifier::BOLD))
+        .header_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
         .widths(&[Constraint::Length(20), Constraint::Length(50)])
         .column_spacing(1);
 
         f.render_widget(help_table, hsplit[1]);
 
-        let help_title = Span::styled(
-            format!("{} help", crate_name!()),
-            StyleDiff::from(title_style),
-        );
+        let help_title = Span::styled(format!("{} help", crate_name!()), Style::from(title_style));
         let help_text = vec![Spans::from(HELP_TEXT)];
         let help_paragraph = Paragraph::new(help_text)
             .wrap(Wrap { trim: false })

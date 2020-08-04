@@ -45,7 +45,9 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-18.04
-          rust: 1.42.0
+          # NOTE: this is the lowest we can go due to tui-rs
+          # See: https://github.com/fdehau/tui-rs/issues/301
+          rust: 1.43.0
         - build: stable
           os: ubuntu-18.04
           rust: stable

@@ -1,4 +1,4 @@
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{Read, Write};
 
 use anyhow::{anyhow, Result};
@@ -11,6 +11,8 @@ use crate::rg::RgEncoding;
 
 // TODO: better error handling and messaging to the user when any of this fails
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
+    let mut replacement_count = 0;
+
     let rg_encoding = RgEncoding::from(&criteria.encoding);
 
     // Group items by their file so we only open each file once.
@@ -60,25 +62,30 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
         // Iterate over the items in _reverse_ order -> this is so offsets can stay the same even though we're making
         // changes to the string.
         for item in items.iter().rev() {
-            item.matches().iter().for_each(|submatches| {
-                let offset = item.offset().unwrap();
+            let offset = item.offset().unwrap();
+            for sub_item in item.sub_items().iter().rev().filter(|s| s.should_replace) {
+                let SubMatch { range, text } = &sub_item.sub_match;
+
                 // Iterate backwards so the offset doesn't change as we make replacements.
-                for SubMatch { text, range } in submatches.iter().rev() {
-                    let normalised_range = (offset + range.start)..(offset + range.end);
-                    let str_to_remove = &file_as_str[normalised_range.clone()];
-                    if str_to_remove.as_bytes() == text.to_vec().as_slice() {
-                        let removed_str = str_to_remove.to_string();
-                        file_as_str.replace_range(normalised_range, &criteria.text);
-                        println!("Replaced: {}", removed_str);
+                let normalised_range = (offset + range.start)..(offset + range.end);
+                let str_to_remove = &file_as_str[normalised_range.clone()];
+                if str_to_remove.as_bytes() == text.to_vec().as_slice() {
+                    let removed_str = str_to_remove.to_string();
+                    file_as_str.replace_range(normalised_range, &criteria.text);
+                    if let Some(line_number) = item.line_number() {
+                        println!("Replaced[line:{}]: {}", line_number, removed_str);
                     } else {
-                        eprintln!(
-                            "Matched bytes do not match bytes to replace in {}@{}!",
-                            path_buf.display(),
-                            offset + range.start,
-                        )
+                        println!("Replaced: {}", removed_str);
                     }
+                    replacement_count += 1;
+                } else {
+                    eprintln!(
+                        "Matched bytes do not match bytes to replace in {}@{}!",
+                        path_buf.display(),
+                        offset + range.start,
+                    );
                 }
-            });
+            }
         }
 
         // Convert back into the detected encoding.
@@ -115,8 +122,12 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
 
         // Overwrite the original file with the patched temp file.
         #[cfg(not(windows))]
-        fs::rename(temp_file_path, &path_buf)?;
+        std::fs::rename(temp_file_path, &path_buf)?;
     }
+
+    println!();
+    println!("Replacement string: \"{}\"", criteria.text);
+    println!("Replacements made: {}", replacement_count);
 
     Ok(())
 }
@@ -232,9 +243,9 @@ mod tests {
             ),
         ];
 
-        items[0].should_replace = false;
-        items[1].should_replace = true;
-        items[2].should_replace = false;
+        items[0].set_should_replace(0, false);
+        items[1].set_should_replace(0, true);
+        items[2].set_should_replace(0, false);
 
         perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
         assert_eq!(fs::read_to_string(f1.path()).unwrap(), "foo bar baz");

@@ -48,7 +48,7 @@ fn main() {
                     }
 
                     match replace::perform_replacements(replacement_criteria) {
-                        Ok(_) => println!("Complete!"),
+                        Ok(_) => {}
                         Err(err) => {
                             eprintln!("An error occurred during replacement: {}", err);
                             process::exit(1);

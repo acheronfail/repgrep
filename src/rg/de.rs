@@ -70,8 +70,6 @@ impl ArbitraryData {
         }
     }
 
-    // TODO: tests for Base64 decoding on separate platforms
-
     /// Converts to an `OsString`.
     #[cfg(unix)]
     pub fn to_os_string(&self) -> Result<OsString> {
@@ -86,7 +84,7 @@ impl ArbitraryData {
     }
 
     /// Converts to an `OsString`.
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     pub fn to_os_string(&self) -> Result<OsString> {
         /// Convert Base64 encoded data to an OsString on Windows platforms.
         /// https://doc.rust-lang.org/std/ffi/index.html#on-windows
@@ -96,7 +94,9 @@ impl ArbitraryData {
             ArbitraryData::Text { text } => OsString::from(text),
             ArbitraryData::Base64 { .. } => {
                 // Transmute decoded Base64 bytes as UTF-16 since that's what underlying paths are on Windows.
-                let bytes_u16 = safe_transmute::transmute_vec::<u8, u16>(self.to_vec())?;
+                let bytes_u16 = safe_transmute::transmute_vec::<u8, u16>(self.to_vec())
+                    .or_else(|e| e.copy())?;
+
                 OsString::from_wide(&bytes_u16)
             }
         })
@@ -151,10 +151,12 @@ pub struct SubMatch {
 mod tests {
     // tests based on [`grep_printer` example output](https://docs.rs/grep-printer/0.1.5/grep_printer/struct.JSON.html#example)
 
+    use pretty_assertions::assert_eq;
+
     use crate::rg::de::{ArbitraryData::*, RgMessage::*, *};
 
     #[test]
-    fn arbitrarydata() {
+    fn arbitrary_data() {
         let json = r#"{"text":"/home/andrew/sherlock"}"#;
         assert_eq!(
             Text {
@@ -162,6 +164,44 @@ mod tests {
             },
             serde_json::from_str(json).unwrap()
         )
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn arbitrary_data_to_os_string_unix() {
+        use std::os::unix::ffi::OsStringExt;
+
+        // Here, the values 0x66 and 0x6f correspond to 'f' and 'o'
+        // respectively. The value 0x80 is a lone continuation byte, invalid
+        // in a UTF-8 sequence.
+        let invalid_utf8 = vec![0x66, 0x6f, 0x80, 0x6f];
+        let invalid_utf8_os_string = OsString::from_vec(invalid_utf8.clone());
+
+        let data = ArbitraryData::Base64 {
+            bytes: base64::encode(&invalid_utf8[..]),
+        };
+
+        assert_eq!(data.to_os_string().unwrap(), invalid_utf8_os_string);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn arbitrary_data_to_os_string_windows() {
+        use std::os::windows::ffi::OsStringExt;
+
+        // Here, the values 0x66 and 0x6f correspond to 'f' and 'o'
+        // respectively. The value 0x80 is a lone continuation byte, invalid
+        // in a UTF-8 sequence.
+        // They're encoded as u16 bytes here since that's what the should be on Windows. (I think?)
+        let invalid_utf8_wide = vec![0x0066, 0x006f, 0x0080, 0x006f];
+        let invalid_utf8_os_string = OsString::from_wide(&invalid_utf8_wide[..]);
+
+        let bytes_as_u8 = safe_transmute::transmute_to_bytes(&invalid_utf8_wide[..]);
+        let data = ArbitraryData::Base64 {
+            bytes: base64::encode(&bytes_as_u8[..]),
+        };
+
+        assert_eq!(data.to_os_string().unwrap(), invalid_utf8_os_string);
     }
 
     #[test]
@@ -283,6 +323,25 @@ mod tests {
 #[allow(dead_code)]
 pub mod test_utilities {
     use crate::rg::de::*;
+
+    pub const RG_JSON_BEGIN: &str =
+        r#"{"type":"begin","data":{"path":{"text":"src/model/item.rs"}}}"#;
+    pub const RG_JSON_MATCH: &str = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"text":"    Item::new(rg_msg)\n"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":4,"end":8},{"match":{"text":"rg_msg"},"start":14,"end":20}]}}"#;
+    pub const RG_JSON_CONTEXT: &str = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"text":"  }\n"},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
+    pub const RG_JSON_END: &str = r#"{"type":"end","data":{"path":{"text":"src/model/item.rs"},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":97924,"human":"0.000098s"},"searches":1,"searches_with_match":1,"bytes_searched":5956,"bytes_printed":674,"matched_lines":2,"matches":2}}}"#;
+    pub const RG_JSON_SUMMARY: &str = r#"{"data":{"elapsed_total":{"human":"0.013911s","nanos":13911027,"secs":0},"stats":{"bytes_printed":3248,"bytes_searched":18789,"elapsed":{"human":"0.000260s","nanos":260276,"secs":0},"matched_lines":10,"matches":10,"searches":2,"searches_with_match":2}},"type":"summary"}"#;
+
+    pub const RG_B64_JSON_BEGIN: &str =
+        r#"{"type":"begin","data":{"path":{"bytes":"Li9hL2Zv/28="}}}"#;
+    pub const RG_B64_JSON_MATCH: &str = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;
+    pub const RG_B64_JSON_CONTEXT: &str = r#"{"type":"context","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICD/fQo="},"line_number":198,"absolute_offset":5544,"submatches":[]}}"#;
+    pub const RG_B64_JSON_END: &str = r#"{"type":"end","data":{"path":{"bytes":"Li9hL2Zv/28="},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":64302,"human":"0.000064s"},"searches":1,"searches_with_match":1,"bytes_searched":4,"bytes_printed":235,"matched_lines":1,"matches":1}}}"#;
+
+    impl RgMessage {
+        pub fn from_str(raw_json: &str) -> RgMessage {
+            serde_json::from_str::<RgMessage>(raw_json).unwrap()
+        }
+    }
 
     impl ArbitraryData {
         pub fn new_with_text(text: String) -> ArbitraryData {

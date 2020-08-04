@@ -138,6 +138,7 @@ impl App {
                 Row::StyledData(["MODE: ALL"].iter(), title_style),
                 Row::Data(["control + b", "move backward one page"].iter()),
                 Row::Data(["control + f", "move forward one page"].iter()),
+                Row::Data(["control + v", "toggle how whitespace is rendered"].iter()),
                 Row::Data([].iter()),
                 Row::StyledData(["MODE: SELECT"].iter(), title_style),
                 Row::Data(["k, up", "move to previous match"].iter()),
@@ -199,7 +200,11 @@ impl App {
             .enumerate()
             .map(|(idx, item)| {
                 let selected = if idx == row { Some(col) } else { None };
-                ListItem::new(vec![item.to_spans(replacement, selected)])
+                ListItem::new(vec![item.to_spans(
+                    replacement,
+                    selected,
+                    self.printable_style,
+                )])
             })
             .collect::<Vec<ListItem>>();
 

@@ -4,7 +4,7 @@ mod state;
 
 use std::collections::VecDeque;
 
-use crate::model::Item;
+use crate::model::{Item, PrintableStyle};
 use crate::rg::de::{RgMessage, Stats};
 pub use state::AppState;
 use state::{AppListState, AppUiState};
@@ -17,6 +17,8 @@ pub struct App {
     list: Vec<Item>,
     list_state: AppListState,
     ui_state: AppUiState,
+
+    printable_style: PrintableStyle,
 }
 
 impl App {
@@ -42,6 +44,7 @@ impl App {
             list_state: AppListState::new(),
             list,
             ui_state: AppUiState::SelectMatches,
+            printable_style: PrintableStyle::Common,
         }
     }
 }

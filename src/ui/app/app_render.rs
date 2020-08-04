@@ -47,13 +47,14 @@ impl App {
     }
 
     fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
+        let prefix = "Replacement: ";
         let text_items = match &self.ui_state {
             AppUiState::Help => vec![Spans::from("Viewing Help. Press <esc> or <q> to return...")],
             AppUiState::SelectMatches => vec![Spans::from(
                 "Select (or deselect) Matches with <space> then press <Enter>. Press <?> for help.",
             )],
             AppUiState::InputReplacement(input) => vec![Spans::from(vec![
-                Span::from("Replacement: "),
+                Span::from(prefix),
                 if input.is_empty() {
                     Span::styled("<empty>", Style::default().fg(Color::DarkGray))
                 } else {
@@ -66,6 +67,11 @@ impl App {
         };
 
         f.render_widget(Paragraph::new(text_items), r);
+
+        // Draw input cursor
+        if let AppUiState::InputReplacement(input) = &self.ui_state {
+            f.set_cursor(r.x + ((prefix.len() + input.len()) as u16), r.y);
+        }
     }
 
     fn draw_stats_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {

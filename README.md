@@ -24,7 +24,15 @@ The arguments are:
 rgr <rg arguments> # See `rgr --help` for more details
 ```
 
-![demo using rgr](./doc/demo.gif)
+Here's an example where we ran the command:
+
+```bash
+rgr -C5 dreamcast
+```
+
+And have entered the replacement `flycast`:
+
+![demo using rgr](./doc/demo.png)
 
 ## Installation
 

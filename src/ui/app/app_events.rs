@@ -18,12 +18,19 @@ impl App {
                     AppUiState::SelectMatches
                     | AppUiState::InputReplacement(_)
                     | AppUiState::ConfirmReplacement(_) => match key.code {
+                        // Page movements
                         KeyCode::Char('b') => {
                             self.move_pos(Movement::Backward(self.list_height(term_size)));
                             true
                         }
                         KeyCode::Char('f') => {
                             self.move_pos(Movement::Forward(self.list_height(term_size)));
+                            true
+                        }
+
+                        // Toggle whitespace style
+                        KeyCode::Char('v') => {
+                            self.printable_style = self.printable_style.swap();
                             true
                         }
                         _ => false,

@@ -21,6 +21,8 @@ use clap::{crate_authors, crate_version};
 // -f/--file
 
 /// See `rg --help` for more detailed information on each of the flags passed.
+///
+/// Providing no arguments will make repgrep read JSON input from STDIN.
 #[derive(Clap, Debug)]
 #[clap(
   version = crate_version!(),
@@ -28,6 +30,11 @@ use clap::{crate_authors, crate_version};
   setting = ColoredHelp,
 )]
 pub struct Args {
+    //
+    // RIPGREP ARGUMENTS
+    //
+
+    // POSITIONAL
     /// The pattern to search. Required unless patterns are passed via -e/--regexp.
     #[clap(name = "PATTERN")]
     pub pattern: Option<String>,
@@ -38,6 +45,7 @@ pub struct Args {
     #[clap(short = "e", long = "regexp", multiple = true, number_of_values = 1)]
     pub patterns: Vec<String>,
 
+    // FLAGS
     /// How many lines of context should be shown after each match.
     #[clap(short = "A", long = "after-context")]
     pub after_context: Option<usize>,
@@ -98,6 +106,7 @@ pub struct Args {
     #[clap(short = "w", long = "word-regexp")]
     pub word_regexp: bool,
 
+    // FILES & IGNORES
     /// A list of globs to match files.
     #[clap(short = "g", long = "glob", multiple = true, number_of_values = 1)]
     pub glob: Vec<String>,

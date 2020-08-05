@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fmt::Display;
-use std::io::{self, BufRead, BufReader, ErrorKind, Read, Write};
+use std::io::{ErrorKind, Read};
 use std::process::{Command, Stdio};
 
 use anyhow::{anyhow, Error, Result};
@@ -38,20 +38,8 @@ where
         }
     };
 
-    let mut rg_messages: VecDeque<RgMessage> = VecDeque::new();
-    let rg_stdout = BufReader::new(child.stdout.as_mut().unwrap());
-    for (i, line) in rg_stdout.lines().enumerate() {
-        // For large result lists show some progress in the terminal.
-        if i > 0 && i % 1000 == 0 {
-            let _ = io::stdout().write_all(format!("\rMatches found: ~{}", i).as_bytes());
-            let _ = io::stdout().flush();
-        }
-
-        rg_messages.push_back(
-            serde_json::from_str(&line?)
-                .map_err(|e| anyhow!("Failed to read JSON output from `rg`: {}", e))?,
-        );
-    }
+    // Read messages from child process.
+    let rg_messages = super::read::read_messages(child.stdout.as_mut().unwrap())?;
 
     // Wait for ripgrep to finish before returning.
     match child.wait() {

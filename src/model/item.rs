@@ -28,18 +28,26 @@ impl SubItem {
         printable_style: PrintableStyle,
     ) -> Span {
         let mut s = Style::default();
-        if is_selected && !is_replacing {
-            s = s.bg(Color::Yellow);
-        }
-
-        s = s.fg(if self.should_replace {
-            Color::Red
+        if is_replacing {
+            if self.should_replace {
+                s = s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT);
+            } else {
+                s = s.fg(Color::DarkGray);
+            }
         } else {
-            Color::DarkGray
-        });
-
-        if self.should_replace && is_replacing {
-            s = s.add_modifier(Modifier::CROSSED_OUT);
+            if is_selected {
+                if self.should_replace {
+                    s = s.fg(Color::Black).bg(Color::Yellow);
+                } else {
+                    s = s.fg(Color::Yellow).bg(Color::DarkGray);
+                }
+            } else {
+                if self.should_replace {
+                    s = s.fg(Color::Black).bg(Color::Red);
+                } else {
+                    s = s.fg(Color::Red).bg(Color::DarkGray);
+                }
+            }
         }
 
         Span::styled(self.sub_match.text.to_printable(printable_style), s)
@@ -413,9 +421,9 @@ mod tests {
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    ", s),
-                Span::styled("Item", s.fg(Color::Red)),
+                Span::styled("Item", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled("::new(", s),
-                Span::styled("rg_msg", s.fg(Color::Red)),
+                Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
                 Span::styled(")\n", s),
             ])
         );
@@ -495,9 +503,9 @@ mod tests {
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::Yellow)),
                 Span::styled("    ", s.fg(Color::Yellow)),
-                Span::styled("Item", s.fg(Color::Red).bg(Color::Yellow)),
+                Span::styled("Item", s.fg(Color::Black).bg(Color::Yellow)),
                 Span::styled("::new(", s.fg(Color::Yellow)),
-                Span::styled("rg_msg", s.fg(Color::Red)),
+                Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
                 Span::styled(")\n", s.fg(Color::Yellow)),
             ])
         );
@@ -580,9 +588,9 @@ mod tests {
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
-                Span::styled("Item", s.fg(Color::Red)),
+                Span::styled("Item", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled("::�new(", s),
-                Span::styled("rg_msg", s.fg(Color::Red)),
+                Span::styled("rg_msg", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled(")\n", s),
             ])
         );
@@ -654,9 +662,9 @@ mod tests {
             Spans::from(vec![
                 Span::styled("197:", s.fg(Color::Yellow)),
                 Span::styled("    �", s.fg(Color::Yellow)),
-                Span::styled("Item", s.fg(Color::Red).bg(Color::Yellow)),
+                Span::styled("Item", s.fg(Color::Black).bg(Color::Yellow)),
                 Span::styled("::�new(", s.fg(Color::Yellow)),
-                Span::styled("rg_msg", s.fg(Color::Red)),
+                Span::styled("rg_msg", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled(")\n", s.fg(Color::Yellow)),
             ])
         );

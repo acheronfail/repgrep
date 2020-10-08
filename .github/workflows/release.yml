@@ -215,6 +215,7 @@ jobs:
   publish-crate:
     name: publish-crate
     needs: ['build-release']
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2

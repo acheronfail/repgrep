@@ -545,7 +545,7 @@ dependencies = [
 
 [[package]]
 name = "repgrep"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "base64",

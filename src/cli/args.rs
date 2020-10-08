@@ -42,42 +42,42 @@ pub struct Args {
     #[clap(name = "PATH", parse(from_os_str))]
     pub paths: Vec<PathBuf>,
     /// Used to provide multiple patterns.
-    #[clap(short = "e", long = "regexp", multiple = true, number_of_values = 1)]
+    #[clap(short = 'e', long = "regexp", multiple = true, number_of_values = 1)]
     pub patterns: Vec<String>,
 
     // FLAGS
     /// How many lines of context should be shown after each match.
-    #[clap(short = "A", long = "after-context")]
+    #[clap(short = 'A', long = "after-context")]
     pub after_context: Option<usize>,
     /// How many lines of context should be shown before each match.
-    #[clap(short = "B", long = "before-context")]
+    #[clap(short = 'B', long = "before-context")]
     pub before_context: Option<usize>,
     /// How many lines of context should be shown before and after each match.
-    #[clap(short = "C", long = "context")]
+    #[clap(short = 'C', long = "context")]
     pub context: Option<usize>,
     /// Treat CRLF ('\r\n') as a line terminator.
     #[clap(long = "crlf")]
     pub crlf: bool,
     /// Provide the encoding to use when searching files.
-    #[clap(short = "E", long = "encoding")]
+    #[clap(short = 'E', long = "encoding")]
     pub encoding: Option<String>,
     /// Follow symlinks.
-    #[clap(short = "L", long = "follow")]
+    #[clap(short = 'L', long = "follow")]
     pub follow_symlinks: bool,
     /// Ignore case when searching.
-    #[clap(short = "i", long = "ignore-case")]
+    #[clap(short = 'i', long = "ignore-case")]
     pub ignore_case: bool,
     /// Invert the matches on each line.
-    #[clap(short = "v", long = "invert-match")]
+    #[clap(short = 'v', long = "invert-match")]
     pub invert_match: bool,
     /// Print both matching and non-matching lines.
     #[clap(long = "passthru")]
     pub passthru: bool,
     /// Use smart case matching.
-    #[clap(short = "S", long = "smart-case")]
+    #[clap(short = 'S', long = "smart-case")]
     pub smart_case: bool,
     /// Use case sensitive matching.
-    #[clap(short = "s", long = "case-sensitive")]
+    #[clap(short = 's', long = "case-sensitive")]
     pub case_sensitive: bool,
     /// Sort the results (ascending).
     #[clap(long = "sort")]
@@ -86,29 +86,29 @@ pub struct Args {
     #[clap(long = "sortr")]
     pub sortr: Option<String>,
     /// How many threads to use.
-    #[clap(short = "j", long = "threads")]
+    #[clap(short = 'j', long = "threads")]
     pub threads: Option<usize>,
     /// Trim leading/trailing whitespace.
     #[clap(long = "trim")]
     pub trim: bool,
     /// Search only a specific type of file.
-    #[clap(short = "t", long = "type", multiple = true, number_of_values = 1)]
+    #[clap(short = 't', long = "type", multiple = true, number_of_values = 1)]
     pub r#type: Vec<String>,
     /// Inverse of --type.
-    #[clap(short = "T", long = "type-not", multiple = true, number_of_values = 1)]
+    #[clap(short = 'T', long = "type-not", multiple = true, number_of_values = 1)]
     pub type_not: Vec<String>,
     /// Set the "unrestricted" searching options for ripgrep.
     /// Note that this is currently limited to only two occurrences `-uu` since
     /// binary searching is not supported in repgrep.
-    #[clap(short = "u", long = "unrestricted", parse(from_occurrences))]
+    #[clap(short = 'u', long = "unrestricted", parse(from_occurrences))]
     pub unrestricted: usize,
     /// When matching, use a word boundary search.
-    #[clap(short = "w", long = "word-regexp")]
+    #[clap(short = 'w', long = "word-regexp")]
     pub word_regexp: bool,
 
     // FILES & IGNORES
     /// A list of globs to match files.
-    #[clap(short = "g", long = "glob", multiple = true, number_of_values = 1)]
+    #[clap(short = 'g', long = "glob", multiple = true, number_of_values = 1)]
     pub glob: Vec<String>,
     /// A list of case insensitive globs to match files.
     #[clap(long = "iglob", multiple = true, number_of_values = 1)]

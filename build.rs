@@ -1,4 +1,4 @@
-use clap::{IntoApp, crate_name};
+use clap::{crate_name, IntoApp};
 use clap_generate::{generate, generators};
 use std::env;
 use std::fs::{self, File};

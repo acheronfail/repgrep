@@ -210,9 +210,34 @@ jobs:
         asset_name: ${{ env.ASSET }}
         asset_content_type: application/octet-stream
 
+
+  # This job runs _after_ the `create-release` job, and uses the artifacts that it created.
+  publish-crate:
+    name: publish-crate
+    needs: ['build-release']
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+        submodules: recursive
+
+    - name: Install packages (Ubuntu)
+      if: matrix.os == 'ubuntu-18.04'
+      run: |
+        ci/install-packages-ubuntu.sh
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        profile: minimal
+        override: true
+        target: x86_64-unknown-linux-gnu
+
     - name: Publish Crate
       shell: bash
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       run: |
-        cargo publish --dry-run
+        cargo publish

@@ -106,6 +106,11 @@ impl HelpTextState {
     }
 
     pub fn text(&self, num_lines: usize) -> String {
-        self.help_text.lines().skip(self.pos).take(num_lines).collect::<Vec<_>>().join("\n")
+        self.help_text
+            .lines()
+            .skip(self.pos)
+            .take(num_lines)
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }

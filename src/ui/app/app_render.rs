@@ -3,7 +3,7 @@ use clap::crate_name;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
-use tui::text::{Text, Span, Spans};
+use tui::text::{Span, Spans, Text};
 use tui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
 use tui::Frame;
 
@@ -136,7 +136,7 @@ impl App {
                 Row::StyledData(["MODE: ALL"].iter(), title_style),
                 Row::Data(["control + b", "move backward one page"].iter()),
                 Row::Data(["control + f", "move forward one page"].iter()),
-                Row::Data(["control + v", "toggle how whitespace is rendered"].iter()),
+                Row::Data(["control + v", "toggle how matched whitespace is rendered"].iter()),
                 Row::Data([].iter()),
                 Row::StyledData(["MODE: SELECT"].iter(), title_style),
                 Row::Data(["k, up", "move to previous match"].iter()),

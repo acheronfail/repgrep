@@ -57,9 +57,10 @@ impl App {
                     }
                     _ => {}
                 },
-                // TODO: scroll help text
                 AppUiState::Help => match key.code {
                     KeyCode::Esc | KeyCode::Char('q') => self.ui_state = AppUiState::SelectMatches,
+                    KeyCode::Char('k') | KeyCode::Up => self.help_text_state.decr(),
+                    KeyCode::Char('j') | KeyCode::Down => self.help_text_state.incr(),
                     _ => {}
                 },
                 AppUiState::SelectMatches => {

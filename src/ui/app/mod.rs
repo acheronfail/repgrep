@@ -7,7 +7,9 @@ use std::collections::VecDeque;
 use crate::model::{Item, PrintableStyle};
 use crate::rg::de::{RgMessage, Stats};
 pub use state::AppState;
-use state::{AppListState, AppUiState};
+use state::{AppListState, AppUiState, HelpTextState};
+
+const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 
 pub struct App {
     pub state: AppState,
@@ -17,6 +19,7 @@ pub struct App {
     list: Vec<Item>,
     list_state: AppListState,
     ui_state: AppUiState,
+    help_text_state: HelpTextState,
 
     printable_style: PrintableStyle,
 }
@@ -44,6 +47,7 @@ impl App {
             list_state: AppListState::new(),
             list,
             ui_state: AppUiState::SelectMatches,
+            help_text_state: HelpTextState::new(HELP_TEXT),
             printable_style: PrintableStyle::Common,
         }
     }

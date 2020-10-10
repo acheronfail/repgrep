@@ -3,14 +3,12 @@ use clap::crate_name;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans};
+use tui::text::{Text, Span, Spans};
 use tui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
 use tui::Frame;
 
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppUiState};
-
-const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 
 impl App {
     // The UI is:
@@ -178,7 +176,8 @@ impl App {
         f.render_widget(help_table, hsplit[1]);
 
         let help_title = Span::styled(format!("{} help", crate_name!()), Style::from(title_style));
-        let help_text = tui::text::Text::from(HELP_TEXT);
+        let help_text = self.help_text_state.text(hsplit[0].height as usize);
+        let help_text = Text::from(help_text.as_ref());
         let help_paragraph = Paragraph::new(help_text)
             .wrap(Wrap { trim: false })
             .block(Block::default().borders(Borders::ALL).title(help_title));

@@ -77,3 +77,35 @@ impl AppUiState {
         }
     }
 }
+
+/// A small struct to manage scrolling the text in the help view.
+#[derive(Debug)]
+pub struct HelpTextState {
+    pub pos: usize,
+    pub max: usize,
+    help_text: &'static str,
+}
+
+impl HelpTextState {
+    pub fn new(help_text: &'static str) -> HelpTextState {
+        HelpTextState {
+            pos: 0,
+            max: help_text.lines().count() - 1,
+            help_text,
+        }
+    }
+
+    pub fn incr(&mut self) {
+        if self.pos < self.max {
+            self.pos += 1;
+        }
+    }
+
+    pub fn decr(&mut self) {
+        self.pos = self.pos.saturating_sub(1);
+    }
+
+    pub fn text(&self, num_lines: usize) -> String {
+        self.help_text.lines().skip(self.pos).take(num_lines).collect::<Vec<_>>().join("\n")
+    }
+}

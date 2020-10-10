@@ -178,7 +178,7 @@ impl App {
         f.render_widget(help_table, hsplit[1]);
 
         let help_title = Span::styled(format!("{} help", crate_name!()), Style::from(title_style));
-        let help_text = vec![Spans::from(HELP_TEXT)];
+        let help_text = tui::text::Text::from(HELP_TEXT);
         let help_paragraph = Paragraph::new(help_text)
             .wrap(Wrap { trim: false })
             .block(Block::default().borders(Borders::ALL).title(help_title));

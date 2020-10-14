@@ -192,7 +192,8 @@ impl App {
             _ => None,
         };
 
-        let (row, col) = self.list_state.row_col();
+        let row = self.list_state.selected_item();
+        let col = self.list_state.selected_submatch();
         let match_items = self
             .list
             .iter()
@@ -214,7 +215,7 @@ impl App {
             .style(Style::default().fg(Color::White))
             .highlight_symbol("-> ");
 
-        f.render_stateful_widget(match_list, r, &mut self.list_state.row_state_mut());
+        f.render_stateful_widget(match_list, r, &mut self.list_state.indicator_mut());
     }
 
     pub(crate) fn list_height(&self, term_size: Rect) -> u16 {

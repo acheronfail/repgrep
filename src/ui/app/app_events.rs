@@ -124,14 +124,15 @@ impl App {
     }
 
     fn move_horizonally(&mut self, movement: &Movement) -> bool {
-        let (row, col) = self.list_state.row_col();
+        let selected_item = self.list_state.selected_item();
+        let selected_match = self.list_state.selected_submatch();
 
         // Handle moving horizontally.
-        if matches!(movement, Movement::Next) && col + 1 < self.list[row].sub_items().len() {
-            self.list_state.set_col(col + 1);
+        if matches!(movement, Movement::Next) && selected_match + 1 < self.list[selected_item].sub_items().len() {
+            self.list_state.set_selected_submatch(selected_match + 1);
             return true;
-        } else if matches!(movement, Movement::Prev) && col > 0 {
-            self.list_state.set_col(col - 1);
+        } else if matches!(movement, Movement::Prev) && selected_match > 0 {
+            self.list_state.set_selected_submatch(selected_match - 1);
             return true;
         }
 
@@ -150,31 +151,31 @@ impl App {
         };
 
         // Determine how far to skip down the list.
-        let row = self.list_state.row();
-        let (skip, default_row) = match movement {
+        let selected_item = self.list_state.selected_item();
+        let (skip, default_item_idx) = match movement {
             Movement::Prev | Movement::PrevLine | Movement::PrevFile => {
-                (self.list.len().saturating_sub(row), 0)
+                (self.list.len().saturating_sub(selected_item), 0)
             }
             Movement::Backward(n) => (
                 self.list
                     .len()
-                    .saturating_sub(row.saturating_sub(*n as usize)),
+                    .saturating_sub(selected_item.saturating_sub(*n as usize)),
                 0,
             ),
 
-            Movement::Next | Movement::NextLine | Movement::NextFile => (row, self.list.len() - 1),
-            Movement::Forward(n) => (row + (*n as usize), self.list.len() - 1),
+            Movement::Next | Movement::NextLine | Movement::NextFile => (selected_item, self.list.len() - 1),
+            Movement::Forward(n) => (selected_item + (*n as usize), self.list.len() - 1),
         };
 
         // Find the new position.
-        let (new_row, new_col) = iterator
+        let (item_idx, match_idx) = iterator
             .skip(skip)
             .find_map(|(i, item)| {
                 let is_valid_next = match movement {
-                    Movement::PrevFile => i < row && matches!(item.kind, RgMessageKind::Begin),
-                    Movement::NextFile => i > row && matches!(item.kind, RgMessageKind::Begin),
-                    Movement::Prev | Movement::PrevLine | Movement::Backward(_) => i < row,
-                    Movement::Next | Movement::NextLine | Movement::Forward(_) => i > row,
+                    Movement::PrevFile => i < selected_item && matches!(item.kind, RgMessageKind::Begin),
+                    Movement::NextFile => i > selected_item && matches!(item.kind, RgMessageKind::Begin),
+                    Movement::Prev | Movement::PrevLine | Movement::Backward(_) => i < selected_item,
+                    Movement::Next | Movement::NextLine | Movement::Forward(_) => i > selected_item,
                 };
 
                 if is_valid_next && item.is_selectable() {
@@ -187,10 +188,13 @@ impl App {
                     None
                 }
             })
-            .unwrap_or((default_row, 0));
+            .unwrap_or((default_item_idx, 0));
 
-        let new_row = clamp(new_row, 0, self.list.len() - 1);
-        self.list_state.set_row_col(new_row, new_col)
+        let item_idx = clamp(item_idx, 0, self.list.len() - 1);
+        self.list_state.set_selected_item(item_idx);
+        self.list_state.set_selected_submatch(match_idx);
+        // TODO: set this accordingly when multiline is supported
+        self.list_state.set_indicator(item_idx);
     }
 
     pub(crate) fn move_pos(&mut self, movement: Movement) {
@@ -202,25 +206,26 @@ impl App {
     }
 
     pub(crate) fn toggle_item(&mut self, all_sub_items: bool) {
-        let (row, col) = self.list_state.row_col();
+        let selected_item = self.list_state.selected_item();
+        let selected_match = self.list_state.selected_submatch();
 
         // If Match item, toggle replace.
-        if matches!(self.list[row].kind, RgMessageKind::Match) {
-            let selected_item = &mut self.list[row];
+        if matches!(self.list[selected_item].kind, RgMessageKind::Match) {
+            let selected_item = &mut self.list[selected_item];
             if all_sub_items {
                 let should_replace = !selected_item.get_should_replace_all();
                 selected_item.set_should_replace_all(should_replace);
             } else {
-                selected_item.set_should_replace(col, !selected_item.get_should_replace(col));
+                selected_item.set_should_replace(selected_match, !selected_item.get_should_replace(selected_match));
             }
         }
 
         // If Begin item, toggle all matches in it.
-        if matches!(self.list[row].kind, RgMessageKind::Begin) {
+        if matches!(self.list[selected_item].kind, RgMessageKind::Begin) {
             let mut items_to_toggle: Vec<_> = self
                 .list
                 .iter_mut()
-                .skip(row)
+                .skip(selected_item)
                 .take_while(|i| i.kind != RgMessageKind::End)
                 .filter(|i| i.kind == RgMessageKind::Match)
                 .collect();
@@ -282,7 +287,8 @@ mod tests {
         assert_eq!(app.list, expected_items);
 
         // Toggle all sub items
-        app.list_state.set_row_col(1, 0);
+        app.list_state.set_selected_item(1);
+        app.list_state.set_selected_submatch(0);
         app.toggle_item(true);
 
         // Should have only toggled that one.
@@ -298,7 +304,8 @@ mod tests {
         assert_eq!(app.list, expected_items);
 
         // Toggle a single sub item
-        app.list_state.set_row_col(1, 0);
+        app.list_state.set_selected_item(1);
+        app.list_state.set_selected_submatch(0);
         app.toggle_item(false);
 
         // Should have only toggled that one.

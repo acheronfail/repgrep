@@ -193,16 +193,34 @@ impl App {
         let item_idx = clamp(item_idx, 0, self.list.len() - 1);
         self.list_state.set_selected_item(item_idx);
         self.list_state.set_selected_submatch(match_idx);
-        // TODO: set this accordingly when multiline is supported
-        self.list_state.set_indicator(item_idx);
+    }
+
+    /// Update the UI's indicator position to point to the start of the selected item, and in the case of
+    /// a match which spans multiple lines and has multiple submatches, the start of the selected submatch.
+    fn update_indicator(&mut self) {
+        let item_idx = self.list_state.selected_item();
+        let match_idx = self.list_state.selected_submatch();
+
+        let mut indicator_idx = 0;
+        for item in &self.list[0..item_idx] {
+            indicator_idx += item.line_count();
+        }
+
+        if match_idx > 0 {
+            for sub_item in &self.list[item_idx].sub_items()[0..match_idx] {
+                indicator_idx += sub_item.line_count() - 1;
+            }
+        }
+
+        self.list_state.set_indicator(indicator_idx);
     }
 
     pub(crate) fn move_pos(&mut self, movement: Movement) {
-        if self.move_horizonally(&movement) {
-            return;
+        if !self.move_horizonally(&movement) {
+            self.move_vertically(&movement);
         }
 
-        self.move_vertically(&movement);
+        self.update_indicator();
     }
 
     pub(crate) fn toggle_item(&mut self, all_sub_items: bool) {

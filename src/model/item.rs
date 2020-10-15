@@ -5,7 +5,7 @@ use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
 use tui::widgets::ListItem;
 
-use crate::model::{Printable, PrintableStyle};
+use crate::model::Printable;
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
 use crate::ui::render::{ToListItem, UiItemContext};
 
@@ -24,45 +24,17 @@ impl SubItem {
             should_replace: true,
         }
     }
-
-    #[deprecated = "will remove"]
-    pub fn to_span(
-        &self,
-        is_replacing: bool,
-        is_selected: bool,
-        printable_style: PrintableStyle,
-    ) -> Span {
-        let mut s = Style::default();
-        if is_replacing {
-            if self.should_replace {
-                s = s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT);
-            } else {
-                s = s.fg(Color::DarkGray);
-            }
-        } else {
-            if is_selected {
-                if self.should_replace {
-                    s = s.fg(Color::Black).bg(Color::Yellow);
-                } else {
-                    s = s.fg(Color::Yellow).bg(Color::DarkGray);
-                }
-            } else {
-                if self.should_replace {
-                    s = s.fg(Color::Black).bg(Color::Red);
-                } else {
-                    s = s.fg(Color::Red).bg(Color::DarkGray);
-                }
-            }
-        }
-
-        Span::styled(self.sub_match.text.to_printable(printable_style), s)
-    }
 }
 
 impl SubItem {
+    pub fn line_count(&self) -> usize {
+        self.sub_match.text.lossy_utf8().lines().count()
+    }
+
     /// A SubItem contains the "match". A match _may_ be over multiple lines, but there will only ever
     /// be a single span on each line. So this returns a list of "lines": one span for each line.
-    pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Span> {
+    // TODO: add an option to display multiline-match on one single line!
+    pub fn to_span_lines(&self, ctx: &UiItemContext, is_item_selected: bool) -> Vec<Span> {
         let mut s = Style::default();
         if ctx.replacement_text.is_some() {
             if self.should_replace {
@@ -71,7 +43,7 @@ impl SubItem {
                 s = s.fg(Color::DarkGray);
             }
         } else {
-            if ctx.ui_list_state.selected_submatch() == self.index {
+            if is_item_selected && ctx.ui_list_state.selected_submatch() == self.index {
                 if self.should_replace {
                     s = s.fg(Color::Black).bg(Color::Yellow);
                 } else {
@@ -94,7 +66,6 @@ impl SubItem {
             .collect()
     }
 }
-
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Item {
@@ -202,110 +173,11 @@ impl Item {
         Span::styled(format!("{}:", n), style)
     }
 
-    #[deprecated = "will remove"]
-    pub fn to_spans(
-        &self,
-        replacement: Option<&str>,
-        selected_col: Option<usize>,
-        printable_style: PrintableStyle,
-    ) -> Spans {
-        let mut base_style = Style::default();
-        if replacement.is_none() && selected_col.is_some() {
-            base_style = base_style.fg(Color::Yellow);
-        }
-
-        // TODO: handle multiline matches
+    pub fn line_count(&self) -> usize {
         match &self.rg_message {
-            RgMessage::Begin { .. } => Spans::from(Span::styled(
-                format!("{}", self.path_buf().unwrap().display()),
-                if replacement.is_none() && selected_col.is_some() {
-                    base_style.fg(Color::Black).bg(Color::Yellow)
-                } else {
-                    base_style.fg(Color::Magenta)
-                },
-            )),
-            RgMessage::Context {
-                lines, line_number, ..
-            } => {
-                let mut spans = vec![];
-                if let Some(n) = line_number {
-                    spans.push(Item::line_number_to_span(
-                        base_style,
-                        selected_col.is_some(),
-                        *n,
-                    ));
-                }
-
-                spans.push(Span::styled(lines.lossy_utf8(), base_style));
-                Spans::from(spans)
-            }
-            RgMessage::Match {
-                lines, line_number, ..
-            } => {
-                let mut spans = vec![];
-                if let Some(n) = line_number {
-                    spans.push(Item::line_number_to_span(
-                        base_style,
-                        selected_col.is_some(),
-                        *n,
-                    ));
-                }
-
-                // Read the lines as bytes since we convert each span to a string when it's created.
-                // This ensures our alignments are correct.
-                let lines_bytes = lines.to_vec();
-                let replacement_span = replacement.map(|r| {
-                    Span::styled(r.to_printable(printable_style), base_style.fg(Color::Green))
-                });
-
-                let mut offset = 0;
-                for (idx, sub_item) in self.sub_items.iter().enumerate() {
-                    let Range { start, end } = sub_item.sub_match.range;
-
-                    // Text in between start (or last SubMatch) and this SubMatch.
-                    let leading = offset..start;
-                    #[allow(clippy::len_zero)]
-                    if leading.len() > 0 {
-                        spans.push(Span::styled(
-                            String::from_utf8_lossy(&lines_bytes[leading]).to_string(),
-                            base_style,
-                        ));
-                    }
-
-                    // Match text.
-                    spans.push(sub_item.to_span(
-                        replacement.is_some(),
-                        Some(idx) == selected_col,
-                        printable_style,
-                    ));
-
-                    // Replacement text.
-                    if sub_item.should_replace {
-                        if let Some(span) = replacement_span.as_ref() {
-                            spans.push(span.clone());
-                        }
-                    }
-
-                    offset = end;
-                }
-
-                // Text after the last SubMatch and before the end of the line.
-                let trailing = offset..lines_bytes.len();
-                #[allow(clippy::len_zero)]
-                if trailing.len() > 0 {
-                    spans.push(Span::styled(
-                        String::from_utf8_lossy(&lines_bytes[trailing]).to_string(),
-                        base_style,
-                    ));
-                }
-
-                Spans::from(spans)
-            }
-            RgMessage::End { .. } => Spans::from(""),
-            RgMessage::Summary { elapsed_total, .. } => Spans::from(Span::styled(
-                format!("Search duration: {}", elapsed_total.human),
-                base_style,
-            )),
+            RgMessage::Begin { .. } | RgMessage::End { .. } => 1,
+            RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => lines.lossy_utf8().lines().count(),
+            RgMessage::Summary { .. } => 0
         }
     }
 }
@@ -330,7 +202,6 @@ impl ToListItem for Item {
                 },
             ))],
 
-
             RgMessage::Context {
                 lines, line_number, ..
             } => {
@@ -339,11 +210,7 @@ impl ToListItem for Item {
                     let mut spans = vec![];
                     if i == 0 {
                         if let Some(n) = line_number {
-                            spans.push(Item::line_number_to_span(
-                                base_style,
-                                is_selected,
-                                *n,
-                            ));
+                            spans.push(Item::line_number_to_span(base_style, is_selected, *n));
                         }
                     }
 
@@ -354,32 +221,45 @@ impl ToListItem for Item {
                 list_items
             }
 
-
             RgMessage::Match {
                 lines, line_number, ..
             } => {
+                let mut line_number = line_number.clone();
+
                 // Read the lines as bytes since we convert each span to a string when it's created.
                 // This ensures our alignments are correct.
                 let lines_bytes = lines.to_vec();
                 let replacement_span = ctx.replacement_text.map(|r| {
-                    Span::styled(r.to_printable(ctx.printable_style), base_style.fg(Color::Green))
+                    Span::styled(
+                        r.to_printable(ctx.printable_style),
+                        base_style.fg(Color::Green),
+                    )
                 });
+
 
                 let mut list_items = vec![];
                 let mut spans = vec![]; // re-used multiple times
+
+                macro_rules! push_line_number_span {
+                    // pushes a span to `spans` which contains the line number
+                    () => {
+                        if let Some(n) = line_number {
+                            spans.push(Item::line_number_to_span(base_style, is_selected, n));
+                        }
+                    };
+                    // increments the current line number first, then does the above
+                    (++) => {
+                        line_number.as_mut().map(|n| *n += 1);
+                        push_line_number_span!();
+                    }
+                };
 
                 let mut offset = 0;
                 for (idx, sub_item) in self.sub_items.iter().enumerate() {
                     let Range { start, end } = sub_item.sub_match.range;
 
                     if idx == 0 {
-                        if let Some(n) = line_number {
-                            spans.push(Item::line_number_to_span(
-                                base_style,
-                                is_selected,
-                                *n,
-                            ));
-                        }
+                        push_line_number_span!();
                     }
 
                     // Text in between start (or last SubMatch) and this SubMatch.
@@ -393,14 +273,23 @@ impl ToListItem for Item {
                     }
 
                     // Match text, also may contain any leading line numbers and text from before.
-                    let span_lines = sub_item.to_span_lines(ctx);
+                    let span_lines = sub_item.to_span_lines(ctx, is_selected);
                     let span_lines_len = span_lines.len();
                     for (i, span) in span_lines.into_iter().enumerate() {
+                        if i > 0 {
+                            // HACK: this just increments the line number for each match.
+                            // surely there's a better way of doing this.
+                            push_line_number_span!(++);
+                        }
+
                         spans.push(span);
+
                         // Don't create a list item for the last line in the submatch, since we will append the replacement
                         // text there and any remaining non-match text from the line.
                         if i != span_lines_len - 1 {
-                            list_items.push(ListItem::new(Spans::from(spans.drain(..).collect::<Vec<_>>())));
+                            list_items.push(ListItem::new(Spans::from(
+                                spans.drain(..).collect::<Vec<_>>(),
+                            )));
                         }
                     }
 

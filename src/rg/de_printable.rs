@@ -1,7 +1,7 @@
 use crate::model::{Printable, PrintableStyle};
 use crate::rg::de::ArbitraryData;
 
-impl Printable<String> for ArbitraryData {
+impl Printable for ArbitraryData {
     fn to_printable(&self, style: PrintableStyle) -> String {
         self.lossy_utf8().to_printable(style)
     }

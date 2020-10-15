@@ -206,7 +206,12 @@ impl App {
         let match_items = self
             .list
             .iter()
-            .flat_map(|item| item.to_list_items(&ctx))
+            .flat_map(|item| {
+                item.to_span_lines(&ctx)
+                    .into_iter()
+                    .map(|spans| ListItem::new(spans))
+                    .collect::<Vec<ListItem>>()
+            })
             .collect::<Vec<ListItem>>();
 
         // TODO: highlight the bg of whole line (not just the text on it), currently not possible

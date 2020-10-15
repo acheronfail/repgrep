@@ -3,7 +3,6 @@ use std::path::PathBuf;
 
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
-use tui::widgets::ListItem;
 
 use crate::model::Printable;
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
@@ -182,7 +181,7 @@ impl Item {
         }
     }
 
-    pub fn to_list_items(&self, ctx: &UiItemContext) -> Vec<ListItem> {
+    pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Spans> {
         let is_replacing = ctx.replacement_text.is_some();
         let is_selected = ctx.ui_list_state.selected_item() == self.index;
 
@@ -192,7 +191,7 @@ impl Item {
         }
 
         match &self.rg_message {
-            RgMessage::Begin { .. } => vec![ListItem::new(Span::styled(
+            RgMessage::Begin { .. } => vec![Spans::from(Span::styled(
                 format!("{}", self.path_buf().unwrap().display()),
                 if !is_replacing && is_selected {
                     base_style.fg(Color::Black).bg(Color::Yellow)
@@ -204,7 +203,7 @@ impl Item {
             RgMessage::Context {
                 lines, line_number, ..
             } => {
-                let mut list_items = vec![];
+                let mut span_lines = vec![];
                 for (i, line) in lines.lossy_utf8().lines().enumerate() {
                     let mut spans = vec![];
                     if i == 0 {
@@ -214,10 +213,10 @@ impl Item {
                     }
 
                     spans.push(Span::styled(line.to_string(), base_style));
-                    list_items.push(ListItem::new(Spans::from(spans)));
+                    span_lines.push(Spans::from(Spans::from(spans)));
                 }
 
-                list_items
+                span_lines
             }
 
             RgMessage::Match {
@@ -234,7 +233,7 @@ impl Item {
                     )
                 });
 
-                let mut list_items = vec![];
+                let mut span_lines = vec![];
                 let mut spans = vec![]; // re-used multiple times
 
                 macro_rules! push_line_number_span {
@@ -278,9 +277,9 @@ impl Item {
                     }
 
                     // Match text, also may contain any leading line numbers and text from before.
-                    let span_lines = sub_item.to_span_lines(ctx, is_selected);
-                    let span_lines_len = span_lines.len();
-                    for (i, span) in span_lines.into_iter().enumerate() {
+                    let sub_span_lines = sub_item.to_span_lines(ctx, is_selected);
+                    let span_lines_len = sub_span_lines.len();
+                    for (i, span) in sub_span_lines.into_iter().enumerate() {
                         if i > 0 {
                             // HACK: this just increments the line number for each match.
                             // surely there's a better way of doing this.
@@ -292,9 +291,7 @@ impl Item {
                         // Don't create a list item for the last line in the submatch, since we will append the replacement
                         // text there and any remaining non-match text from the line.
                         if i != span_lines_len - 1 {
-                            list_items.push(ListItem::new(Spans::from(
-                                spans.drain(..).collect::<Vec<_>>(),
-                            )));
+                            span_lines.push(Spans::from(spans.drain(..).collect::<Vec<Span>>()));
                         }
                     }
 
@@ -315,10 +312,10 @@ impl Item {
                     push_utf8_slice!(trailing);
                 }
 
-                list_items.push(ListItem::new(Spans::from(spans)));
-                list_items
+                span_lines.push(Spans::from(spans));
+                span_lines
             }
-            RgMessage::End { .. } => vec![ListItem::new(Span::from(""))],
+            RgMessage::End { .. } => vec![Spans::from("")],
             // NOTE: the summary item is not added to the app's list of items
             RgMessage::Summary { .. } => unreachable!(),
         }
@@ -332,7 +329,6 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tui::style::{Color, Modifier, Style};
     use tui::text::{Span, Spans};
-    use tui::widgets::ListItem;
 
     use crate::model::*;
     use crate::rg::de::test_utilities::*;
@@ -498,33 +494,33 @@ mod tests {
         let ctx = new_ui_item_ctx(None, &ui_list_state);
 
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_list_items(&ctx),
-            vec![ListItem::new(Span::styled(
+            new_item(RG_JSON_BEGIN).to_span_lines(&ctx),
+            vec![Spans::from(Span::styled(
                 "src/model/item.rs",
                 s.fg(Color::Magenta)
             ))]
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_JSON_MATCH).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    ", s),
                 Span::styled("Item", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled("::new(", s),
                 Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
                 Span::styled(")\n", s),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_JSON_CONTEXT).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
                 Span::styled("  }", s),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(""))]
+            new_item(RG_JSON_END).to_span_lines(&ctx),
+            vec![Spans::from("")]
         );
     }
 
@@ -536,15 +532,15 @@ mod tests {
         let ctx = new_ui_item_ctx(Some(replacement), &ui_list_state);
 
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_list_items(&ctx),
-            vec![ListItem::new(Span::styled(
+            new_item(RG_JSON_BEGIN).to_span_lines(&ctx),
+            vec![Spans::from(Span::styled(
                 "src/model/item.rs",
                 s.fg(Color::Magenta)
             ))]
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_JSON_MATCH).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    ", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
@@ -556,18 +552,18 @@ mod tests {
                 ),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled(")\n", s),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_JSON_CONTEXT).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
                 Span::styled("  }", s),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(""))]
+            new_item(RG_JSON_END).to_span_lines(&ctx),
+            vec![Spans::from("")]
         );
     }
 
@@ -580,33 +576,33 @@ mod tests {
         let ctx = new_ui_item_ctx(None, &ui_list_state);
 
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_list_items(&ctx),
-            vec![ListItem::new(Span::styled(
+            new_item(RG_JSON_BEGIN).to_span_lines(&ctx),
+            vec![Spans::from(Span::styled(
                 "src/model/item.rs",
                 s.fg(Color::Black).bg(Color::Yellow)
             ))]
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_JSON_MATCH).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("197:", s.fg(Color::Yellow)),
                 Span::styled("    ", s.fg(Color::Yellow)),
                 Span::styled("Item", s.fg(Color::Black).bg(Color::Yellow)),
                 Span::styled("::new(", s.fg(Color::Yellow)),
                 Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
                 Span::styled(")\n", s.fg(Color::Yellow)),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_JSON_CONTEXT).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("198:", s.fg(Color::Yellow)),
                 Span::styled("  }", s.fg(Color::Yellow)),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(""))]
+            new_item(RG_JSON_END).to_span_lines(&ctx),
+            vec![Spans::from("")]
         );
     }
 
@@ -620,15 +616,15 @@ mod tests {
         let ctx = new_ui_item_ctx(Some(replacement), &ui_list_state);
 
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_list_items(&ctx),
-            vec![ListItem::new(Span::styled(
+            new_item(RG_JSON_BEGIN).to_span_lines(&ctx),
+            vec![Spans::from(Span::styled(
                 "src/model/item.rs",
                 s.fg(Color::Magenta)
             ))]
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_JSON_MATCH).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("197:", s),
                 Span::styled("    ", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
@@ -640,18 +636,18 @@ mod tests {
                 ),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled(")\n", s),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_JSON_CONTEXT).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("198:", s),
                 Span::styled("  }", s)
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(""))]
+            new_item(RG_JSON_END).to_span_lines(&ctx),
+            vec![Spans::from("")]
         );
     }
 
@@ -664,33 +660,30 @@ mod tests {
         let ctx = new_ui_item_ctx(None, &ui_list_state);
 
         assert_eq!(
-            new_item(RG_B64_JSON_BEGIN).to_list_items(&ctx),
-            vec![ListItem::new(Span::styled(
-                "./a/fo�o",
-                s.fg(Color::Magenta)
-            ))]
+            new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx),
+            vec![Spans::from(Span::styled("./a/fo�o", s.fg(Color::Magenta)))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_END).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(""))]
+            new_item(RG_B64_JSON_END).to_span_lines(&ctx),
+            vec![Spans::from("")]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_MATCH).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_B64_JSON_MATCH).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
                 Span::styled("Item", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled("::�new(", s),
                 Span::styled("rg_msg", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled(")\n", s),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_CONTEXT).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
                 Span::styled("  �}", s)
-            ]))]
+            ])]
         );
     }
 
@@ -703,19 +696,16 @@ mod tests {
         let ctx = new_ui_item_ctx(Some(replacement), &ui_list_state);
 
         assert_eq!(
-            new_item(RG_B64_JSON_BEGIN).to_list_items(&ctx),
-            vec![ListItem::new(Span::styled(
-                "./a/fo�o",
-                s.fg(Color::Magenta)
-            ))]
+            new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx),
+            vec![Spans::from(Span::styled("./a/fo�o", s.fg(Color::Magenta)))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_END).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(""))]
+            new_item(RG_B64_JSON_END).to_span_lines(&ctx),
+            vec![Spans::from("")]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_MATCH).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_B64_JSON_MATCH).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
@@ -727,14 +717,14 @@ mod tests {
                 ),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled(")\n", s),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_CONTEXT).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
                 Span::styled("  �}", s)
-            ]))]
+            ])]
         );
     }
 
@@ -749,33 +739,33 @@ mod tests {
         let ctx = new_ui_item_ctx(None, &ui_list_state);
 
         assert_eq!(
-            new_item(RG_B64_JSON_BEGIN).to_list_items(&ctx),
-            vec![ListItem::new(Span::styled(
+            new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx),
+            vec![Spans::from(Span::styled(
                 "./a/fo�o",
                 s.fg(Color::Black).bg(Color::Yellow)
             ))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_END).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(""))]
+            new_item(RG_B64_JSON_END).to_span_lines(&ctx),
+            vec![Spans::from("")]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_MATCH).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_B64_JSON_MATCH).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("197:", s.fg(Color::Yellow)),
                 Span::styled("    �", s.fg(Color::Yellow)),
                 Span::styled("Item", s.fg(Color::Black).bg(Color::Yellow)),
                 Span::styled("::�new(", s.fg(Color::Yellow)),
                 Span::styled("rg_msg", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled(")\n", s.fg(Color::Yellow)),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_CONTEXT).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("198:", s.fg(Color::Yellow)),
                 Span::styled("  �}", s.fg(Color::Yellow))
-            ]))]
+            ])]
         );
     }
 
@@ -791,19 +781,16 @@ mod tests {
         let ctx = new_ui_item_ctx(Some(replacement), &ui_list_state);
 
         assert_eq!(
-            new_item(RG_B64_JSON_BEGIN).to_list_items(&ctx),
-            vec![ListItem::new(Span::styled(
-                "./a/fo�o",
-                s.fg(Color::Magenta)
-            ))]
+            new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx),
+            vec![Spans::from(Span::styled("./a/fo�o", s.fg(Color::Magenta)))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_END).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(""))]
+            new_item(RG_B64_JSON_END).to_span_lines(&ctx),
+            vec![Spans::from("")]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_MATCH).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_B64_JSON_MATCH).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("197:", s),
                 Span::styled("    �", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
@@ -815,14 +802,14 @@ mod tests {
                 ),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled(")\n", s),
-            ]))]
+            ])]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_CONTEXT).to_list_items(&ctx),
-            vec![ListItem::new(Spans::from(vec![
+            new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx),
+            vec![Spans::from(vec![
                 Span::styled("198:", s),
                 Span::styled("  �}", s)
-            ]))]
+            ])]
         );
     }
 
@@ -833,24 +820,24 @@ mod tests {
         let ctx = new_ui_item_ctx(None, &ui_list_state);
 
         assert_eq!(
-            new_item(RG_JSON_MATCH_MULTILINE).to_list_items(&ctx),
+            new_item(RG_JSON_MATCH_MULTILINE).to_span_lines(&ctx),
             vec![
-                ListItem::new(Spans::from(vec![
+                Spans::from(vec![
                     Span::styled("3:", s.fg(Color::DarkGray)),
                     Span::styled("baz ", s),
                     Span::styled("1¬", s.bg(Color::Red).fg(Color::Black)),
-                ])),
-                ListItem::new(Spans::from(vec![
+                ]),
+                Spans::from(vec![
                     Span::styled("4:", s.fg(Color::DarkGray)),
                     Span::styled("22¬", s.bg(Color::Red).fg(Color::Black)),
-                ])),
-                ListItem::new(Spans::from(vec![
+                ]),
+                Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),
                     Span::styled("333", s.bg(Color::Red).fg(Color::Black)),
                     Span::styled(" bar ", s),
                     Span::styled("4444", s.bg(Color::Red).fg(Color::Black)),
                     Span::styled("\n", s),
-                ]))
+                ])
             ]
         );
     }

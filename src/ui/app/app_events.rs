@@ -441,7 +441,6 @@ mod tests {
 
     macro_rules! assert_list_state {
         ($app:expr, $triple:expr) => {
-
             let selected_item = $app.list_state.selected_item();
             let selected_submatch = $app.list_state.selected_submatch();
             let indicator = get_indicator(&mut $app.list_state);

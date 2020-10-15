@@ -16,8 +16,6 @@ use clap::{crate_authors, crate_version};
 // TODO: options to support in the future
 // -P/--pcre2
 // -F/--fixed-strings
-// -U/--multiline
-// --multiline-dotall
 // -f/--file
 
 /// See `rg --help` for more detailed information on each of the flags passed.
@@ -102,6 +100,12 @@ pub struct Args {
     /// binary searching is not supported in repgrep.
     #[clap(short = 'u', long = "unrestricted", parse(from_occurrences))]
     pub unrestricted: usize,
+    /// Allow matches to span multiple lines.
+    #[clap(short = 'U', long = "multiline")]
+    pub multiline: bool,
+    /// Allow the "." character to span across lines with multiline searches.
+    #[clap(long = "multiline-dotall")]
+    pub multiline_dotall: bool,
     /// When matching, use a word boundary search.
     #[clap(short = 'w', long = "word-regexp")]
     pub word_regexp: bool,

@@ -154,6 +154,7 @@ mod tests {
         f.write_all(lines.as_ref().as_bytes()).unwrap();
 
         Item::new(
+            0,
             RgMessageBuilder::new(RgMessageKind::Match)
                 .with_path_text(f.path().to_string_lossy().to_string())
                 .with_lines_text(lines.as_ref().to_string())
@@ -169,6 +170,7 @@ mod tests {
         let build_item = |kind, mut f: &NamedTempFile| {
             f.write_all(text.as_bytes()).unwrap();
             Item::new(
+                0,
                 RgMessageBuilder::new(kind)
                     .with_path_text(f.path().to_string_lossy())
                     .with_lines_text(text)
@@ -284,6 +286,7 @@ mod tests {
         let path_string = f.path().to_string_lossy();
         let items = vec![
             Item::new(
+                0,
                 RgMessageBuilder::new(RgMessageKind::Match)
                     .with_path_text(&path_string)
                     .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
@@ -292,6 +295,7 @@ mod tests {
                     .build(),
             ),
             Item::new(
+                1,
                 RgMessageBuilder::new(RgMessageKind::Match)
                     .with_path_text(&path_string)
                     .with_submatches(vec![SubMatch::new_text("foo", 4..7)])
@@ -300,6 +304,7 @@ mod tests {
                     .build(),
             ),
             Item::new(
+                2,
                 RgMessageBuilder::new(RgMessageKind::Match)
                     .with_path_text(&path_string)
                     .with_submatches(vec![SubMatch::new_text("foo", 8..11)])
@@ -337,6 +342,7 @@ mod tests {
         fs::write(&p, lines.as_bytes()).unwrap();
 
         let item = Item::new(
+            0,
             RgMessageBuilder::new(RgMessageKind::Match)
                 .with_path_base64(base64::encode(p.as_os_str().as_bytes()))
                 .with_lines_text(lines.to_string())
@@ -364,6 +370,7 @@ mod tests {
                     .iter()
                     .map(|(offset, range)| {
                         Item::new(
+                            0,
                             RgMessageBuilder::new(RgMessageKind::Match)
                                 .with_path_text(f.path().to_string_lossy())
                                 .with_lines_text(&format!("{}\n", $needle))

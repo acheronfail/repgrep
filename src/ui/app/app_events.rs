@@ -288,8 +288,6 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::VecDeque;
-
     use pretty_assertions::assert_eq;
 
     use crate::rg::de::test_utilities::*;
@@ -312,12 +310,13 @@ mod tests {
         let mut messages = rg_messages();
         messages
             .drain(..messages.len() - 1)
-            .map(|m| Item::new(m))
+            .enumerate()
+            .map(|(i, m)| Item::new(i, m))
             .collect()
     }
 
     fn new_app() -> App {
-        App::new("TESTS".to_string(), VecDeque::from(rg_messages()))
+        App::new("TESTS".to_string(), Vec::from(rg_messages()))
     }
 
     #[test]
@@ -398,4 +397,6 @@ mod tests {
         app.toggle_all_items();
         assert_eq!(app.list, expected_items);
     }
+
+    // TODO: tests for update_indicator
 }

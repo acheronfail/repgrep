@@ -206,7 +206,7 @@ impl App {
         let match_items = self
             .list
             .iter()
-            .flat_map(|item| item.to_list_item(&ctx))
+            .flat_map(|item| item.to_list_items(&ctx))
             .collect::<Vec<ListItem>>();
 
         // TODO: highlight the bg of whole line (not just the text on it), currently not possible

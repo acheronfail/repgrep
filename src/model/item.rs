@@ -182,7 +182,7 @@ impl Item {
         }
     }
 
-    pub fn to_list_item(&self, ctx: &UiItemContext) -> Vec<ListItem> {
+    pub fn to_list_items(&self, ctx: &UiItemContext) -> Vec<ListItem> {
         let is_replacing = ctx.replacement_text.is_some();
         let is_selected = ctx.ui_list_state.selected_item() == self.index;
 
@@ -225,8 +225,7 @@ impl Item {
             } => {
                 let mut line_number = line_number.clone();
 
-                // Read the lines as bytes since we convert each span to a string when it's created.
-                // This ensures our alignments are correct.
+                // Read the lines as bytes since we split it at the ranges that ripgrep gives us in each of the submatches.
                 let lines_bytes = lines.to_vec();
                 let replacement_span = ctx.replacement_text.map(|r| {
                     Span::styled(
@@ -252,6 +251,17 @@ impl Item {
                     };
                 };
 
+                macro_rules! push_utf8_slice {
+                    ($range:ident) => {
+                        spans.push(Span::styled(
+                            // NOTE: we don't handle multiple lines in the match because AFAICT ripgrep won't give us multiline
+                            // text inbetween submatches in a "match" item.
+                            String::from_utf8_lossy(&lines_bytes[$range]).to_string(),
+                            base_style,
+                        ));
+                    }
+                }
+
                 let mut offset = 0;
                 for (idx, sub_item) in self.sub_items.iter().enumerate() {
                     let Range { start, end } = sub_item.sub_match.range;
@@ -264,10 +274,7 @@ impl Item {
                     let leading = offset..start;
                     #[allow(clippy::len_zero)]
                     if leading.len() > 0 {
-                        spans.push(Span::styled(
-                            String::from_utf8_lossy(&lines_bytes[leading]).to_string(),
-                            base_style,
-                        ));
+                        push_utf8_slice!(leading);
                     }
 
                     // Match text, also may contain any leading line numbers and text from before.
@@ -305,20 +312,15 @@ impl Item {
                 let trailing = offset..lines_bytes.len();
                 #[allow(clippy::len_zero)]
                 if trailing.len() > 0 {
-                    spans.push(Span::styled(
-                        String::from_utf8_lossy(&lines_bytes[trailing]).to_string(),
-                        base_style,
-                    ));
+                    push_utf8_slice!(trailing);
                 }
 
                 list_items.push(ListItem::new(Spans::from(spans)));
                 list_items
             }
             RgMessage::End { .. } => vec![ListItem::new(Span::from(""))],
-            RgMessage::Summary { elapsed_total, .. } => vec![ListItem::new(Span::styled(
-                format!("Search duration: {}", elapsed_total.human),
-                base_style,
-            ))],
+            // NOTE: the summary item is not added to the app's list of items
+            RgMessage::Summary { .. } => unreachable!(),
         }
     }
 }
@@ -330,13 +332,16 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tui::style::{Color, Modifier, Style};
     use tui::text::{Span, Spans};
+    use tui::widgets::ListItem;
 
     use crate::model::*;
     use crate::rg::de::test_utilities::*;
     use crate::rg::de::*;
+    use crate::ui::app::AppListState;
+    use crate::ui::render::UiItemContext;
 
     pub fn new_item(raw_json: &str) -> Item {
-        Item::new(RgMessage::from_str(raw_json))
+        Item::new(0, RgMessage::from_str(raw_json))
     }
 
     #[test]
@@ -372,8 +377,8 @@ mod tests {
         assert_eq!(
             new_item(RG_JSON_MATCH).sub_items(),
             &[
-                SubItem::new(SubMatch::new_text("Item", 4..8)),
-                SubItem::new(SubMatch::new_text("rg_msg", 14..20))
+                SubItem::new(0, SubMatch::new_text("Item", 4..8)),
+                SubItem::new(1, SubMatch::new_text("rg_msg", 14..20))
             ]
         );
         assert_eq!(new_item(RG_JSON_CONTEXT).sub_items(), &[]);
@@ -425,6 +430,7 @@ mod tests {
 
         let new_item_path_base64 = |kind| {
             Item::new(
+                0,
                 RgMessageBuilder::new(kind)
                     .with_path_base64(base64::encode(&invalid_utf8_name_bytes))
                     .with_lines_text("foo bar baz")
@@ -466,41 +472,59 @@ mod tests {
         );
     }
 
+    fn new_ui_item_ctx<'a>(
+        replacement_text: Option<&'a str>,
+        ui_list_state: &'a AppListState,
+    ) -> UiItemContext<'a> {
+        UiItemContext {
+            printable_style: PrintableStyle::Common(false),
+            replacement_text,
+            ui_list_state,
+        }
+    }
+
+    fn new_app_list_state() -> AppListState {
+        let mut list_state = AppListState::new();
+        list_state.set_indicator(999);
+        list_state.set_selected_item(999);
+        list_state.set_selected_submatch(999);
+        list_state
+    }
+
     #[test]
     fn to_span_with_text() {
         let s = Style::default();
+        let ui_list_state = new_app_list_state();
+        let ctx = new_ui_item_ctx(None, &ui_list_state);
+
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_spans(None, None, PrintableStyle::Common),
-            Spans::from(vec![Span::styled(
+            new_item(RG_JSON_BEGIN).to_list_items(&ctx),
+            vec![ListItem::new(Span::styled(
                 "src/model/item.rs",
                 s.fg(Color::Magenta)
-            )])
+            ))]
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_spans(None, None, PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_JSON_MATCH).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    ", s),
                 Span::styled("Item", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled("::new(", s),
                 Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
                 Span::styled(")\n", s),
-            ])
+            ]))]
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_spans(None, None, PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_JSON_CONTEXT).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
-                Span::styled("  }\n", s),
-            ])
+                Span::styled("  }", s),
+            ]))]
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_spans(None, None, PrintableStyle::Common),
-            Spans::from("")
-        );
-        assert_eq!(
-            new_item(RG_JSON_SUMMARY).to_spans(None, None, PrintableStyle::Common),
-            Spans::from("Search duration: 0.013911s")
+            new_item(RG_JSON_END).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(""))]
         );
     }
 
@@ -508,16 +532,19 @@ mod tests {
     fn to_span_with_text_replacement() {
         let s = Style::default();
         let replacement = "foobar";
+        let ui_list_state = new_app_list_state();
+        let ctx = new_ui_item_ctx(Some(replacement), &ui_list_state);
+
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from(vec![Span::styled(
+            new_item(RG_JSON_BEGIN).to_list_items(&ctx),
+            vec![ListItem::new(Span::styled(
                 "src/model/item.rs",
                 s.fg(Color::Magenta)
-            )])
+            ))]
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_JSON_MATCH).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    ", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
@@ -529,63 +556,57 @@ mod tests {
                 ),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled(")\n", s),
-            ])
+            ]))]
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_JSON_CONTEXT).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
-                Span::styled("  }\n", s),
-            ])
+                Span::styled("  }", s),
+            ]))]
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from("")
-        );
-        assert_eq!(
-            new_item(RG_JSON_SUMMARY).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from("Search duration: 0.013911s")
+            new_item(RG_JSON_END).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(""))]
         );
     }
 
     #[test]
     fn to_span_with_text_selected() {
         let s = Style::default();
+        let mut ui_list_state = new_app_list_state();
+        ui_list_state.set_selected_item(0);
+        ui_list_state.set_selected_submatch(0);
+        let ctx = new_ui_item_ctx(None, &ui_list_state);
+
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from(vec![Span::styled(
+            new_item(RG_JSON_BEGIN).to_list_items(&ctx),
+            vec![ListItem::new(Span::styled(
                 "src/model/item.rs",
                 s.fg(Color::Black).bg(Color::Yellow)
-            )])
+            ))]
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_JSON_MATCH).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("197:", s.fg(Color::Yellow)),
                 Span::styled("    ", s.fg(Color::Yellow)),
                 Span::styled("Item", s.fg(Color::Black).bg(Color::Yellow)),
                 Span::styled("::new(", s.fg(Color::Yellow)),
                 Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
                 Span::styled(")\n", s.fg(Color::Yellow)),
-            ])
+            ]))]
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_JSON_CONTEXT).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("198:", s.fg(Color::Yellow)),
-                Span::styled("  }\n", s.fg(Color::Yellow)),
-            ])
+                Span::styled("  }", s.fg(Color::Yellow)),
+            ]))]
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from("")
-        );
-        assert_eq!(
-            new_item(RG_JSON_SUMMARY).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from(vec![Span::styled(
-                "Search duration: 0.013911s",
-                s.fg(Color::Yellow)
-            )])
+            new_item(RG_JSON_END).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(""))]
         );
     }
 
@@ -593,16 +614,21 @@ mod tests {
     fn to_span_with_text_replacement_selected() {
         let s = Style::default();
         let replacement = "foobar";
+        let mut ui_list_state = new_app_list_state();
+        ui_list_state.set_selected_item(0);
+        ui_list_state.set_selected_submatch(0);
+        let ctx = new_ui_item_ctx(Some(replacement), &ui_list_state);
+
         assert_eq!(
-            new_item(RG_JSON_BEGIN).to_spans(Some(replacement), Some(0), PrintableStyle::Common),
-            Spans::from(vec![Span::styled(
+            new_item(RG_JSON_BEGIN).to_list_items(&ctx),
+            vec![ListItem::new(Span::styled(
                 "src/model/item.rs",
                 s.fg(Color::Magenta)
-            )])
+            ))]
         );
         assert_eq!(
-            new_item(RG_JSON_MATCH).to_spans(Some(replacement), Some(0), PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_JSON_MATCH).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("197:", s),
                 Span::styled("    ", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
@@ -614,19 +640,18 @@ mod tests {
                 ),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled(")\n", s),
-            ])
+            ]))]
         );
         assert_eq!(
-            new_item(RG_JSON_CONTEXT).to_spans(Some(replacement), Some(0), PrintableStyle::Common),
-            Spans::from(vec![Span::styled("198:", s), Span::styled("  }\n", s),])
+            new_item(RG_JSON_CONTEXT).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
+                Span::styled("198:", s),
+                Span::styled("  }", s)
+            ]))]
         );
         assert_eq!(
-            new_item(RG_JSON_END).to_spans(Some(replacement), Some(0), PrintableStyle::Common),
-            Spans::from("")
-        );
-        assert_eq!(
-            new_item(RG_JSON_SUMMARY).to_spans(Some(replacement), Some(0), PrintableStyle::Common),
-            Spans::from("Search duration: 0.013911s")
+            new_item(RG_JSON_END).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(""))]
         );
     }
 
@@ -635,31 +660,37 @@ mod tests {
     fn to_span_with_base64_lossy() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = Style::default();
+        let ui_list_state = new_app_list_state();
+        let ctx = new_ui_item_ctx(None, &ui_list_state);
+
         assert_eq!(
-            new_item(RG_B64_JSON_BEGIN).to_spans(None, None, PrintableStyle::Common),
-            Spans::from(vec![Span::styled("./a/fo�o", s.fg(Color::Magenta))])
+            new_item(RG_B64_JSON_BEGIN).to_list_items(&ctx),
+            vec![ListItem::new(Span::styled(
+                "./a/fo�o",
+                s.fg(Color::Magenta)
+            ))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_END).to_spans(None, None, PrintableStyle::Common),
-            Spans::from("")
+            new_item(RG_B64_JSON_END).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(""))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_MATCH).to_spans(None, None, PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_B64_JSON_MATCH).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
                 Span::styled("Item", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled("::�new(", s),
                 Span::styled("rg_msg", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled(")\n", s),
-            ])
+            ]))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_CONTEXT).to_spans(None, None, PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_B64_JSON_CONTEXT).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
-                Span::styled("  �}\n", s)
-            ])
+                Span::styled("  �}", s)
+            ]))]
         );
     }
 
@@ -668,17 +699,23 @@ mod tests {
     fn to_span_with_base64_lossy_replacement() {
         let s = Style::default();
         let replacement = "foobar";
+        let ui_list_state = new_app_list_state();
+        let ctx = new_ui_item_ctx(Some(replacement), &ui_list_state);
+
         assert_eq!(
-            new_item(RG_B64_JSON_BEGIN).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from(vec![Span::styled("./a/fo�o", s.fg(Color::Magenta)),])
+            new_item(RG_B64_JSON_BEGIN).to_list_items(&ctx),
+            vec![ListItem::new(Span::styled(
+                "./a/fo�o",
+                s.fg(Color::Magenta)
+            ))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_END).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from("")
+            new_item(RG_B64_JSON_END).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(""))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_MATCH).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_B64_JSON_MATCH).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
@@ -690,14 +727,14 @@ mod tests {
                 ),
                 Span::styled("foobar", s.fg(Color::Green)),
                 Span::styled(")\n", s),
-            ])
+            ]))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_CONTEXT).to_spans(Some(replacement), None, PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_B64_JSON_CONTEXT).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("198:", s.fg(Color::DarkGray)),
-                Span::styled("  �}\n", s)
-            ])
+                Span::styled("  �}", s)
+            ]))]
         );
     }
 
@@ -706,34 +743,39 @@ mod tests {
     fn to_span_with_base64_lossy_selected() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = Style::default();
+        let mut ui_list_state = new_app_list_state();
+        ui_list_state.set_selected_item(0);
+        ui_list_state.set_selected_submatch(0);
+        let ctx = new_ui_item_ctx(None, &ui_list_state);
+
         assert_eq!(
-            new_item(RG_B64_JSON_BEGIN).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from(vec![Span::styled(
+            new_item(RG_B64_JSON_BEGIN).to_list_items(&ctx),
+            vec![ListItem::new(Span::styled(
                 "./a/fo�o",
                 s.fg(Color::Black).bg(Color::Yellow)
-            )])
+            ))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_END).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from("")
+            new_item(RG_B64_JSON_END).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(""))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_MATCH).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_B64_JSON_MATCH).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("197:", s.fg(Color::Yellow)),
                 Span::styled("    �", s.fg(Color::Yellow)),
                 Span::styled("Item", s.fg(Color::Black).bg(Color::Yellow)),
                 Span::styled("::�new(", s.fg(Color::Yellow)),
                 Span::styled("rg_msg", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled(")\n", s.fg(Color::Yellow)),
-            ])
+            ]))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_CONTEXT).to_spans(None, Some(0), PrintableStyle::Common),
-            Spans::from(vec![
+            new_item(RG_B64_JSON_CONTEXT).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("198:", s.fg(Color::Yellow)),
-                Span::styled("  �}\n", s.fg(Color::Yellow))
-            ])
+                Span::styled("  �}", s.fg(Color::Yellow))
+            ]))]
         );
     }
 
@@ -743,25 +785,25 @@ mod tests {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = Style::default();
         let replacement = "foobar";
+        let mut ui_list_state = new_app_list_state();
+        ui_list_state.set_selected_item(0);
+        ui_list_state.set_selected_submatch(0);
+        let ctx = new_ui_item_ctx(Some(replacement), &ui_list_state);
+
         assert_eq!(
-            new_item(RG_B64_JSON_BEGIN).to_spans(
-                Some(replacement),
-                Some(0),
-                PrintableStyle::Common
-            ),
-            Spans::from(vec![Span::styled("./a/fo�o", s.fg(Color::Magenta))])
+            new_item(RG_B64_JSON_BEGIN).to_list_items(&ctx),
+            vec![ListItem::new(Span::styled(
+                "./a/fo�o",
+                s.fg(Color::Magenta)
+            ))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_END).to_spans(Some(replacement), Some(0), PrintableStyle::Common),
-            Spans::from("")
+            new_item(RG_B64_JSON_END).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(""))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_MATCH).to_spans(
-                Some(replacement),
-                Some(0),
-                PrintableStyle::Common
-            ),
-            Spans::from(vec![
+            new_item(RG_B64_JSON_MATCH).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
                 Span::styled("197:", s),
                 Span::styled("    �", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
@@ -773,15 +815,16 @@ mod tests {
                 ),
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled(")\n", s),
-            ])
+            ]))]
         );
         assert_eq!(
-            new_item(RG_B64_JSON_CONTEXT).to_spans(
-                Some(replacement),
-                Some(0),
-                PrintableStyle::Common
-            ),
-            Spans::from(vec![Span::styled("198:", s), Span::styled("  �}\n", s)])
+            new_item(RG_B64_JSON_CONTEXT).to_list_items(&ctx),
+            vec![ListItem::new(Spans::from(vec![
+                Span::styled("198:", s),
+                Span::styled("  �}", s)
+            ]))]
         );
     }
+
+    // TODO: add more test cases for multiline display elements (foo/foo, foo/bar)
 }

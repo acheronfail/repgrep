@@ -347,7 +347,7 @@ mod tests {
     #[test]
     fn item_kind_matches_rg_message_kind() {
         assert_eq!(new_item(RG_JSON_BEGIN).kind, RgMessageKind::Begin);
-        assert_eq!(new_item(RG_JSON_MATCH).kind, RgMessageKind::Match);
+        assert_eq!(new_item(RG_JSON_MATCH_MULTILINE).kind, RgMessageKind::Match);
         assert_eq!(new_item(RG_JSON_CONTEXT).kind, RgMessageKind::Context);
         assert_eq!(new_item(RG_JSON_END).kind, RgMessageKind::End);
         assert_eq!(new_item(RG_JSON_SUMMARY).kind, RgMessageKind::Summary);
@@ -492,7 +492,7 @@ mod tests {
     }
 
     #[test]
-    fn to_span_with_text() {
+    fn to_list_items_with_text() {
         let s = Style::default();
         let ui_list_state = new_app_list_state();
         let ctx = new_ui_item_ctx(None, &ui_list_state);
@@ -529,7 +529,7 @@ mod tests {
     }
 
     #[test]
-    fn to_span_with_text_replacement() {
+    fn to_list_items_with_text_replacement() {
         let s = Style::default();
         let replacement = "foobar";
         let ui_list_state = new_app_list_state();
@@ -572,7 +572,7 @@ mod tests {
     }
 
     #[test]
-    fn to_span_with_text_selected() {
+    fn to_list_items_with_text_selected() {
         let s = Style::default();
         let mut ui_list_state = new_app_list_state();
         ui_list_state.set_selected_item(0);
@@ -611,7 +611,7 @@ mod tests {
     }
 
     #[test]
-    fn to_span_with_text_replacement_selected() {
+    fn to_list_items_with_text_replacement_selected() {
         let s = Style::default();
         let replacement = "foobar";
         let mut ui_list_state = new_app_list_state();
@@ -657,7 +657,7 @@ mod tests {
 
     #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
-    fn to_span_with_base64_lossy() {
+    fn to_list_items_with_base64_lossy() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = Style::default();
         let ui_list_state = new_app_list_state();
@@ -696,7 +696,7 @@ mod tests {
 
     #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
-    fn to_span_with_base64_lossy_replacement() {
+    fn to_list_items_with_base64_lossy_replacement() {
         let s = Style::default();
         let replacement = "foobar";
         let ui_list_state = new_app_list_state();
@@ -740,7 +740,7 @@ mod tests {
 
     #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
-    fn to_span_with_base64_lossy_selected() {
+    fn to_list_items_with_base64_lossy_selected() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = Style::default();
         let mut ui_list_state = new_app_list_state();
@@ -781,7 +781,7 @@ mod tests {
 
     #[cfg(not(windows))] // FIXME: implement base64 tests for Windows
     #[test]
-    fn to_span_with_base64_lossy_replacement_selected() {
+    fn to_list_items_with_base64_lossy_replacement_selected() {
         // Since we don't read the entire file when we view the results, we expect the UTF8 replacement character.
         let s = Style::default();
         let replacement = "foobar";
@@ -826,5 +826,32 @@ mod tests {
         );
     }
 
-    // TODO: add more test cases for multiline display elements (foo/foo, foo/bar)
+    #[test]
+    fn to_list_items_with_multiline_matches() {
+        let s = Style::default();
+        let ui_list_state = new_app_list_state();
+        let ctx = new_ui_item_ctx(None, &ui_list_state);
+
+        assert_eq!(
+            new_item(RG_JSON_MATCH_MULTILINE).to_list_items(&ctx),
+            vec![
+                ListItem::new(Spans::from(vec![
+                    Span::styled("3:", s.fg(Color::DarkGray)),
+                    Span::styled("baz ", s),
+                    Span::styled("1¬", s.bg(Color::Red).fg(Color::Black)),
+                ])),
+                ListItem::new(Spans::from(vec![
+                    Span::styled("4:", s.fg(Color::DarkGray)),
+                    Span::styled("22¬", s.bg(Color::Red).fg(Color::Black)),
+                ])),
+                ListItem::new(Spans::from(vec![
+                    Span::styled("5:", s.fg(Color::DarkGray)),
+                    Span::styled("333", s.bg(Color::Red).fg(Color::Black)),
+                    Span::styled(" bar ", s),
+                    Span::styled("4444", s.bg(Color::Red).fg(Color::Black)),
+                    Span::styled("\n", s),
+                ]))
+            ]
+        );
+    }
 }

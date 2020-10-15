@@ -162,7 +162,7 @@ impl App {
             Movement::Backward(n) => (
                 self.list
                     .len()
-                    .saturating_sub(selected_item.saturating_sub(*n as usize)),
+                    .saturating_sub(selected_item.saturating_sub((*n - 1) as usize)),
                 0,
             ),
 
@@ -290,6 +290,7 @@ impl App {
 mod tests {
     use pretty_assertions::assert_eq;
 
+    use crate::model::Movement;
     use crate::rg::de::test_utilities::*;
     use crate::rg::de::*;
     use crate::ui::app::*;
@@ -306,6 +307,24 @@ mod tests {
         ]
     }
 
+    const POS_1_BEGIN: (usize, usize, usize) = (0, 0, 0);
+    const POS_1_MATCH_0_0: (usize, usize, usize) = (1, 0, 1);
+    const POS_1_MATCH_0_1: (usize, usize, usize) = (1, 1, 1);
+    const POS_1_MATCH_1_0: (usize, usize, usize) = (3, 0, 3);
+    const POS_1_MATCH_1_1: (usize, usize, usize) = (3, 1, 3);
+    const POS_2_BEGIN: (usize, usize, usize) = (6, 0, 6);
+    const POS_2_MATCH_MULTILINE_0_0: (usize, usize, usize) = (7, 0, 7);
+    const POS_2_MATCH_MULTILINE_0_1: (usize, usize, usize) = (7, 1, 9);
+    const POS_3_BEGIN: (usize, usize, usize) = (9, 0, 11);
+    const POS_3_MATCH_0_0: (usize, usize, usize) = (10, 0, 12);
+    const POS_3_MATCH_0_1: (usize, usize, usize) = (10, 1, 12);
+    const POS_3_MATCH_1_0: (usize, usize, usize) = (12, 0, 14);
+    const POS_3_MATCH_1_1: (usize, usize, usize) = (12, 1, 14);
+    const POS_4_BEGIN: (usize, usize, usize) = (15, 0, 17);
+    const POS_4_MATCH_MULTILINE_0_0: (usize, usize, usize) = (16, 0, 18);
+    const POS_4_MATCH_MULTILINE_0_1: (usize, usize, usize) = (16, 1, 20);
+    const POS_4_END: (usize, usize, usize) = (17, 0, 21);
+
     fn items() -> Vec<Item> {
         let mut messages = rg_messages();
         messages
@@ -316,7 +335,23 @@ mod tests {
     }
 
     fn new_app() -> App {
-        App::new("TESTS".to_string(), Vec::from(rg_messages()))
+        App::new("TESTS".to_string(), rg_messages())
+    }
+
+    fn new_app_multiple_files() -> App {
+        let mut messages_multiple_files = vec![];
+
+        let messages = rg_messages();
+        messages_multiple_files.extend_from_slice(&messages[0..messages.len() - 1]);
+        messages_multiple_files.extend(vec![
+            RgMessage::from_str(RG_JSON_BEGIN),
+            RgMessage::from_str(RG_JSON_MATCH_MULTILINE),
+            RgMessage::from_str(RG_JSON_END),
+        ]);
+        messages_multiple_files.extend(messages_multiple_files.clone());
+        messages_multiple_files.push(RgMessage::from_str(RG_JSON_SUMMARY));
+
+        App::new("TESTS".to_string(), messages_multiple_files)
     }
 
     #[test]
@@ -398,5 +433,163 @@ mod tests {
         assert_eq!(app.list, expected_items);
     }
 
-    // TODO: tests for update_indicator
+    // Movement
+
+    fn get_indicator(list_state: &mut AppListState) -> usize {
+        list_state.indicator_mut().selected().unwrap()
+    }
+
+    macro_rules! assert_list_state {
+        ($app:expr, $triple:expr) => {
+
+            let selected_item = $app.list_state.selected_item();
+            let selected_submatch = $app.list_state.selected_submatch();
+            let indicator = get_indicator(&mut $app.list_state);
+            assert_eq!((selected_item, selected_submatch, indicator), $triple);
+        };
+    }
+
+    macro_rules! move_and_assert_list_state {
+        ($app:expr, $movement:expr, $triple:expr) => {
+            $app.move_pos($movement);
+            assert_list_state!($app, $triple);
+        };
+    }
+
+    #[test]
+    fn movement_next_and_prev() {
+        let mut app = new_app_multiple_files();
+        assert_list_state!(app, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Next, POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Next, POS_1_MATCH_0_1);
+        move_and_assert_list_state!(app, Movement::Next, POS_1_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Next, POS_1_MATCH_1_1);
+        move_and_assert_list_state!(app, Movement::Next, POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::Next, POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Next, POS_2_MATCH_MULTILINE_0_1);
+        move_and_assert_list_state!(app, Movement::Next, POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::Next, POS_3_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Next, POS_3_MATCH_0_1);
+        move_and_assert_list_state!(app, Movement::Next, POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Next, POS_3_MATCH_1_1);
+        move_and_assert_list_state!(app, Movement::Next, POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::Next, POS_4_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Next, POS_4_MATCH_MULTILINE_0_1);
+        move_and_assert_list_state!(app, Movement::Next, POS_4_END);
+        move_and_assert_list_state!(app, Movement::Next, POS_4_END);
+        move_and_assert_list_state!(app, Movement::Prev, POS_4_MATCH_MULTILINE_0_1);
+        move_and_assert_list_state!(app, Movement::Prev, POS_4_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Prev, POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::Prev, POS_3_MATCH_1_1);
+        move_and_assert_list_state!(app, Movement::Prev, POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Prev, POS_3_MATCH_0_1);
+        move_and_assert_list_state!(app, Movement::Prev, POS_3_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Prev, POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::Prev, POS_2_MATCH_MULTILINE_0_1);
+        move_and_assert_list_state!(app, Movement::Prev, POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Prev, POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::Prev, POS_1_MATCH_1_1);
+        move_and_assert_list_state!(app, Movement::Prev, POS_1_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Prev, POS_1_MATCH_0_1);
+        move_and_assert_list_state!(app, Movement::Prev, POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Prev, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Prev, POS_1_BEGIN);
+    }
+
+    #[test]
+    fn movement_nextline_and_prevline() {
+        let mut app = new_app_multiple_files();
+        assert_list_state!(app, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_1_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_3_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_4_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_4_END);
+        move_and_assert_list_state!(app, Movement::NextLine, POS_4_END);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_4_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_3_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_1_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::PrevLine, POS_1_BEGIN);
+    }
+
+    #[test]
+    fn movement_nextfile_and_prevfile() {
+        let mut app = new_app_multiple_files();
+        assert_list_state!(app, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::NextFile, POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::NextFile, POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::NextFile, POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::NextFile, POS_4_END);
+        move_and_assert_list_state!(app, Movement::NextFile, POS_4_END);
+        move_and_assert_list_state!(app, Movement::PrevFile, POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::PrevFile, POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::PrevFile, POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::PrevFile, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::PrevFile, POS_1_BEGIN);
+    }
+
+    #[test]
+    fn movement_forward_1_and_backward_1() {
+        let mut app = new_app_multiple_files();
+        assert_list_state!(app, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_1_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_3_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_4_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_4_END);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_4_END);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_4_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_3_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_1_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_1_BEGIN);
+    }
+
+    #[test]
+    fn movement_forward_5_and_backward_5() {
+        let mut app = new_app_multiple_files();
+        assert_list_state!(app, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(5), POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(5), POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Forward(5), POS_4_END);
+        move_and_assert_list_state!(app, Movement::Forward(5), POS_4_END);
+        move_and_assert_list_state!(app, Movement::Backward(5), POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Backward(5), POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(5), POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(5), POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(5), POS_1_BEGIN);
+    }
+
+    #[test]
+    fn movement_forward_100_and_backward_100() {
+        let mut app = new_app_multiple_files();
+        assert_list_state!(app, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(100), POS_4_END);
+        move_and_assert_list_state!(app, Movement::Forward(100), POS_4_END);
+        move_and_assert_list_state!(app, Movement::Backward(100), POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(100), POS_1_BEGIN);
+    }
 }

@@ -2,8 +2,6 @@ mod app_events;
 mod app_render;
 mod state;
 
-use std::collections::VecDeque;
-
 use crate::model::{Item, PrintableStyle};
 use crate::rg::de::{RgMessage, Stats};
 pub use state::{AppListState, AppState};
@@ -25,8 +23,7 @@ pub struct App {
 }
 
 impl App {
-    // TODO: no longer needs to be VecDeque
-    pub fn new(rg_cmdline: String, rg_results: VecDeque<RgMessage>) -> App {
+    pub fn new(rg_cmdline: String, rg_results: Vec<RgMessage>) -> App {
         let mut list = vec![];
         let mut maybe_stats = None;
 

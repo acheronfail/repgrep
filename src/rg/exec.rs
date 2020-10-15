@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::io::{ErrorKind, Read};
@@ -12,7 +11,7 @@ fn rg_run_error(msg: impl Display) -> Error {
     anyhow!("An error occurred when running `rg`:\n\n{}", msg)
 }
 
-pub fn run_ripgrep<I, S>(args: I) -> Result<VecDeque<RgMessage>>
+pub fn run_ripgrep<I, S>(args: I) -> Result<Vec<RgMessage>>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,

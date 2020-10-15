@@ -1,4 +1,3 @@
-use std::collections::VecDeque;
 use std::io::{self, Write};
 use std::sync::mpsc;
 use std::thread;
@@ -18,7 +17,7 @@ pub struct Tui {
 }
 
 impl Tui {
-    pub fn new(rg_cmdline: String, rg_results: VecDeque<RgMessage>) -> Tui {
+    pub fn new(rg_cmdline: String, rg_results: Vec<RgMessage>) -> Tui {
         Tui {
             app: App::new(rg_cmdline, rg_results),
         }

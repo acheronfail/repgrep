@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 
 use crate::model::{Item, PrintableStyle};
 use crate::rg::de::{RgMessage, Stats};
-pub use state::{AppState, AppListState};
+pub use state::{AppListState, AppState};
 use state::{AppUiState, HelpTextState};
 
 const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");

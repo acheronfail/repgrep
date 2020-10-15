@@ -175,8 +175,10 @@ impl Item {
     pub fn line_count(&self) -> usize {
         match &self.rg_message {
             RgMessage::Begin { .. } | RgMessage::End { .. } => 1,
-            RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => lines.lossy_utf8().lines().count(),
-            RgMessage::Summary { .. } => 0
+            RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => {
+                lines.lossy_utf8().lines().count()
+            }
+            RgMessage::Summary { .. } => 0,
         }
     }
 }
@@ -235,7 +237,6 @@ impl ToListItem for Item {
                     )
                 });
 
-
                 let mut list_items = vec![];
                 let mut spans = vec![]; // re-used multiple times
 
@@ -250,7 +251,7 @@ impl ToListItem for Item {
                     (++) => {
                         line_number.as_mut().map(|n| *n += 1);
                         push_line_number_span!();
-                    }
+                    };
                 };
 
                 let mut offset = 0;

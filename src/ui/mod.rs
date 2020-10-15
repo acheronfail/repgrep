@@ -1,3 +1,3 @@
 pub mod app;
-pub mod tui;
 pub mod render;
+pub mod tui;

@@ -33,7 +33,6 @@ impl SubItem {
 
     /// A SubItem contains the "match". A match _may_ be over multiple lines, but there will only ever
     /// be a single span on each line. So this returns a list of "lines": one span for each line.
-    // TODO: add an option to display multiline-match on one single line!
     pub fn to_span_lines(&self, ctx: &UiItemContext, is_item_selected: bool) -> Vec<Span> {
         let mut s = Style::default();
         if ctx.replacement_text.is_some() {

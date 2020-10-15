@@ -4,7 +4,7 @@ use crossterm::event::{Event, KeyCode, KeyModifiers};
 use either::Either;
 use tui::layout::Rect;
 
-use crate::model::{Movement, ReplacementCriteria};
+use crate::model::{Movement, PrintableStyle, ReplacementCriteria};
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppState, AppUiState};
 use crate::util::clamp;
@@ -30,7 +30,8 @@ impl App {
 
                         // Toggle whitespace style
                         KeyCode::Char('v') => {
-                            self.printable_style = self.printable_style.swap();
+                            self.printable_style = self.printable_style.cycle();
+                            self.update_indicator();
                             true
                         }
                         _ => false,
@@ -128,7 +129,9 @@ impl App {
         let selected_match = self.list_state.selected_submatch();
 
         // Handle moving horizontally.
-        if matches!(movement, Movement::Next) && selected_match + 1 < self.list[selected_item].sub_items().len() {
+        if matches!(movement, Movement::Next)
+            && selected_match + 1 < self.list[selected_item].sub_items().len()
+        {
             self.list_state.set_selected_submatch(selected_match + 1);
             return true;
         } else if matches!(movement, Movement::Prev) && selected_match > 0 {
@@ -163,7 +166,9 @@ impl App {
                 0,
             ),
 
-            Movement::Next | Movement::NextLine | Movement::NextFile => (selected_item, self.list.len() - 1),
+            Movement::Next | Movement::NextLine | Movement::NextFile => {
+                (selected_item, self.list.len() - 1)
+            }
             Movement::Forward(n) => (selected_item + (*n as usize), self.list.len() - 1),
         };
 
@@ -172,9 +177,15 @@ impl App {
             .skip(skip)
             .find_map(|(i, item)| {
                 let is_valid_next = match movement {
-                    Movement::PrevFile => i < selected_item && matches!(item.kind, RgMessageKind::Begin),
-                    Movement::NextFile => i > selected_item && matches!(item.kind, RgMessageKind::Begin),
-                    Movement::Prev | Movement::PrevLine | Movement::Backward(_) => i < selected_item,
+                    Movement::PrevFile => {
+                        i < selected_item && matches!(item.kind, RgMessageKind::Begin)
+                    }
+                    Movement::NextFile => {
+                        i > selected_item && matches!(item.kind, RgMessageKind::Begin)
+                    }
+                    Movement::Prev | Movement::PrevLine | Movement::Backward(_) => {
+                        i < selected_item
+                    }
                     Movement::Next | Movement::NextLine | Movement::Forward(_) => i > selected_item,
                 };
 
@@ -201,16 +212,24 @@ impl App {
         let item_idx = self.list_state.selected_item();
         let match_idx = self.list_state.selected_submatch();
 
-        let mut indicator_idx = 0;
-        for item in &self.list[0..item_idx] {
-            indicator_idx += item.line_count();
-        }
+        let indicator_idx = match self.printable_style {
+            // if we're displaying multiline matches on a single line, then the indicator index will always
+            // match the item index
+            PrintableStyle::Common(true) | PrintableStyle::Verbose(true) => item_idx,
+            _ => {
+                let mut indicator_idx = 0;
+                for item in &self.list[0..item_idx] {
+                    indicator_idx += item.line_count();
+                }
 
-        if match_idx > 0 {
-            for sub_item in &self.list[item_idx].sub_items()[0..match_idx] {
-                indicator_idx += sub_item.line_count() - 1;
+                if match_idx > 0 {
+                    for sub_item in &self.list[item_idx].sub_items()[0..match_idx] {
+                        indicator_idx += sub_item.line_count() - 1;
+                    }
+                }
+                indicator_idx
             }
-        }
+        };
 
         self.list_state.set_indicator(indicator_idx);
     }
@@ -234,7 +253,10 @@ impl App {
                 let should_replace = !selected_item.get_should_replace_all();
                 selected_item.set_should_replace_all(should_replace);
             } else {
-                selected_item.set_should_replace(selected_match, !selected_item.get_should_replace(selected_match));
+                selected_item.set_should_replace(
+                    selected_match,
+                    !selected_item.get_should_replace(selected_match),
+                );
             }
         }
 

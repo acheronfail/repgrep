@@ -1,16 +1,20 @@
+type OneLine = bool;
+
 #[derive(Debug, Copy, Clone)]
 pub enum PrintableStyle {
     None,
-    Common,
-    Verbose,
+    Common(OneLine),
+    Verbose(OneLine),
 }
 
 impl PrintableStyle {
-    pub fn swap(self) -> Self {
+    pub fn cycle(self) -> Self {
         match self {
-            PrintableStyle::None => PrintableStyle::Common,
-            PrintableStyle::Common => PrintableStyle::Verbose,
-            PrintableStyle::Verbose => PrintableStyle::None,
+            PrintableStyle::None => PrintableStyle::Common(false),
+            PrintableStyle::Common(false) => PrintableStyle::Verbose(false),
+            PrintableStyle::Verbose(false) => PrintableStyle::Common(true),
+            PrintableStyle::Common(true) => PrintableStyle::Verbose(true),
+            PrintableStyle::Verbose(true) => PrintableStyle::None
         }
     }
 }
@@ -23,10 +27,10 @@ impl Printable for char {
     fn to_printable(&self, style: PrintableStyle) -> String {
         match style {
             PrintableStyle::None => String::from(*self),
-            PrintableStyle::Common => match self {
+            PrintableStyle::Common(oneline) => match self {
                 // Print common whitespace as symbols
                 '\x09' => String::from("→"),   // HT (Horizontal Tab)
-                '\x0A' => String::from("¬\n"),  // LF (Line feed)
+                '\x0A' => String::from(if oneline { "¬" } else { "¬\n" }),  // LF (Line feed)
                 '\x0D' => String::from("¤"),    // CR (Carriage return)
                 '\x20' => String::from("␣"),    // SP (Space)
 
@@ -38,7 +42,7 @@ impl Printable for char {
 
                 _ => String::from(*self),
             },
-            PrintableStyle::Verbose => match self {
+            PrintableStyle::Verbose(oneline) => match self {
                 '\x00' => String::from("␀"),   // NULL (Null character)
                 '\x01' => String::from("␁"),   // SOH (Start of Header)
                 '\x02' => String::from("␂"),   // STX (Start of Text)
@@ -49,7 +53,7 @@ impl Printable for char {
                 '\x07' => String::from("␇"),   // BEL (Bell)
                 '\x08' => String::from("␈"),   // BS (Backspace)
                 '\x09' => String::from("␉"),   // HT (Horizontal Tab)
-                '\x0A' => String::from("␊\n"), // LF (Line feed)
+                '\x0A' => String::from(if oneline { "␊" } else { "␊\n" }), // LF (Line feed)
                 '\x0B' => String::from("␋"),   // VT (Vertical Tab)
                 '\x0C' => String::from("␌"),   // FF (Form feed)
                 '\x0D' => String::from("␍"),   // CR (Carriage return)

@@ -9,7 +9,6 @@ use tui::Frame;
 
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppUiState};
-use crate::ui::render::ToListItem;
 use crate::ui::render::UiItemContext;
 
 const LIST_HIGHLIGHT_SYMBOL: &str = "-> ";

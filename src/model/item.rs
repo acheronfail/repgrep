@@ -7,7 +7,7 @@ use tui::widgets::ListItem;
 
 use crate::model::Printable;
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
-use crate::ui::render::{ToListItem, UiItemContext};
+use crate::ui::render::UiItemContext;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubItem {
@@ -181,10 +181,8 @@ impl Item {
             RgMessage::Summary { .. } => 0,
         }
     }
-}
 
-impl ToListItem for Item {
-    fn to_list_item(&self, ctx: &UiItemContext) -> Vec<ListItem> {
+    pub fn to_list_item(&self, ctx: &UiItemContext) -> Vec<ListItem> {
         let is_replacing = ctx.replacement_text.is_some();
         let is_selected = ctx.ui_list_state.selected_item() == self.index;
 

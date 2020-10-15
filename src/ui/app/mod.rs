@@ -6,8 +6,8 @@ use std::collections::VecDeque;
 
 use crate::model::{Item, PrintableStyle};
 use crate::rg::de::{RgMessage, Stats};
-pub use state::AppState;
-use state::{AppListState, AppUiState, HelpTextState};
+pub use state::{AppState, AppListState};
+use state::{AppUiState, HelpTextState};
 
 const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 
@@ -25,17 +25,19 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(rg_cmdline: String, mut rg_results: VecDeque<RgMessage>) -> App {
+    // TODO: no longer needs to be VecDeque
+    pub fn new(rg_cmdline: String, rg_results: VecDeque<RgMessage>) -> App {
         let mut list = vec![];
         let mut maybe_stats = None;
-        while let Some(rg_message) = rg_results.pop_front() {
+
+        for (i, rg_message) in rg_results.into_iter().enumerate() {
             match rg_message {
                 RgMessage::Summary { stats, .. } => {
                     maybe_stats = Some(stats);
                     // NOTE: there should only be one RgMessage::Summary, and it should be the last item.
                     break;
                 }
-                other => list.push(Item::new(other)),
+                other => list.push(Item::new(i, other)),
             }
         }
 

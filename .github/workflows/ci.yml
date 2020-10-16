@@ -45,9 +45,9 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-18.04
-          # NOTE: this is the lowest we can go due to tui-rs
-          # See: https://github.com/fdehau/tui-rs/issues/301
-          rust: 1.43.0
+          # NOTE: needed for `impl From<char> for String`
+          # See: https://github.com/rust-lang/rust/pull/73466/
+          rust: 1.46.0
         - build: stable
           os: ubuntu-18.04
           rust: stable

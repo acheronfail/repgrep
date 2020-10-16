@@ -226,6 +226,7 @@ impl Item {
 
                 // Read the lines as bytes since we split it at the ranges that ripgrep gives us in each of the submatches.
                 let lines_bytes = lines.to_vec();
+                // TODO: handle newlines in the replacement string
                 let replacement_span = ctx.replacement_text.map(|r| {
                     Span::styled(
                         r.to_printable(ctx.printable_style),

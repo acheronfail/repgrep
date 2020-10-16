@@ -116,6 +116,9 @@ impl App {
                     KeyCode::Enter => {
                         self.ui_state = AppUiState::ConfirmReplacement(input.to_owned())
                     }
+                    // TODO: use ctrl+enter to input newline
+                    // TODO: use arrow keys to move "cursor" in text
+                    // TODO: use "delete" key to forward delete
                     _ => {}
                 },
             }
@@ -307,24 +310,6 @@ mod tests {
         ]
     }
 
-    const POS_1_BEGIN: (usize, usize, usize) = (0, 0, 0);
-    const POS_1_MATCH_0_0: (usize, usize, usize) = (1, 0, 1);
-    const POS_1_MATCH_0_1: (usize, usize, usize) = (1, 1, 1);
-    const POS_1_MATCH_1_0: (usize, usize, usize) = (3, 0, 3);
-    const POS_1_MATCH_1_1: (usize, usize, usize) = (3, 1, 3);
-    const POS_2_BEGIN: (usize, usize, usize) = (6, 0, 6);
-    const POS_2_MATCH_MULTILINE_0_0: (usize, usize, usize) = (7, 0, 7);
-    const POS_2_MATCH_MULTILINE_0_1: (usize, usize, usize) = (7, 1, 9);
-    const POS_3_BEGIN: (usize, usize, usize) = (9, 0, 11);
-    const POS_3_MATCH_0_0: (usize, usize, usize) = (10, 0, 12);
-    const POS_3_MATCH_0_1: (usize, usize, usize) = (10, 1, 12);
-    const POS_3_MATCH_1_0: (usize, usize, usize) = (12, 0, 14);
-    const POS_3_MATCH_1_1: (usize, usize, usize) = (12, 1, 14);
-    const POS_4_BEGIN: (usize, usize, usize) = (15, 0, 17);
-    const POS_4_MATCH_MULTILINE_0_0: (usize, usize, usize) = (16, 0, 18);
-    const POS_4_MATCH_MULTILINE_0_1: (usize, usize, usize) = (16, 1, 20);
-    const POS_4_END: (usize, usize, usize) = (17, 0, 21);
-
     fn items() -> Vec<Item> {
         let mut messages = rg_messages();
         messages
@@ -353,6 +338,26 @@ mod tests {
 
         App::new("TESTS".to_string(), messages_multiple_files)
     }
+
+    // Valid positions for the app returned by `new_app_multiple_files`.
+    type PosTriple = (usize, usize, usize);
+    const POS_1_BEGIN: PosTriple = (0, 0, 0);
+    const POS_1_MATCH_0_0: PosTriple = (1, 0, 1);
+    const POS_1_MATCH_0_1: PosTriple = (1, 1, 1);
+    const POS_1_MATCH_1_0: PosTriple = (3, 0, 3);
+    const POS_1_MATCH_1_1: PosTriple = (3, 1, 3);
+    const POS_2_BEGIN: PosTriple = (6, 0, 6);
+    const POS_2_MATCH_MULTILINE_0_0: PosTriple = (7, 0, 7);
+    const POS_2_MATCH_MULTILINE_0_1: PosTriple = (7, 1, 9);
+    const POS_3_BEGIN: PosTriple = (9, 0, 11);
+    const POS_3_MATCH_0_0: PosTriple = (10, 0, 12);
+    const POS_3_MATCH_0_1: PosTriple = (10, 1, 12);
+    const POS_3_MATCH_1_0: PosTriple = (12, 0, 14);
+    const POS_3_MATCH_1_1: PosTriple = (12, 1, 14);
+    const POS_4_BEGIN: PosTriple = (15, 0, 17);
+    const POS_4_MATCH_MULTILINE_0_0: PosTriple = (16, 0, 18);
+    const POS_4_MATCH_MULTILINE_0_1: PosTriple = (16, 1, 20);
+    const POS_4_END: PosTriple = (17, 0, 21);
 
     #[test]
     fn it_toggles_item_all_sub_items() {

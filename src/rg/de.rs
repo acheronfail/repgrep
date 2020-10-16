@@ -331,6 +331,8 @@ pub mod test_utilities {
     pub const RG_JSON_END: &str = r#"{"type":"end","data":{"path":{"text":"src/model/item.rs"},"binary_offset":null,"stats":{"elapsed":{"secs":0,"nanos":97924,"human":"0.000098s"},"searches":1,"searches_with_match":1,"bytes_searched":5956,"bytes_printed":674,"matched_lines":2,"matches":2}}}"#;
     pub const RG_JSON_SUMMARY: &str = r#"{"data":{"elapsed_total":{"human":"0.013911s","nanos":13911027,"secs":0},"stats":{"bytes_printed":3248,"bytes_searched":18789,"elapsed":{"human":"0.000260s","nanos":260276,"secs":0},"matched_lines":10,"matches":10,"searches":2,"searches_with_match":2}},"type":"summary"}"#;
 
+    pub const RG_JSON_MATCH_MULTILINE: &str = r#"{"type":"match","data":{"path":{"text":"./foo/baz"},"lines":{"text":"baz 1\n22\n333 bar 4444\n"},"line_number":3,"absolute_offset":16,"submatches":[{"match":{"text":"1\n22\n333"},"start":4,"end":12},{"match":{"text":"4444"},"start":17,"end":21}]}}"#;
+
     pub const RG_B64_JSON_BEGIN: &str =
         r#"{"type":"begin","data":{"path":{"bytes":"Li9hL2Zv/28="}}}"#;
     pub const RG_B64_JSON_MATCH: &str = r#"{"type":"match","data":{"path":{"text":"src/model/item.rs"},"lines":{"bytes":"ICAgIP9JdGVtOjr/bmV3KHJnX21zZykK"},"line_number":197,"absolute_offset":5522,"submatches":[{"match":{"text":"Item"},"start":5,"end":9},{"match":{"text":"rg_msg"},"start":16,"end":22}]}}"#;

@@ -154,6 +154,7 @@ mod tests {
         f.write_all(lines.as_ref().as_bytes()).unwrap();
 
         Item::new(
+            0,
             RgMessageBuilder::new(RgMessageKind::Match)
                 .with_path_text(f.path().to_string_lossy().to_string())
                 .with_lines_text(lines.as_ref().to_string())
@@ -169,6 +170,7 @@ mod tests {
         let build_item = |kind, mut f: &NamedTempFile| {
             f.write_all(text.as_bytes()).unwrap();
             Item::new(
+                0,
                 RgMessageBuilder::new(kind)
                     .with_path_text(f.path().to_string_lossy())
                     .with_lines_text(text)
@@ -284,6 +286,7 @@ mod tests {
         let path_string = f.path().to_string_lossy();
         let items = vec![
             Item::new(
+                0,
                 RgMessageBuilder::new(RgMessageKind::Match)
                     .with_path_text(&path_string)
                     .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
@@ -292,6 +295,7 @@ mod tests {
                     .build(),
             ),
             Item::new(
+                1,
                 RgMessageBuilder::new(RgMessageKind::Match)
                     .with_path_text(&path_string)
                     .with_submatches(vec![SubMatch::new_text("foo", 4..7)])
@@ -300,6 +304,7 @@ mod tests {
                     .build(),
             ),
             Item::new(
+                2,
                 RgMessageBuilder::new(RgMessageKind::Match)
                     .with_path_text(&path_string)
                     .with_submatches(vec![SubMatch::new_text("foo", 8..11)])
@@ -313,6 +318,42 @@ mod tests {
         assert_eq!(
             fs::read_to_string(f.path()).unwrap(),
             "NEW_VALUE bar baz\n...\nbaz NEW_VALUE bar\n...\nbar baz NEW_VALUE"
+        );
+    }
+
+    #[test]
+    fn it_performs_replacements_on_multiline_matches() {
+        let mut f = NamedTempFile::new().unwrap();
+
+        f.write_all(b"foo bar baz\n...\nbaz 1\n22\n333 bar\n...\nbar 4444 foo")
+            .unwrap();
+
+        let path_string = f.path().to_string_lossy();
+        let items = vec![
+            Item::new(
+                0,
+                RgMessageBuilder::new(RgMessageKind::Match)
+                    .with_path_text(&path_string)
+                    .with_submatches(vec![SubMatch::new_text("1\n22\n333", 4..12)])
+                    .with_lines_text("baz 1\n22\n333 bar\n")
+                    .with_offset(16)
+                    .build(),
+            ),
+            Item::new(
+                1,
+                RgMessageBuilder::new(RgMessageKind::Match)
+                    .with_path_text(&path_string)
+                    .with_submatches(vec![SubMatch::new_text("4444", 4..8)])
+                    .with_lines_text("bar 4444 foo")
+                    .with_offset(37)
+                    .build(),
+            ),
+        ];
+
+        perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
+        assert_eq!(
+            fs::read_to_string(f.path()).unwrap(),
+            "foo bar baz\n...\nbaz NEW_VALUE bar\n...\nbar NEW_VALUE foo"
         );
     }
 
@@ -337,6 +378,7 @@ mod tests {
         fs::write(&p, lines.as_bytes()).unwrap();
 
         let item = Item::new(
+            0,
             RgMessageBuilder::new(RgMessageKind::Match)
                 .with_path_base64(base64::encode(p.as_os_str().as_bytes()))
                 .with_lines_text(lines.to_string())
@@ -364,6 +406,7 @@ mod tests {
                     .iter()
                     .map(|(offset, range)| {
                         Item::new(
+                            0,
                             RgMessageBuilder::new(RgMessageKind::Match)
                                 .with_path_text(f.path().to_string_lossy())
                                 .with_lines_text(&format!("{}\n", $needle))

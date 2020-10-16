@@ -9,6 +9,9 @@ use tui::Frame;
 
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppUiState};
+use crate::ui::render::UiItemContext;
+
+const LIST_HIGHLIGHT_SYMBOL: &str = "-> ";
 
 impl App {
     // The UI is:
@@ -185,36 +188,40 @@ impl App {
         f.render_widget(help_paragraph, hsplit[0]);
     }
 
-    fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
-        let replacement = match &self.ui_state {
+    fn get_replacement_text(&self) -> Option<&str> {
+        match &self.ui_state {
             AppUiState::InputReplacement(replacement)
             | AppUiState::ConfirmReplacement(replacement) => Some(replacement.as_str()),
             _ => None,
+        }
+    }
+
+    fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
+        let ctx = &UiItemContext {
+            replacement_text: self.get_replacement_text(),
+            printable_style: self.printable_style,
+            ui_list_state: &self.list_state,
         };
 
-        let (row, col) = self.list_state.row_col();
         let match_items = self
             .list
             .iter()
-            .enumerate()
-            .map(|(idx, item)| {
-                let selected = if idx == row { Some(col) } else { None };
-                ListItem::new(vec![item.to_spans(
-                    replacement,
-                    selected,
-                    self.printable_style,
-                )])
+            .flat_map(|item| {
+                item.to_span_lines(&ctx)
+                    .into_iter()
+                    .map(|spans| ListItem::new(spans))
+                    .collect::<Vec<ListItem>>()
             })
             .collect::<Vec<ListItem>>();
 
         // TODO: highlight the bg of whole line (not just the text on it), currently not possible
-        // See: https://github.com/fdehau/tui-rs/issues/239
+        // See: https://github.com/fdehau/tui-rs/issues/239#issuecomment-657070300
         let match_list = List::new(match_items)
             .block(Block::default())
             .style(Style::default().fg(Color::White))
-            .highlight_symbol("-> ");
+            .highlight_symbol(LIST_HIGHLIGHT_SYMBOL);
 
-        f.render_stateful_widget(match_list, r, &mut self.list_state.row_state_mut());
+        f.render_stateful_widget(match_list, r, &mut self.list_state.indicator_mut());
     }
 
     pub(crate) fn list_height(&self, term_size: Rect) -> u16 {

@@ -5,42 +5,48 @@ use tui::widgets::ListState;
 use crate::model::ReplacementCriteria;
 
 #[derive(Debug)]
-pub struct AppListState(ListState, usize);
+pub struct AppListState {
+    /// The selected "item" in the list of items received from rg
+    selected_item: usize,
+    /// The selected submatch of the selected "item"
+    selected_submatch: usize,
+    /// The position of the indicator on the left of the main list view
+    indicator: ListState,
+}
 
 impl AppListState {
     pub fn new() -> AppListState {
-        let mut list_row_state = ListState::default();
-        list_row_state.select(Some(0));
-        AppListState(list_row_state, 0)
+        let mut list_state = ListState::default();
+        list_state.select(Some(0));
+        AppListState {
+            selected_item: 0,
+            selected_submatch: 0,
+            indicator: list_state,
+        }
     }
 
-    pub fn row_state_mut(&mut self) -> &mut ListState {
-        &mut self.0
+    pub fn indicator_mut(&mut self) -> &mut ListState {
+        &mut self.indicator
     }
 
-    pub fn row_col(&self) -> (usize, usize) {
-        (self.row(), self.col())
+    pub fn set_indicator(&mut self, idx: usize) {
+        self.indicator.select(Some(idx))
     }
 
-    pub fn row(&self) -> usize {
-        self.0.selected().unwrap_or(0)
+    pub fn selected_item(&self) -> usize {
+        self.selected_item
     }
 
-    pub fn col(&self) -> usize {
-        self.1
+    pub fn selected_submatch(&self) -> usize {
+        self.selected_submatch
     }
 
-    pub fn set_row_col(&mut self, row: usize, col: usize) {
-        self.set_row(row);
-        self.set_col(col);
+    pub fn set_selected_item(&mut self, idx: usize) {
+        self.selected_item = idx
     }
 
-    pub fn set_row(&mut self, row: usize) {
-        self.0.select(Some(row));
-    }
-
-    pub fn set_col(&mut self, col: usize) {
-        self.1 = col;
+    pub fn set_selected_submatch(&mut self, idx: usize) {
+        self.selected_submatch = idx
     }
 }
 

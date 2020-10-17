@@ -1,4 +1,6 @@
-# `repgrep`: An interactive replacer for `ripgrep`.
+# repgrep (rgr)
+
+_An interactive replacer for `ripgrep`._
 
 This is an interactive command line tool to make find and replacement easy.
 It uses [`ripgrep`] to find, and then provides you with a simple interface to see

@@ -30,7 +30,7 @@ impl AppListState {
     }
 
     pub fn set_indicator(&mut self, idx: usize) {
-        self.indicator.select(Some(idx))
+        self.indicator.select(Some(idx));
     }
 
     pub fn selected_item(&self) -> usize {
@@ -71,6 +71,10 @@ pub enum AppUiState {
 }
 
 impl AppUiState {
+    pub fn is_replacing(&self) -> bool {
+        matches!(self, AppUiState::InputReplacement(_) | AppUiState::ConfirmReplacement(_))
+    }
+
     /// Represent the `AppUiState` as a `Text`.
     /// This is displayed as the "mode" in the stats line.
     pub fn to_span(&self) -> Span {

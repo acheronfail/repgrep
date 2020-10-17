@@ -7,6 +7,7 @@ use tui::text::{Span, Spans, Text};
 use tui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
 use tui::Frame;
 
+use crate::model::Printable;
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppUiState};
 use crate::ui::render::UiItemContext;
@@ -49,29 +50,44 @@ impl App {
 
     fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
         let prefix = "Replacement: ";
-        let text_items = match &self.ui_state {
-            AppUiState::Help => vec![Spans::from("Viewing Help. Press <esc> or <q> to return...")],
-            AppUiState::SelectMatches => vec![Spans::from(
+        let mut text_items = match &self.ui_state {
+            AppUiState::Help => vec![Span::from("Viewing Help. Press <esc> or <q> to return...")],
+            AppUiState::SelectMatches => vec![Span::from(
                 "Select (or deselect) Matches with <space> then press <Enter>. Press <?> for help.",
             )],
-            AppUiState::InputReplacement(input) => vec![Spans::from(vec![
+            AppUiState::InputReplacement(input) => vec![
                 Span::from(prefix),
                 if input.is_empty() {
                     Span::styled("<empty>", Style::default().fg(Color::DarkGray))
                 } else {
-                    Span::from(input.as_str())
+                    Span::from(input.to_printable(self.printable_style.one_line()))
                 },
-            ])],
-            AppUiState::ConfirmReplacement(_) => vec![Spans::from(
+            ],
+            AppUiState::ConfirmReplacement(_) => vec![Span::from(
                 "Press <enter> to write changes, <esc> to cancel.",
             )],
         };
 
-        f.render_widget(Paragraph::new(text_items), r);
+        let mut render_input = |spans| f.render_widget(Paragraph::new(Spans::from(spans)), r);
 
-        // Draw input cursor
+        // Draw input cursor after rendering input
         if let AppUiState::InputReplacement(input) = &self.ui_state {
-            f.set_cursor(r.x + ((prefix.len() + input.len()) as u16), r.y);
+            let x_start = r.x + (prefix.len() as u16);
+            let x_pos = if input.is_empty() {
+                0
+            } else {
+                text_items.last().map(|span| span.width()).unwrap() as u16
+            };
+
+            text_items.push(Span::styled(
+                "    (press <control+s> to accept replacement)",
+                Style::default().fg(Color::DarkGray),
+            ));
+
+            render_input(text_items);
+            f.set_cursor(x_start + x_pos, r.y);
+        } else {
+            render_input(text_items);
         }
     }
 
@@ -154,7 +170,7 @@ impl App {
                 Row::Data(["?", "show help and keybindings"].iter()),
                 Row::Data([].iter()),
                 Row::StyledData(["MODE: REPLACE"].iter(), title_style),
-                Row::Data(["enter", "accept replacement text"].iter()),
+                Row::Data(["control + s", "accept replacement text"].iter()),
                 Row::Data(["esc", "previous mode"].iter()),
                 Row::Data([].iter()),
                 Row::StyledData(["MODE: CONFIRM"].iter(), title_style),
@@ -200,7 +216,8 @@ impl App {
         let ctx = &UiItemContext {
             replacement_text: self.get_replacement_text(),
             printable_style: self.printable_style,
-            ui_list_state: &self.list_state,
+            app_list_state: &self.list_state,
+            app_ui_state: &self.ui_state,
         };
 
         let match_items = self
@@ -214,12 +231,18 @@ impl App {
             })
             .collect::<Vec<ListItem>>();
 
+        let highlight_symbol = if self.ui_state.is_replacing() {
+            " ".repeat(LIST_HIGHLIGHT_SYMBOL.len())
+        } else {
+            String::from(LIST_HIGHLIGHT_SYMBOL)
+        };
+
         // TODO: highlight the bg of whole line (not just the text on it), currently not possible
         // See: https://github.com/fdehau/tui-rs/issues/239#issuecomment-657070300
         let match_list = List::new(match_items)
             .block(Block::default())
             .style(Style::default().fg(Color::White))
-            .highlight_symbol(LIST_HIGHLIGHT_SYMBOL);
+            .highlight_symbol(&highlight_symbol);
 
         f.render_stateful_widget(match_list, r, &mut self.list_state.indicator_mut());
     }

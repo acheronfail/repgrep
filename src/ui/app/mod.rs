@@ -4,8 +4,8 @@ mod state;
 
 use crate::model::{Item, PrintableStyle};
 use crate::rg::de::{RgMessage, Stats};
-pub use state::{AppListState, AppState};
-use state::{AppUiState, HelpTextState};
+use state::HelpTextState;
+pub use state::{AppListState, AppState, AppUiState};
 
 const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 

@@ -33,7 +33,7 @@ There are a few different modes:
 * In this mode the user types the desired replacement text and the matches are updated in real-time.
 * Note that this is a demo only, no changes are written to disk.
 * Non UTF-8 bytes in the matches are shown with the UTF-8 replacement character in this mode.
-* Pressing enter will cause all selected matches to be replaced with the text entered.
+* Pressing control+s will cause all selected matches to be replaced with the text entered.
 
 **CONFIRM**
 

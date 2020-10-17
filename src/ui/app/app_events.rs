@@ -13,7 +13,8 @@ impl App {
     pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
         if let Event::Key(key) = event {
             // Common Ctrl+Key scroll keybindings that apply to multiple modes.
-            if key.modifiers.contains(KeyModifiers::CONTROL) {
+            let control_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
+            if control_pressed {
                 let did_handle_key = match &self.ui_state {
                     AppUiState::SelectMatches
                     | AppUiState::InputReplacement(_)
@@ -99,26 +100,34 @@ impl App {
                     }
                 }
                 AppUiState::InputReplacement(ref input) => match key.code {
-                    KeyCode::Char(c) => {
-                        let mut new_input = String::from(input);
-                        new_input.push(c);
-                        self.ui_state = AppUiState::InputReplacement(new_input);
-                    }
-                    KeyCode::Backspace | KeyCode::Delete => {
-                        let new_input = if !input.is_empty() {
-                            String::from(input)[..input.len() - 1].to_owned()
+                    KeyCode::Char(ch) => {
+                        if control_pressed && ch == 's' {
+                            self.ui_state = AppUiState::ConfirmReplacement(input.to_owned());
                         } else {
-                            String::new()
-                        };
-                        self.ui_state = AppUiState::InputReplacement(new_input);
+                            self.ui_state =
+                                AppUiState::InputReplacement(format!("{}{}", input, ch));
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if !input.is_empty() {
+                            // trim off the last character
+                            let input = input.chars().rev().skip(1).collect::<Vec<_>>();
+                            let input = input.iter().rev().collect::<String>();
+                            self.ui_state = AppUiState::InputReplacement(input);
+                        }
                     }
                     KeyCode::Esc => self.ui_state = AppUiState::SelectMatches,
                     KeyCode::Enter => {
-                        self.ui_state = AppUiState::ConfirmReplacement(input.to_owned())
+                        self.ui_state = AppUiState::InputReplacement(format!("{}\n", input));
                     }
-                    // TODO: use ctrl+enter to input newline
+
                     // TODO: use arrow keys to move "cursor" in text
+                    KeyCode::Up => {}
+                    KeyCode::Down => {}
+                    KeyCode::Left => {}
+                    KeyCode::Right => {}
                     // TODO: use "delete" key to forward delete
+                    KeyCode::Delete => {}
                     _ => {}
                 },
             }

@@ -1,12 +1,8 @@
 # Changelog
 
-## Unreleased
-
-...
-
 ## 0.8.0
 
-- fae1f09 (origin/feat/multline-match-support, feat/multline-match-support) fix: update pinned rust version
+- fae1f09 fix: update pinned rust version
 - fae1678 chore: upgrade dependencies
 - fae1a13 fix: use Vec<Spans> rather than Vec<ListItem> since they have PartialEq
 - fae1467 chore: add tests for new multiline behaviour

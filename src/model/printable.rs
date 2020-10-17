@@ -8,6 +8,7 @@ pub enum PrintableStyle {
 }
 
 impl PrintableStyle {
+    /// Cycles through each possible value of a `PrintableStyle`.
     pub fn cycle(self) -> Self {
         match self {
             PrintableStyle::None => PrintableStyle::Common(false),
@@ -15,6 +16,15 @@ impl PrintableStyle {
             PrintableStyle::Verbose(false) => PrintableStyle::Common(true),
             PrintableStyle::Common(true) => PrintableStyle::Verbose(true),
             PrintableStyle::Verbose(true) => PrintableStyle::None,
+        }
+    }
+
+    /// Returns the "one line" representation of the current `PrintableStyle`.
+    pub fn one_line(self) -> Self {
+        match self {
+            PrintableStyle::None => PrintableStyle::Common(true),
+            PrintableStyle::Common(_) => PrintableStyle::Common(true),
+            PrintableStyle::Verbose(_) => PrintableStyle::Verbose(true),
         }
     }
 }
@@ -86,6 +96,12 @@ impl Printable for char {
 impl Printable for &str {
     fn to_printable(&self, style: PrintableStyle) -> String {
         self.chars().map(|ch| ch.to_printable(style)).collect()
+    }
+}
+
+impl Printable for &String {
+    fn to_printable(&self, style: PrintableStyle) -> String {
+        self.as_str().to_printable(style)
     }
 }
 

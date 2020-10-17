@@ -1,6 +1,13 @@
-# Changelog
+# 0.9.0
 
-## 0.8.0
+- dd66f4f Merge pull request #30 from acheronfail/feat/allow-multiline-replacements
+- fae1c795 feat: allow multiline replacements
+- fae1e22 fix(ui): unselected matches now display as context in replacement mode
+- fae1386 fix(ui): line numbers were still highlighted after leaving SelectMatches mode
+- fae170c refactor: minor tweaks to tests and variable naming
+- fae1263 chore: update CHANGELOG.md
+
+# 0.8.0
 
 - fae1f09 fix: update pinned rust version
 - fae1678 chore: upgrade dependencies
@@ -16,28 +23,28 @@
 - fae1adf feat: allow matches to span multiple lines
 - fae1c7e refactor: separate ListState from selected item and match
 
-## 0.7.5
+# 0.7.5
 
 - fae1a3d fix(dev): fixup justfile bump command
 - fae1011 fix: re-word keybinding menu and fix formatting
 
-## 0.7.4
+# 0.7.4
 
 - fae162f fix(ui): allow scrolling the text in the help view
 - fae141b fix(ui): maintain newlines in help menu
 
-## 0.7.3
+# 0.7.3
 
 - fae1d59 fix(fmt): build.rs
 - fae18c8 fix(ci): recognise tags without preceding "v"
 - fae1350 dev: add a justfile for common commands
 - fae1304 fix: issues with an old Cargo.lock and beta versions of clap
 
-## v0.7.2
+# v0.7.2
 
 - fae10d8 fix: crate a post-action that publishes the crate after other actions
 
-## v0.7.1
+# v0.7.1
 
 - fae10ec fix: add step to publish crate in CI
 - fae11ed feat: style select mode more clearly
@@ -46,7 +53,7 @@
 - fae1b2a feat: replace non-printable whitespace with symbols
 - fae1135 chore: update README.md with png rather than gif
 
-## v0.7.0
+# v0.7.0
 
 - fae1bfd feat: show cursor when inputting replacement
 - fae1c17 chore: upgrade to newly release tui-rs 0.10.0
@@ -73,7 +80,7 @@
 - fae1d9d refactor: stream in ripgrep's results
 - fae1fdd refactor: remove replacement results and just log output
 
-## v0.6.0
+# v0.6.0
 
 - fae1f96 docs: update README and manpage documentation for encoding
 - fae1bd2 chore: add tests for replacing with shorter text
@@ -81,7 +88,7 @@
 - fae1729 fix: add workaround for UTF8 with BOM
 - fae1c962 feat: properly support UTF16 encodings
 
-## v0.5.0
+# v0.5.0
 
 - fae12cf refactor: create cli mod to split arg definition and validation
 - fae19a0 refactor: major refactor to CLI parsing to sniff rg arguments
@@ -89,22 +96,22 @@
 - fae1af0 refactor: minor fixup for Windows systems
 - fae1377 fix: filter out more invalid rg args and update manpage
 
-## v0.4.10
+# v0.4.10
 
 - fae1a06 fix: improved error handling when running ripgrep
 - fae1ab83 fix: continue on error rather than bailing out
 
-## v0.4.6 - v0.4.9
+# v0.4.6 - v0.4.9
 
 - Various issues at manpage generation and testing out CI
 
-## v0.4.5
+# v0.4.5
 
 - fae1510 ci: update github action build names
 - fae1e3f chore: merge help.txt and manpage generation
 - fae1014 ci: add x86_64-unknown-linux-gnu target to release actions
 
-## v0.4.4
+# v0.4.4
 
 - fae144a chore: remove final new ci testing configuration
 - fae1a66 chore: move ci2 dir over old ci
@@ -112,33 +119,33 @@
 - fae1293 fix: issues with initial Windows builds
 - fae13a0 chore: rustfmt
 
-## v0.4.3
+# v0.4.3
 
 - fae1c56 fix: return errors running rg without a panic
 
-## v0.4.2
+# v0.4.2
 
 - fae1a7e fix: better error handling for when ripgrep is not installed
 - fae166f doc: update README.md
 
-## v0.4.1
+# v0.4.1
 
 - fae13be travis: fix issue deploying GitHub releases
 - fae1a99 chore: write tests for detecting rg encoding
 - fae1169 ui: add an extra newline before final ReplacementResult stats
 
-## v0.4.0
+# v0.4.0
 
 - fae193a feat: read encoding passed to rg and use that as override
 - fae1015 refactor: only pass rg args to run_ripgrep()
 
-## v0.3.3
+# v0.3.3
 
 - fae103d fix: alignment issues rendering non UTF8 items as Text structs
 - fae15c4 chore: handle non UTF8 paths when converting Item to Text
 - fae12f5 chore: make demo.gif smaller and easier to see
 
-## v0.3.2
+# v0.3.2
 
 - fae18c6 doc: update demo.gif
 - fae1bb2 fix: incorrect number of reported matches in results list
@@ -147,12 +154,12 @@
 - fae10ce fix: handle UTF-8 BOM if found
 - fae1059 refactor: simplify and improve the replacement results
 
-## v0.3.1
+# v0.3.1
 
 - fae1138 feat: show <empty> in main view when replacement string is empty
 - fae178b chore: update README
 
-## v0.3.0
+# v0.3.0
 
 - fae1f65 feat: support encodings other than UTF-8
 - fae13d0 refactor: simplify temp_rg_msg helper fn
@@ -161,13 +168,13 @@
 - fae1fa3 travis: fix issue with multiple builds trying to publish to crates
 - fae1d31 chore: sort dependencies alphabetically in Cargo.toml
 
-## v0.2.0
+# v0.2.0
 
 - fae19b2 fix: issue when replacing multiple matches in a single file
 - fae1292 feat: return and log a replacement result
 - fae12f1 fix: return error when no arguments are provided
 
-## v0.1.1
+# v0.1.1
 
 - fae16e8 fix: issue replacing matches with an offset > 0
 - fae1995 chore: update comment
@@ -177,6 +184,6 @@
 - fae1597 chore: add homepage and repository to Cargo.toml
 - fae15f5 travis: add initial configuration
 
-## v0.1.0
+# v0.1.0
 
 Initial release

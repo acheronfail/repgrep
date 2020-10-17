@@ -592,6 +592,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tui",
+ "unicode-width",
 ]
 
 [[package]]

@@ -37,8 +37,6 @@ impl SubItem {
         if ctx.replacement_text.is_some() {
             if self.should_replace {
                 s = s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT);
-            } else {
-                s = s.fg(Color::DarkGray);
             }
         } else {
             if is_item_selected && ctx.ui_list_state.selected_submatch() == self.index {

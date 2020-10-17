@@ -239,7 +239,11 @@ impl Item {
                     // pushes a span to `spans` which contains the line number
                     () => {
                         if let Some(n) = line_number {
-                            spans.push(Item::line_number_to_span(base_style, is_selected, n));
+                            spans.push(Item::line_number_to_span(
+                                base_style,
+                                is_selected && !is_replacing,
+                                n,
+                            ));
                         }
                     };
                     // increments the current line number first, then does the above
@@ -624,7 +628,7 @@ mod tests {
         assert_eq!(
             new_item(RG_JSON_MATCH).to_span_lines(&ctx),
             vec![Spans::from(vec![
-                Span::styled("197:", s),
+                Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    ", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 Span::styled(replacement, s.fg(Color::Green)),
@@ -790,7 +794,7 @@ mod tests {
         assert_eq!(
             new_item(RG_B64_JSON_MATCH).to_span_lines(&ctx),
             vec![Spans::from(vec![
-                Span::styled("197:", s),
+                Span::styled("197:", s.fg(Color::DarkGray)),
                 Span::styled("    �", s),
                 Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 Span::styled(replacement, s.fg(Color::Green)),

@@ -170,11 +170,31 @@ impl Item {
         Span::styled(format!("{}:", n), style)
     }
 
-    pub fn line_count(&self) -> usize {
+    pub fn line_count(&self, list_width: u16) -> usize {
+        #[cfg(not(release))]
+        assert!(list_width != 0);
+
         match &self.rg_message {
             RgMessage::Begin { .. } | RgMessage::End { .. } => 1,
             RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => {
-                lines.lossy_utf8().lines().count()
+                let list_width = list_width as usize;
+                lines
+                    .lossy_utf8()
+                    .lines()
+                    .map(|line| {
+                        use unicode_width::UnicodeWidthStr;
+
+                        let line_width = line.width();
+                        // lines that wrap
+                        let mut lines = line_width / list_width;
+                        // any remainder on the last line
+                        if line_width % list_width > 0 {
+                            lines += 1;
+                        }
+
+                        lines
+                    })
+                    .sum::<usize>()
             }
             RgMessage::Summary { .. } => 0,
         }
@@ -189,15 +209,15 @@ impl Item {
             base_style = base_style.fg(Color::Yellow);
         }
 
-        match &self.rg_message {
-            RgMessage::Begin { .. } => vec![Spans::from(Span::styled(
+        let span_lines = match &self.rg_message {
+            RgMessage::Begin { .. } => vec![vec![Span::styled(
                 format!("{}", self.path_buf().unwrap().display()),
                 if !is_replacing && is_selected {
                     base_style.fg(Color::Black).bg(Color::Yellow)
                 } else {
                     base_style.fg(Color::Magenta)
                 },
-            ))],
+            )]],
 
             RgMessage::Context {
                 lines, line_number, ..
@@ -212,7 +232,7 @@ impl Item {
                     }
 
                     spans.push(Span::styled(line.to_string(), base_style));
-                    span_lines.push(Spans::from(Spans::from(spans)));
+                    span_lines.push(spans);
                 }
 
                 span_lines
@@ -265,12 +285,16 @@ impl Item {
 
                 macro_rules! push_utf8_slice {
                     ($range:ident) => {
-                        spans.push(Span::styled(
-                            // NOTE: we don't handle multiple lines in the match because AFAICT ripgrep won't give us multiline
+                        {
+                            let mut content = String::from_utf8_lossy(&lines_bytes[$range]).to_string();
+                            // remove trailing new line if one exists since lines are already handled
+                            if content.ends_with("\n") {
+                                content.pop();
+                            }
+                            // NOTE: don't handle multiple lines in the match because AFAICT ripgrep doesn't return multiline
                             // text in between submatches in a "match" item.
-                            String::from_utf8_lossy(&lines_bytes[$range]).to_string(),
-                            base_style,
-                        ));
+                            spans.push(Span::styled(content, base_style));
+                        }
                     }
                 }
 
@@ -280,7 +304,7 @@ impl Item {
                 macro_rules! new_line_if_needed {
                     ($len:expr, $idx:expr) => {
                         if $idx != $len - 1 {
-                            span_lines.push(Spans::from(spans.drain(..).collect::<Vec<Span>>()));
+                            span_lines.push(spans.drain(..).collect::<Vec<Span>>());
                         }
                     };
                 }
@@ -341,13 +365,60 @@ impl Item {
                     push_utf8_slice!(trailing);
                 }
 
-                span_lines.push(Spans::from(spans));
+                span_lines.push(spans);
                 span_lines
             }
-            RgMessage::End { .. } => vec![Spans::from("")],
+            RgMessage::End { .. } => vec![vec![Span::from("")]],
             // NOTE: the summary item is not added to the app's list of items
             RgMessage::Summary { .. } => unreachable!(),
-        }
+        };
+
+        // wrap lines
+        let max_width = ctx.rect.width as usize;
+        span_lines
+            .into_iter()
+            .flat_map(|spans| {
+                use unicode_width::UnicodeWidthChar;
+
+                let mut wrapped_spans = vec![];
+                let mut tmp = vec![];
+                let mut len = 0;
+                for span in spans {
+                    let span_width = span.width();
+                    if len + span_width > max_width {
+                        let mut chars = vec![];
+                        for ch in span.content.chars() {
+                            // NOTE: all control characters (except "\n") should have been removed via the `Printable` trait
+                            // and "\n" should have been removed when building Spans from the item
+                            let char_width = ch.width().expect(
+                                "encountered unexpected control character while wrapping lines",
+                            );
+                            if len + char_width > max_width {
+                                tmp.push(Span::styled(
+                                    chars.drain(..).collect::<String>(),
+                                    span.style,
+                                ));
+                                wrapped_spans.push(Spans::from(tmp.drain(..).collect::<Vec<_>>()));
+                                len = 0;
+                            }
+
+                            len += char_width;
+                            chars.push(ch);
+                        }
+
+                        let remaining_span =
+                            Span::styled(chars.drain(..).collect::<String>(), span.style);
+                        tmp.push(remaining_span);
+                    } else {
+                        len += span_width;
+                        tmp.push(span);
+                    }
+                }
+
+                wrapped_spans.push(Spans::from(tmp.drain(..).collect::<Vec<_>>()));
+                wrapped_spans
+            })
+            .collect()
     }
 }
 
@@ -356,6 +427,7 @@ mod tests {
     use std::path::PathBuf;
 
     use pretty_assertions::assert_eq;
+    use tui::layout::Rect;
     use tui::style::{Color, Modifier, Style};
     use tui::text::{Span, Spans};
 
@@ -512,6 +584,7 @@ mod tests {
             replacement_text,
             app_list_state,
             app_ui_state,
+            rect: Rect::new(0, 0, 80, 24),
         }
     }
 
@@ -545,7 +618,7 @@ mod tests {
                 Span::styled("Item", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled("::new(", s),
                 Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
-                Span::styled(")\n", s),
+                Span::styled(")", s),
             ])]
         );
         assert_eq!(
@@ -589,7 +662,7 @@ mod tests {
                     s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)
                 ),
                 Span::styled(replacement, s.fg(Color::Green)),
-                Span::styled(")\n", s),
+                Span::styled(")", s),
             ])]
         );
         assert_eq!(
@@ -628,7 +701,7 @@ mod tests {
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled("::new(", s),
                 Span::styled(replacement, s.fg(Color::Green)),
-                Span::styled(")\n", s),
+                Span::styled(")", s),
             ])]
         );
         assert_eq!(
@@ -668,7 +741,7 @@ mod tests {
                 Span::styled("Item", s.fg(Color::Black).bg(Color::Yellow)),
                 Span::styled("::new(", s.fg(Color::Yellow)),
                 Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
-                Span::styled(")\n", s.fg(Color::Yellow)),
+                Span::styled(")", s.fg(Color::Yellow)),
             ])]
         );
         assert_eq!(
@@ -709,7 +782,7 @@ mod tests {
                 Span::styled("Item", s.bg(Color::Red).fg(Color::Black)),
                 Span::styled("::�new(", s),
                 Span::styled("rg_msg", s.bg(Color::Red).fg(Color::Black)),
-                Span::styled(")\n", s),
+                Span::styled(")", s),
             ])]
         );
         assert_eq!(
@@ -751,7 +824,7 @@ mod tests {
                     s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)
                 ),
                 Span::styled(replacement, s.fg(Color::Green)),
-                Span::styled(")\n", s),
+                Span::styled(")", s),
             ])]
         );
         assert_eq!(
@@ -788,7 +861,7 @@ mod tests {
                 Span::styled(replacement, s.fg(Color::Green)),
                 Span::styled("::�new(", s),
                 Span::styled(replacement, s.fg(Color::Green)),
-                Span::styled(")\n", s),
+                Span::styled(")", s),
             ])]
         );
         assert_eq!(
@@ -830,7 +903,7 @@ mod tests {
                 Span::styled("Item", s.fg(Color::Black).bg(Color::Yellow)),
                 Span::styled("::�new(", s.fg(Color::Yellow)),
                 Span::styled("rg_msg", s.bg(Color::Red).fg(Color::Black)),
-                Span::styled(")\n", s.fg(Color::Yellow)),
+                Span::styled(")", s.fg(Color::Yellow)),
             ])]
         );
         assert_eq!(
@@ -880,7 +953,7 @@ mod tests {
                 Spans::from(vec![
                     Span::styled("199:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
-                    Span::styled(")\n", s),
+                    Span::styled(")", s),
                 ])
             ]
         );
@@ -910,7 +983,7 @@ mod tests {
                     Span::styled("333", s.bg(Color::Red).fg(Color::Black)),
                     Span::styled(" bar ", s),
                     Span::styled("4444", s.bg(Color::Red).fg(Color::Black)),
-                    Span::styled("\n", s),
+                    Span::styled("", s),
                 ])
             ]
         );
@@ -959,7 +1032,7 @@ mod tests {
                 Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
-                    Span::styled("\n", s),
+                    Span::styled("", s),
                 ])
             ]
         );
@@ -998,9 +1071,138 @@ mod tests {
                 Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
-                    Span::styled("\n", s),
+                    Span::styled("", s),
                 ])
             ]
         );
+    }
+
+    #[test]
+    fn to_span_lines_line_wrapping() {
+        let s = Style::default();
+        let mut app_list_state = new_app_list_state();
+        app_list_state.set_selected_item(0);
+        app_list_state.set_selected_submatch(0);
+        let app_ui_state = AppUiState::SelectMatches;
+        let ctx = new_ui_item_ctx(None, &app_list_state, &app_ui_state);
+
+        assert_eq!(
+            new_item(RG_JSON_MATCH_LINE_WRAP).to_span_lines(&ctx),
+            vec![
+                Spans::from(vec![
+                    Span::styled("3:", s.fg(Color::Yellow)),
+                    Span::styled("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678", s.fg(Color::Yellow)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("9*123456789(123456789_", s.fg(Color::Yellow)),
+                    Span::styled("one_hundred", s.fg(Color::Black).bg(Color::Yellow)),
+                    Span::styled("_characters_wowzers", s.fg(Color::Yellow)),
+                ])
+            ]
+        );
+        assert_eq!(
+            new_item(RG_JSON_CONTEXT_LINE_WRAP).to_span_lines(&ctx),
+            vec![
+                Spans::from(vec![
+                    Span::styled("4:", s.fg(Color::Yellow)),
+                    Span::styled("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678", s.fg(Color::Yellow)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("9*123456789(123456789_a_context_line", s.fg(Color::Yellow)),
+                ])
+            ]
+        );
+    }
+
+    #[test]
+    fn to_span_lines_line_wrapping_input_replacement() {
+        let s = Style::default();
+        let replacement = "foobar";
+        let mut app_list_state = new_app_list_state();
+        app_list_state.set_selected_item(0);
+        app_list_state.set_selected_submatch(0);
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        assert_eq!(
+            new_item(RG_JSON_MATCH_LINE_WRAP).to_span_lines(&ctx),
+            vec![
+                Spans::from(vec![
+                    Span::styled("3:", s.fg(Color::DarkGray)),
+                    Span::styled("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678", s),
+                ]),
+                Spans::from(vec![
+                    Span::styled("9*123456789(123456789_", s),
+                    Span::styled("one_hundred", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled(replacement, s.fg(Color::Green)),
+                    Span::styled("_characters_wowzers", s),
+                ])
+            ]
+        );
+        assert_eq!(
+            new_item(RG_JSON_CONTEXT_LINE_WRAP).to_span_lines(&ctx),
+            vec![
+                Spans::from(vec![
+                    Span::styled("4:", s),
+                    Span::styled("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678", s),
+                ]),
+                Spans::from(vec![
+                    Span::styled("9*123456789(123456789_a_context_line", s),
+                ])
+            ]
+        );
+    }
+
+    #[test]
+    fn to_span_lines_line_wrapping_confirm_replacement() {
+        let s = Style::default();
+        let replacement = "foobar";
+        let mut app_list_state = new_app_list_state();
+        app_list_state.set_selected_item(0);
+        app_list_state.set_selected_submatch(0);
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement));
+        let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        assert_eq!(
+            new_item(RG_JSON_MATCH_LINE_WRAP).to_span_lines(&ctx),
+            vec![
+                Spans::from(vec![
+                    Span::styled("3:", s.fg(Color::DarkGray)),
+                    Span::styled("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678", s),
+                ]),
+                Spans::from(vec![
+                    Span::styled("9*123456789(123456789_", s),
+                    Span::styled(replacement, s.fg(Color::Green)),
+                    Span::styled("_characters_wowzers", s),
+                ])
+            ]
+        );
+        assert_eq!(
+            new_item(RG_JSON_CONTEXT_LINE_WRAP).to_span_lines(&ctx),
+            vec![
+                Spans::from(vec![
+                    Span::styled("4:", s),
+                    Span::styled("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678", s),
+                ]),
+                Spans::from(vec![
+                    Span::styled("9*123456789(123456789_a_context_line", s),
+                ])
+            ]
+        );
+    }
+
+    #[test]
+    fn line_count() {
+        let list_width = 80_u16;
+        assert_eq!(new_item(RG_JSON_BEGIN).line_count(list_width), 1);
+        assert_eq!(new_item(RG_JSON_MATCH).line_count(list_width), 1);
+        assert_eq!(new_item(RG_JSON_MATCH_LINE_WRAP).line_count(list_width), 2);
+        assert_eq!(
+            new_item(RG_JSON_CONTEXT_LINE_WRAP).line_count(list_width),
+            2
+        );
+        assert_eq!(new_item(RG_JSON_CONTEXT).line_count(list_width), 1);
+        assert_eq!(new_item(RG_JSON_END).line_count(list_width), 1);
+        assert_eq!(new_item(RG_JSON_SUMMARY).line_count(list_width), 0);
     }
 }

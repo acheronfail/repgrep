@@ -21,18 +21,24 @@ impl App {
                     | AppUiState::ConfirmReplacement(_) => match key.code {
                         // Page movements
                         KeyCode::Char('b') => {
-                            self.move_pos(Movement::Backward(self.list_height(term_size)));
+                            self.move_pos(
+                                Movement::Backward(self.main_view_list_rect(term_size).height),
+                                term_size,
+                            );
                             true
                         }
                         KeyCode::Char('f') => {
-                            self.move_pos(Movement::Forward(self.list_height(term_size)));
+                            self.move_pos(
+                                Movement::Forward(self.main_view_list_rect(term_size).height),
+                                term_size,
+                            );
                             true
                         }
 
                         // Toggle whitespace style
                         KeyCode::Char('v') => {
                             self.printable_style = self.printable_style.cycle();
-                            self.update_indicator();
+                            self.update_indicator(term_size);
                             true
                         }
                         _ => false,
@@ -68,25 +74,27 @@ impl App {
                 AppUiState::SelectMatches => {
                     let shift = key.modifiers.contains(KeyModifiers::SHIFT);
                     match key.code {
-                        KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
-                            self.move_pos(if shift {
+                        KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => self.move_pos(
+                            if shift {
                                 Movement::PrevFile
                             } else {
                                 Movement::PrevLine
-                            })
-                        }
-                        KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
-                            self.move_pos(if shift {
+                            },
+                            term_size,
+                        ),
+                        KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => self.move_pos(
+                            if shift {
                                 Movement::NextFile
                             } else {
                                 Movement::NextLine
-                            })
-                        }
+                            },
+                            term_size,
+                        ),
                         KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
-                            self.move_pos(Movement::Prev)
+                            self.move_pos(Movement::Prev, term_size)
                         }
                         KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
-                            self.move_pos(Movement::Next)
+                            self.move_pos(Movement::Next, term_size)
                         }
                         KeyCode::Char(' ') => self.toggle_item(false),
                         KeyCode::Char('s') | KeyCode::Char('S') => self.toggle_item(true),
@@ -220,7 +228,7 @@ impl App {
 
     /// Update the UI's indicator position to point to the start of the selected item, and in the case of
     /// a match which spans multiple lines and has multiple submatches, the start of the selected submatch.
-    fn update_indicator(&mut self) {
+    fn update_indicator(&mut self, term_size: Rect) {
         let item_idx = self.list_state.selected_item();
         let match_idx = self.list_state.selected_submatch();
 
@@ -229,9 +237,11 @@ impl App {
             // match the item index
             PrintableStyle::Common(true) | PrintableStyle::Verbose(true) => item_idx,
             _ => {
+                let main_view_list_rect = self.main_view_list_rect(term_size);
+
                 let mut indicator_idx = 0;
                 for item in &self.list[0..item_idx] {
-                    indicator_idx += item.line_count();
+                    indicator_idx += item.line_count(main_view_list_rect.width);
                 }
 
                 if match_idx > 0 {
@@ -246,12 +256,12 @@ impl App {
         self.list_state.set_indicator(indicator_idx);
     }
 
-    pub(crate) fn move_pos(&mut self, movement: Movement) {
+    pub(crate) fn move_pos(&mut self, movement: Movement, term_size: Rect) {
         if !self.move_horizonally(&movement) {
             self.move_vertically(&movement);
         }
 
-        self.update_indicator();
+        self.update_indicator(term_size);
     }
 
     pub(crate) fn toggle_item(&mut self, all_sub_items: bool) {
@@ -301,6 +311,7 @@ impl App {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use tui::layout::Rect;
 
     use crate::model::Movement;
     use crate::rg::de::test_utilities::*;
@@ -348,8 +359,9 @@ mod tests {
         App::new("TESTS".to_string(), messages_multiple_files)
     }
 
-    // Valid positions for the app returned by `new_app_multiple_files`.
     type PosTriple = (usize, usize, usize);
+
+    // Valid positions for the app returned by `new_app_multiple_files`.
     const POS_1_BEGIN: PosTriple = (0, 0, 0);
     const POS_1_MATCH_0_0: PosTriple = (1, 0, 1);
     const POS_1_MATCH_0_1: PosTriple = (1, 1, 1);
@@ -367,6 +379,23 @@ mod tests {
     const POS_4_MATCH_MULTILINE_0_0: PosTriple = (16, 0, 18);
     const POS_4_MATCH_MULTILINE_0_1: PosTriple = (16, 1, 20);
     const POS_4_END: PosTriple = (17, 0, 21);
+
+    fn new_app_line_wrapping() -> App {
+        let messages = vec![
+            RgMessage::from_str(RG_JSON_BEGIN),
+            RgMessage::from_str(RG_JSON_CONTEXT_LINE_WRAP),
+            RgMessage::from_str(RG_JSON_MATCH_LINE_WRAP),
+            RgMessage::from_str(RG_JSON_END),
+            RgMessage::from_str(RG_JSON_SUMMARY),
+        ];
+
+        App::new("TESTS".to_string(), messages)
+    }
+
+    // Valid positions for the app returned by `new_app_line_wrapping`.
+    const POS_WRAP_BEGIN: PosTriple = (0, 0, 0);
+    const POS_WRAP_MATCH: PosTriple = (2, 0, 3);
+    const POS_WRAP_END: PosTriple = (3, 0, 5);
 
     #[test]
     fn it_toggles_item_all_sub_items() {
@@ -464,9 +493,21 @@ mod tests {
 
     macro_rules! move_and_assert_list_state {
         ($app:expr, $movement:expr, $triple:expr) => {
-            $app.move_pos($movement);
+            $app.move_pos($movement, Rect::new(0, 0, 80, 24));
             assert_list_state!($app, $triple);
         };
+    }
+
+    #[test]
+    fn movement_line_wrapping() {
+        let mut app = new_app_line_wrapping();
+        assert_list_state!(app, POS_WRAP_BEGIN);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_END);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_END);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_BEGIN);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_BEGIN);
     }
 
     #[test]

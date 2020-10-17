@@ -1,3 +1,5 @@
+use tui::layout::Rect;
+
 use crate::model::PrintableStyle;
 use crate::ui::app::{AppListState, AppUiState};
 
@@ -11,4 +13,6 @@ pub struct UiItemContext<'a> {
     pub app_ui_state: &'a AppUiState,
     /// The `PrintableStyle` with which the UI should be built.
     pub printable_style: PrintableStyle,
+    /// The `Rect` that the items will be rendered into.
+    pub rect: Rect,
 }

@@ -212,12 +212,25 @@ impl App {
         }
     }
 
+    fn list_indicator(&self) -> String {
+        if self.ui_state.is_replacing() {
+            " ".repeat(LIST_HIGHLIGHT_SYMBOL.len())
+        } else {
+            String::from(LIST_HIGHLIGHT_SYMBOL)
+        }
+    }
+
+    fn list_indicator_width(&self) -> u16 {
+        Span::from(self.list_indicator().as_str()).width() as u16
+    }
+
     fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
         let ctx = &UiItemContext {
             replacement_text: self.get_replacement_text(),
             printable_style: self.printable_style,
             app_list_state: &self.list_state,
             app_ui_state: &self.ui_state,
+            rect: self.main_view_list_rect(f.size()),
         };
 
         let match_items = self
@@ -231,24 +244,30 @@ impl App {
             })
             .collect::<Vec<ListItem>>();
 
-        let highlight_symbol = if self.ui_state.is_replacing() {
-            " ".repeat(LIST_HIGHLIGHT_SYMBOL.len())
-        } else {
-            String::from(LIST_HIGHLIGHT_SYMBOL)
-        };
-
         // TODO: highlight the bg of whole line (not just the text on it), currently not possible
         // See: https://github.com/fdehau/tui-rs/issues/239#issuecomment-657070300
+        let indicator_symbol = self.list_indicator();
         let match_list = List::new(match_items)
             .block(Block::default())
             .style(Style::default().fg(Color::White))
-            .highlight_symbol(&highlight_symbol);
+            .highlight_symbol(&indicator_symbol);
 
         f.render_stateful_widget(match_list, r, &mut self.list_state.indicator_mut());
     }
 
-    pub(crate) fn list_height(&self, term_size: Rect) -> u16 {
-        let (root_split, _) = self.get_layouts(term_size);
-        root_split[0].height
+    pub(crate) fn main_view_list_rect(&self, term_size: Rect) -> Rect {
+        let Rect {
+            x,
+            y,
+            width,
+            height,
+        } = self.get_layouts(term_size).0[0];
+        let indicator_width = self.list_indicator_width();
+        Rect::new(
+            x + indicator_width,
+            y,
+            width.saturating_sub(indicator_width),
+            height,
+        )
     }
 }

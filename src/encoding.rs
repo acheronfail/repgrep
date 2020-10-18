@@ -33,7 +33,9 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
             }
         })
         // if all else fails, assume ASCII
-        .unwrap_or_else(|| encoding::all::ASCII);
+        .unwrap_or_else(|| {
+            encoding::all::UTF_8
+        });
 
     (bom, encoder)
 }

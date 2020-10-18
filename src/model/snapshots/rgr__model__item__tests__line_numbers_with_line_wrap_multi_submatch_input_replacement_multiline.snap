@@ -1,0 +1,429 @@
+---
+source: src/model/item.rs
+expression: new_item(RG_JSON_MATCH_LINE_WRAP_MULTI).to_span_lines(&ctx)
+---
+[
+    Spans(
+        [
+            Span {
+                content: "1:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "foo foo foo foo foo ",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "bar",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zip",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+    Spans(
+        [
+            Span {
+                content: "+:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zap",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: " foo foo foo foo foo ",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "bar",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zip",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+    Spans(
+        [
+            Span {
+                content: "+:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zap",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: " foo foo foo foo foo ",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "bar",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zip",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+    Spans(
+        [
+            Span {
+                content: "+:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zap",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: " foo foo foo foo foo ",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "bar",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zip",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+    Spans(
+        [
+            Span {
+                content: "+:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zap",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: " foo foo foo foo foo ",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "bar",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zip",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+    Spans(
+        [
+            Span {
+                content: "+:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zap",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: " foo foo foo foo foo ",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "bar",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zip",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+    Spans(
+        [
+            Span {
+                content: "+:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zap",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: " foo foo foo foo foo ",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "bar",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zip",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+    Spans(
+        [
+            Span {
+                content: "+:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "zap",
+                style: Style {
+                    fg: Some(
+                        Green,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+]

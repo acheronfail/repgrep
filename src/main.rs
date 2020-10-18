@@ -6,21 +6,58 @@ mod rg;
 mod ui;
 mod util;
 
+use std::env;
 use std::process;
 
+use anyhow::Result;
+use clap::crate_name;
+use flexi_logger::{opt_format, Logger};
 use rg::exec::run_ripgrep;
 use ui::tui::Tui;
 
+fn init_logging() -> Result<::std::path::PathBuf> {
+    let log_dir = env::temp_dir().join(format!(".{}", crate_name!()));
+    Logger::with_env()
+        .log_to_file()
+        .directory(&log_dir)
+        .format(opt_format)
+        .start()?;
+
+    log::trace!("--- LOGGER INITIALISED ---");
+
+    Ok(log_dir)
+}
+
 fn main() {
-    let args = match cli::parse_arguments() {
-        Ok(args) => args,
+    let log_dir = match init_logging() {
+        Ok(dir) => dir,
         Err(e) => {
-            cli::print_help();
-            eprintln!("\nFailed to parse arguments, error: {}", e);
+            eprintln!("Failed to initialise logger: {}", e);
             process::exit(1);
         }
     };
 
+    macro_rules! exit_with_error {
+        ($( $eprintln_arg:expr ),*) => {
+            log::error!($( $eprintln_arg ),*);
+            eprintln!($( $eprintln_arg ),*);
+            eprintln!("Logs available at: {}", log_dir.display());
+            process::exit(1);
+        };
+    };
+
+    let args = match cli::parse_arguments() {
+        Ok(args) => args,
+        Err(e) => {
+            cli::print_help();
+            exit_with_error!("\nFailed to parse arguments, error: {}", e);
+        }
+    };
+
+    log::debug!(
+        "User args for rg: {:?}",
+        args.rg_args().into_iter().collect::<Vec<_>>()
+    );
     match run_ripgrep(args.rg_args()) {
         Ok(rg_results) => {
             let rg_cmdline: String = args
@@ -33,6 +70,7 @@ fn main() {
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {
+                log::warn!("Failed to restore terminal state: {}", err);
                 eprintln!(
                     "Failed to restore terminal state, consider running the `reset` command. Error: {}",
                     err
@@ -50,21 +88,18 @@ fn main() {
                     match replace::perform_replacements(replacement_criteria) {
                         Ok(_) => {}
                         Err(err) => {
-                            eprintln!("An error occurred during replacement: {}", err);
-                            process::exit(1);
+                            exit_with_error!("An error occurred during replacement: {}", err);
                         }
                     }
                 }
                 Ok(None) => eprintln!("Cancelled"),
                 Err(err) => {
-                    eprintln!("An app error occurred: {}", err);
-                    process::exit(1);
+                    exit_with_error!("An app error occurred: {}", err);
                 }
             }
         }
         Err(e) => {
-            eprintln!("{}", e);
-            process::exit(1);
+            exit_with_error!("{}", e);
         }
     }
 }

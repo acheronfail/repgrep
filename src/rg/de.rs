@@ -2,6 +2,7 @@
 // See: https://github.com/Avi-D-coder/grep_json_deserialize/blob/master/src/lib.rs
 
 use std::ffi::OsString;
+use std::fmt::{self, Display};
 use std::ops::Range;
 use std::path::PathBuf;
 
@@ -113,6 +114,12 @@ impl ArbitraryData {
                 String::from_utf8_lossy(base64::decode(bytes).unwrap().as_slice()).to_string()
             }
         }
+    }
+}
+
+impl Display for ArbitraryData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.lossy_utf8())
     }
 }
 

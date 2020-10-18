@@ -162,14 +162,6 @@ impl Item {
         self.path().and_then(|data| data.to_path_buf().ok())
     }
 
-    fn line_number_to_span<'a>(mut style: Style, is_selected: bool, n: usize) -> Span<'a> {
-        if !is_selected {
-            style = style.fg(Color::DarkGray);
-        }
-
-        Span::styled(format!("{}:", n), style)
-    }
-
     pub fn line_count(&self, list_width: u16) -> usize {
         #[cfg(not(release))]
         assert!(list_width != 0);
@@ -209,6 +201,18 @@ impl Item {
             base_style = base_style.fg(Color::Yellow);
         }
 
+        // pushes a span to `spans` which contains the given line number content
+        macro_rules! push_line_number_span {
+            ($spans:expr, $content:expr) => {{
+                let mut line_number_style = base_style;
+                if !is_selected || is_replacing {
+                    line_number_style = line_number_style.fg(Color::DarkGray);
+                }
+
+                $spans.push(Span::styled(format!("{}:", $content), line_number_style));
+            }};
+        };
+
         let span_lines = match &self.rg_message {
             RgMessage::Begin { .. } => vec![vec![Span::styled(
                 format!("{}", self.path_buf().unwrap().display()).to_printable(ctx.printable_style),
@@ -227,7 +231,7 @@ impl Item {
                     let mut spans = vec![];
                     if i == 0 {
                         if let Some(n) = line_number {
-                            spans.push(Item::line_number_to_span(base_style, is_selected, *n));
+                            push_line_number_span!(spans, n);
                         }
                     }
 
@@ -265,24 +269,6 @@ impl Item {
                 let mut span_lines = vec![];
                 let mut spans = vec![]; // filled and emptied for each line
 
-                macro_rules! push_line_number_span {
-                    // pushes a span to `spans` which contains the line number
-                    () => {
-                        if let Some(n) = line_number {
-                            spans.push(Item::line_number_to_span(
-                                base_style,
-                                is_selected && !is_replacing,
-                                n,
-                            ));
-                        }
-                    };
-                    // increments the current line number first, then does the above
-                    (++) => {
-                        line_number.as_mut().map(|n| *n += 1);
-                        push_line_number_span!();
-                    };
-                };
-
                 macro_rules! push_utf8_slice {
                     ($range:ident) => {
                         {
@@ -314,7 +300,9 @@ impl Item {
                     let Range { start, end } = sub_item.sub_match.range;
 
                     if idx == 0 {
-                        push_line_number_span!();
+                        if let Some(n) = line_number {
+                            push_line_number_span!(spans, n);
+                        }
                     }
 
                     // Text in between start (or last SubMatch) and this SubMatch.
@@ -330,7 +318,12 @@ impl Item {
                         let sub_span_lines_len = sub_span_lines.len();
                         for (i, span) in sub_span_lines.into_iter().enumerate() {
                             if i > 0 {
-                                push_line_number_span!(++);
+                                if is_replacing {
+                                    push_line_number_span!(spans, "-");
+                                } else if let Some(n) = line_number.as_mut() {
+                                    *n += 1;
+                                    push_line_number_span!(spans, n);
+                                }
                             }
 
                             spans.push(span);
@@ -346,7 +339,7 @@ impl Item {
                                     // reset the line number
                                     line_number = self.line_number().cloned();
                                 } else {
-                                    push_line_number_span!(++);
+                                    push_line_number_span!(spans, "+");
                                 }
 
                                 spans.push(span.clone());
@@ -933,11 +926,11 @@ mod tests {
                     Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("198:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("199:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
                     Span::styled("::new(", s),
                     Span::styled(
@@ -947,11 +940,11 @@ mod tests {
                     Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("198:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("199:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
                     Span::styled(")", s),
                 ])
@@ -1006,31 +999,31 @@ mod tests {
                     Span::styled("1", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("4:", s.fg(Color::DarkGray)),
+                    Span::styled("-:", s.fg(Color::DarkGray)),
                     Span::styled("22", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("5:", s.fg(Color::DarkGray)),
+                    Span::styled("-:", s.fg(Color::DarkGray)),
                     Span::styled("333", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                     Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("4:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("5:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
                     Span::styled(" bar ", s),
                     Span::styled("4444", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                     Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("4:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("5:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
                     Span::styled("", s),
                 ])
@@ -1055,21 +1048,21 @@ mod tests {
                     Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("4:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("5:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
                     Span::styled(" bar ", s),
                     Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("4:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
-                    Span::styled("5:", s.fg(Color::DarkGray)),
+                    Span::styled("+:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
                     Span::styled("", s),
                 ])
@@ -1143,7 +1136,7 @@ mod tests {
             new_item(RG_JSON_CONTEXT_LINE_WRAP).to_span_lines(&ctx),
             vec![
                 Spans::from(vec![
-                    Span::styled("4:", s),
+                    Span::styled("4:", s.fg(Color::DarkGray)),
                     Span::styled("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678", s),
                 ]),
                 Spans::from(vec![
@@ -1181,7 +1174,7 @@ mod tests {
             new_item(RG_JSON_CONTEXT_LINE_WRAP).to_span_lines(&ctx),
             vec![
                 Spans::from(vec![
-                    Span::styled("4:", s),
+                    Span::styled("4:", s.fg(Color::DarkGray)),
                     Span::styled("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678", s),
                 ]),
                 Spans::from(vec![
@@ -1198,11 +1191,85 @@ mod tests {
         assert_eq!(new_item(RG_JSON_MATCH).line_count(list_width), 1);
         assert_eq!(new_item(RG_JSON_MATCH_LINE_WRAP).line_count(list_width), 2);
         assert_eq!(
+            new_item(RG_JSON_MATCH_LINE_WRAP_MULTI).line_count(list_width),
+            3
+        );
+        assert_eq!(
             new_item(RG_JSON_CONTEXT_LINE_WRAP).line_count(list_width),
             2
         );
         assert_eq!(new_item(RG_JSON_CONTEXT).line_count(list_width), 1);
         assert_eq!(new_item(RG_JSON_END).line_count(list_width), 1);
         assert_eq!(new_item(RG_JSON_SUMMARY).line_count(list_width), 0);
+    }
+
+    #[test]
+    fn line_numbers_with_line_wrap_multi_submatch_input_replacement_multiline() {
+        let s = Style::default();
+        let replacement = "zip\nzap";
+        let mut app_list_state = new_app_list_state();
+        app_list_state.set_selected_item(0);
+        app_list_state.set_selected_submatch(0);
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        assert_eq!(
+            new_item(RG_JSON_MATCH_LINE_WRAP_MULTI).to_span_lines(&ctx),
+            vec![
+                Spans::from(vec![
+                    Span::styled("1:", s.fg(Color::DarkGray)),
+                    Span::styled("foo foo foo foo foo ", s),
+                    Span::styled("bar", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("zip", s.fg(Color::Green)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("+:", s.fg(Color::DarkGray)),
+                    Span::styled("zap", s.fg(Color::Green)),
+                    Span::styled(" foo foo foo foo foo ", s),
+                    Span::styled("bar", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("zip", s.fg(Color::Green)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("+:", s.fg(Color::DarkGray)),
+                    Span::styled("zap", s.fg(Color::Green)),
+                    Span::styled(" foo foo foo foo foo ", s),
+                    Span::styled("bar", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("zip", s.fg(Color::Green)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("+:", s.fg(Color::DarkGray)),
+                    Span::styled("zap", s.fg(Color::Green)),
+                    Span::styled(" foo foo foo foo foo ", s),
+                    Span::styled("bar", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("zip", s.fg(Color::Green)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("+:", s.fg(Color::DarkGray)),
+                    Span::styled("zap", s.fg(Color::Green)),
+                    Span::styled(" foo foo foo foo foo ", s),
+                    Span::styled("bar", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("zip", s.fg(Color::Green)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("+:", s.fg(Color::DarkGray)),
+                    Span::styled("zap", s.fg(Color::Green)),
+                    Span::styled(" foo foo foo foo foo ", s),
+                    Span::styled("bar", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("zip", s.fg(Color::Green)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("+:", s.fg(Color::DarkGray)),
+                    Span::styled("zap", s.fg(Color::Green)),
+                    Span::styled(" foo foo foo foo foo ", s),
+                    Span::styled("bar", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("zip", s.fg(Color::Green)),
+                ]),
+                Spans::from(vec![
+                    Span::styled("+:", s.fg(Color::DarkGray)),
+                    Span::styled("zap", s.fg(Color::Green)),
+                    Span::styled("", s),
+                ])
+            ]
+        );
     }
 }

@@ -235,7 +235,7 @@ impl App {
         let indicator_idx = match self.printable_style {
             // if we're displaying multiline matches on a single line, then the indicator index will always
             // match the item index
-            PrintableStyle::Common(true) | PrintableStyle::Verbose(true) => item_idx,
+            PrintableStyle::Common(true) | PrintableStyle::All(true) => item_idx,
             _ => {
                 let main_view_list_rect = self.main_view_list_rect(term_size);
 

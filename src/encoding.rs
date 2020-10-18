@@ -12,12 +12,33 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
     // Try to detect the encoding of the file.
     let encoder = bom
         // if we found a BOM then use that encoding
-        .map(|b| b.encoder())
+        .map(|b| {
+            let encoder = b.encoder();
+            log::debug!("Found BOM: {:?}, using encoder: {}", b, encoder.name());
+            encoder
+        })
         // otherwise if the user passed an encoding use that
-        .or_else(|| rg_encoding.encoder())
+        .or_else(|| {
+            let encoder = rg_encoding.encoder();
+            if encoder.is_some() {
+                log::debug!(
+                    "Found user encoding: {:?}, using encoder: {}",
+                    rg_encoding,
+                    encoder.unwrap().name()
+                );
+            }
+
+            encoder
+        })
         // nothing so far, try detecting the encoding
         .or_else(|| {
             let (encoding, confidence, _) = chardet::detect(&bytes);
+            log::debug!(
+                "Attempting to detect encoding - cncoding: {}, Confidence: {}",
+                encoding,
+                confidence
+            );
+
             // TODO: be able to adjust chardet confidence here
             if confidence > 0.80 {
                 // If we pass "ascii" to `encoding_from_whatwg_label` then it will default to using the "windows-1252"
@@ -34,6 +55,9 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
         })
         // if all else fails, assume ASCII
         .unwrap_or_else(|| {
+            log::debug!(
+                "Failed to detect encoding or confidence was too low, falling back to UTF-8"
+            );
             encoding::all::UTF_8
         });
 
@@ -97,22 +121,22 @@ impl Bom {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::encoding::Bom;
+    use crate::encoding::{get_encoder, Bom, RgEncoding};
 
     #[test]
-    fn it_handles_empty_slices() {
+    fn test_bom_handles_empty_slices() {
         assert_eq!(Bom::from_slice(&[]), None);
     }
 
     #[test]
-    fn it_handles_small_slices() {
+    fn test_bom_handles_small_slices() {
         assert_eq!(Bom::from_slice(&[0x1]), None);
         assert_eq!(Bom::from_slice(&[0x1, 0x2]), None);
         assert_eq!(Bom::from_slice(&[0x1, 0x2, 0x3]), None);
     }
 
     #[test]
-    fn it_detects_utf8_bom() {
+    fn test_bom_detects_utf8_bom() {
         assert_eq!(Bom::from_slice(&[0x01, 0xEF, 0xBB, 0xBF]), None);
         assert_eq!(Bom::from_slice(&[0xEF, 0xBB, 0xBF]), Some(Bom::Utf8));
         assert_eq!(
@@ -122,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn it_detects_utf16be_bom() {
+    fn test_bom_detects_utf16be_bom() {
         assert_eq!(Bom::from_slice(&[0x01, 0xFE, 0xFF]), None);
         assert_eq!(Bom::from_slice(&[0xFE, 0xFF]), Some(Bom::Utf16be));
         assert_eq!(
@@ -132,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn it_detects_utf16le_bom() {
+    fn test_bom_detects_utf16le_bom() {
         assert_eq!(Bom::from_slice(&[0x01, 0xFF, 0xFE]), None);
         assert_eq!(Bom::from_slice(&[0xFF, 0xFE]), Some(Bom::Utf16le));
         assert_eq!(
@@ -142,16 +166,77 @@ mod tests {
     }
 
     #[test]
-    fn it_returns_bom_len() {
+    fn test_bom_returns_bom_len() {
         assert_eq!(Bom::Utf8.len(), 3);
         assert_eq!(Bom::Utf16be.len(), 2);
         assert_eq!(Bom::Utf16le.len(), 2);
     }
 
     #[test]
-    fn it_returns_encoder() {
+    fn test_bom_returns_encoder() {
         assert_eq!(Bom::Utf8.encoder().name(), "utf-8");
         assert_eq!(Bom::Utf16be.encoder().name(), "utf-16be");
         assert_eq!(Bom::Utf16le.encoder().name(), "utf-16le");
+    }
+
+    //
+    // get_encoder
+    //
+
+    macro_rules! assert_encoder {
+        ($bytes:expr, $rg_enc:expr, $expected:expr) => {
+            let (bom, enc) = get_encoder($bytes, $rg_enc);
+            assert_eq!((bom, enc.name()), $expected);
+        };
+    }
+
+    #[test]
+    fn test_get_encoder() {
+        // falls back on empty
+        assert_encoder!(&[], &RgEncoding::None, (None, "utf-8"));
+
+        // BOMs (always takes preference, even if RgEncoding is passed)
+        assert_encoder!(
+            &Bom::BOM_UTF8,
+            &RgEncoding::None,
+            (Some(Bom::Utf8), "utf-8")
+        );
+        assert_encoder!(
+            &Bom::BOM_UTF16BE,
+            &RgEncoding::None,
+            (Some(Bom::Utf16be), "utf-16be")
+        );
+        assert_encoder!(
+            &Bom::BOM_UTF16LE,
+            &RgEncoding::None,
+            (Some(Bom::Utf16le), "utf-16le")
+        );
+        assert_encoder!(
+            &Bom::BOM_UTF8,
+            &RgEncoding::Some(encoding::all::ASCII),
+            (Some(Bom::Utf8), "utf-8")
+        );
+        assert_encoder!(
+            &Bom::BOM_UTF16BE,
+            &RgEncoding::Some(encoding::all::ASCII),
+            (Some(Bom::Utf16be), "utf-16be")
+        );
+        assert_encoder!(
+            &Bom::BOM_UTF16LE,
+            &RgEncoding::Some(encoding::all::ASCII),
+            (Some(Bom::Utf16le), "utf-16le")
+        );
+
+        // RgEncoding (should default to this)
+        assert_encoder!(
+            &[0x1, 0x2, 0x3, 0x4],
+            &RgEncoding::Some(encoding::all::EUC_JP),
+            (None, "euc-jp")
+        );
+        assert_encoder!(
+            &[0x1, 0x2, 0x3, 0x4],
+            &RgEncoding::Some(encoding::all::ASCII),
+            (None, "ascii")
+        );
     }
 }

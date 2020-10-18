@@ -23,6 +23,8 @@ clap = "3.0.0-beta.2"
 crossterm = "0.18.0"
 either = "1.6.1"
 encoding = "0.2.33"
+flexi_logger = "0.16.1"
+log = "0.4.11"
 safe-transmute = "0.11.0"
 serde = { version = "1.0.117", features = ["derive"] }
 serde_derive = "1.0.117"

@@ -1,0 +1,21 @@
+---
+source: src/model/item.rs
+expression: new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx)
+---
+[
+    Spans(
+        [
+            Span {
+                content: "./a/fo�o",
+                style: Style {
+                    fg: Some(
+                        Magenta,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+]

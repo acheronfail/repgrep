@@ -325,7 +325,9 @@ impl Item {
                     }
 
                     // Match text, also may contain any leading line numbers and text from before.
-                    if !matches!(ctx.app_ui_state, AppUiState::ConfirmReplacement(_)) {
+                    let confirm_replacement =
+                        matches!(ctx.app_ui_state, AppUiState::ConfirmReplacement(_));
+                    if !confirm_replacement || !sub_item.should_replace {
                         let sub_span_lines = sub_item.to_span_lines(ctx, is_selected);
                         let sub_span_lines_len = sub_span_lines.len();
                         for (i, span) in sub_span_lines.into_iter().enumerate() {
@@ -754,6 +756,87 @@ mod tests {
         assert_eq!(
             new_item(RG_JSON_END).to_span_lines(&ctx),
             vec![Spans::from("")]
+        );
+    }
+
+    #[test]
+    fn to_span_lines_with_deselected_submatch() {
+        let s = Style::default();
+        let mut app_list_state = new_app_list_state();
+        app_list_state.set_selected_item(0);
+        app_list_state.set_selected_submatch(0);
+        let app_ui_state = AppUiState::SelectMatches;
+        let ctx = new_ui_item_ctx(None, &app_list_state, &app_ui_state);
+
+        let mut item = new_item(RG_JSON_MATCH);
+        item.set_should_replace(0, false);
+
+        assert_eq!(
+            item.to_span_lines(&ctx),
+            vec![Spans::from(vec![
+                Span::styled("197:", s.fg(Color::Yellow)),
+                Span::styled("    ", s.fg(Color::Yellow)),
+                Span::styled("Item", s.fg(Color::Yellow).bg(Color::DarkGray)),
+                Span::styled("::new(", s.fg(Color::Yellow)),
+                Span::styled("rg_msg", s.fg(Color::Black).bg(Color::Red)),
+                Span::styled(")", s.fg(Color::Yellow)),
+            ])]
+        );
+    }
+
+    #[test]
+    fn to_span_lines_with_deselected_submatch_input_replacement() {
+        let s = Style::default();
+        let mut app_list_state = new_app_list_state();
+        app_list_state.set_selected_item(0);
+        app_list_state.set_selected_submatch(0);
+        let replacement = "foobar";
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        let mut item = new_item(RG_JSON_MATCH);
+        item.set_should_replace(0, false);
+
+        assert_eq!(
+            item.to_span_lines(&ctx),
+            vec![Spans::from(vec![
+                Span::styled("197:", s.fg(Color::DarkGray)),
+                Span::styled("    ", s),
+                Span::styled("Item", s),
+                Span::styled("::new(", s),
+                Span::styled(
+                    "rg_msg",
+                    s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)
+                ),
+                Span::styled(replacement, s.fg(Color::Green)),
+                Span::styled(")", s),
+            ])]
+        );
+    }
+
+    #[test]
+    fn to_span_lines_with_deselected_submatch_confirm_replacement() {
+        let s = Style::default();
+        let mut app_list_state = new_app_list_state();
+        app_list_state.set_selected_item(0);
+        app_list_state.set_selected_submatch(0);
+        let replacement = "foobar";
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement));
+        let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        let mut item = new_item(RG_JSON_MATCH);
+        item.set_should_replace(0, false);
+
+        assert_eq!(
+            item.to_span_lines(&ctx),
+            vec![Spans::from(vec![
+                Span::styled("197:", s.fg(Color::DarkGray)),
+                Span::styled("    ", s),
+                Span::styled("Item", s),
+                Span::styled("::new(", s),
+                Span::styled(replacement, s.fg(Color::Green)),
+                Span::styled(")", s),
+            ])]
         );
     }
 

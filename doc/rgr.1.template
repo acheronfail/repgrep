@@ -45,6 +45,18 @@ There are a few different modes:
 
 * This mode provides information about *rgr* and its keybindings.
 
+CONTROL CHARACTERS
+------------------
+
+The user may change how control characters are rendered in the interface by pressing control+v.
+The different modes are:
+
+* C: show common control characters
+* c: show common control characters (one line)
+* A: show all control characters
+* a: show all control characters (one line)
+* H: show common control characters as spaces, and strip others (hidden)
+
 FILE ENCODING
 -------------
 

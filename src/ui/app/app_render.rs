@@ -50,7 +50,7 @@ impl App {
 
     fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
         let prefix = "Replacement: ";
-        let mut text_items = match &self.ui_state {
+        let mut spans = match &self.ui_state {
             AppUiState::Help => vec![Span::from("Viewing Help. Press <esc> or <q> to return...")],
             AppUiState::SelectMatches => vec![Span::from(
                 "Select (or deselect) Matches with <space> then press <Enter>. Press <?> for help.",
@@ -76,18 +76,18 @@ impl App {
             let x_pos = if input.is_empty() {
                 0
             } else {
-                text_items.last().map(|span| span.width()).unwrap() as u16
+                spans.last().map(|span| span.width()).unwrap() as u16
             };
 
-            text_items.push(Span::styled(
+            spans.push(Span::styled(
                 "    (press <control+s> to accept replacement)",
                 Style::default().fg(Color::DarkGray),
             ));
 
-            render_input(text_items);
+            render_input(spans);
             f.set_cursor(x_start + x_pos, r.y);
         } else {
-            render_input(text_items);
+            render_input(spans);
         }
     }
 
@@ -118,11 +118,11 @@ impl App {
                 Style::default().bg(Color::Blue).fg(Color::Black),
             ),
             Span::styled(
-                format!(" Matches: {} ", self.stats.matches),
+                format!(" CtrlChars: {} ", self.printable_style),
                 Style::default().bg(Color::Cyan).fg(Color::Black),
             ),
             Span::styled(
-                format!(" Replacements: {} ", replacement_count),
+                format!(" {}/{} ", replacement_count, self.stats.matches),
                 Style::default().bg(Color::Magenta).fg(Color::Black),
             ),
         ])];
@@ -155,7 +155,7 @@ impl App {
                 Row::StyledData(["MODE: ALL"].iter(), title_style),
                 Row::Data(["control + b", "move backward one page"].iter()),
                 Row::Data(["control + f", "move forward one page"].iter()),
-                Row::Data(["control + v", "toggle how matched whitespace is rendered"].iter()),
+                Row::Data(["control + v", "toggle how control characters are rendered"].iter()),
                 Row::Data([].iter()),
                 Row::StyledData(["MODE: SELECT"].iter(), title_style),
                 Row::Data(["k, up", "move to previous match"].iter()),

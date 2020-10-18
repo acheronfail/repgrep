@@ -211,7 +211,7 @@ impl Item {
 
         let span_lines = match &self.rg_message {
             RgMessage::Begin { .. } => vec![vec![Span::styled(
-                format!("{}", self.path_buf().unwrap().display()),
+                format!("{}", self.path_buf().unwrap().display()).to_printable(ctx.printable_style),
                 if !is_replacing && is_selected {
                     base_style.fg(Color::Black).bg(Color::Yellow)
                 } else {
@@ -223,7 +223,7 @@ impl Item {
                 lines, line_number, ..
             } => {
                 let mut span_lines = vec![];
-                for (i, line) in lines.lossy_utf8().lines().enumerate() {
+                for (i, line) in lines.to_printable(ctx.printable_style).lines().enumerate() {
                     let mut spans = vec![];
                     if i == 0 {
                         if let Some(n) = line_number {
@@ -286,7 +286,7 @@ impl Item {
                 macro_rules! push_utf8_slice {
                     ($range:ident) => {
                         {
-                            let mut content = String::from_utf8_lossy(&lines_bytes[$range]).to_string();
+                            let mut content = String::from_utf8_lossy(&lines_bytes[$range]).to_printable(ctx.printable_style);
                             // remove trailing new line if one exists since lines are already handled
                             if content.ends_with("\n") {
                                 content.pop();
@@ -580,7 +580,7 @@ mod tests {
         }
 
         UiItemContext {
-            printable_style: PrintableStyle::Common(false),
+            printable_style: PrintableStyle::Hidden,
             replacement_text,
             app_list_state,
             app_ui_state,
@@ -930,11 +930,11 @@ mod tests {
                     Span::styled("197:", s.fg(Color::DarkGray)),
                     Span::styled("    ", s),
                     Span::styled("Item", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
-                    Span::styled("foobar¬", s.fg(Color::Green)),
+                    Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("198:", s.fg(Color::DarkGray)),
-                    Span::styled("baz¬", s.fg(Color::Green)),
+                    Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("199:", s.fg(Color::DarkGray)),
@@ -944,11 +944,11 @@ mod tests {
                         "rg_msg",
                         s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)
                     ),
-                    Span::styled("foobar¬", s.fg(Color::Green)),
+                    Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("198:", s.fg(Color::DarkGray)),
-                    Span::styled("baz¬", s.fg(Color::Green)),
+                    Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("199:", s.fg(Color::DarkGray)),
@@ -972,11 +972,11 @@ mod tests {
                 Spans::from(vec![
                     Span::styled("3:", s.fg(Color::DarkGray)),
                     Span::styled("baz ", s),
-                    Span::styled("1¬", s.bg(Color::Red).fg(Color::Black)),
+                    Span::styled("1", s.bg(Color::Red).fg(Color::Black)),
                 ]),
                 Spans::from(vec![
                     Span::styled("4:", s.fg(Color::DarkGray)),
-                    Span::styled("22¬", s.bg(Color::Red).fg(Color::Black)),
+                    Span::styled("22", s.bg(Color::Red).fg(Color::Black)),
                 ]),
                 Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),
@@ -1003,31 +1003,31 @@ mod tests {
                 Spans::from(vec![
                     Span::styled("3:", s.fg(Color::DarkGray)),
                     Span::styled("baz ", s),
-                    Span::styled("1¬", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("1", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 ]),
                 Spans::from(vec![
                     Span::styled("4:", s.fg(Color::DarkGray)),
-                    Span::styled("22¬", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
+                    Span::styled("22", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
                 ]),
                 Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),
                     Span::styled("333", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
-                    Span::styled("foobar¬", s.fg(Color::Green)),
+                    Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("4:", s.fg(Color::DarkGray)),
-                    Span::styled("baz¬", s.fg(Color::Green)),
+                    Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
                     Span::styled(" bar ", s),
                     Span::styled("4444", s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT)),
-                    Span::styled("foobar¬", s.fg(Color::Green)),
+                    Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("4:", s.fg(Color::DarkGray)),
-                    Span::styled("baz¬", s.fg(Color::Green)),
+                    Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),
@@ -1052,21 +1052,21 @@ mod tests {
                 Spans::from(vec![
                     Span::styled("3:", s.fg(Color::DarkGray)),
                     Span::styled("baz ", s),
-                    Span::styled("foobar¬", s.fg(Color::Green)),
+                    Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("4:", s.fg(Color::DarkGray)),
-                    Span::styled("baz¬", s.fg(Color::Green)),
+                    Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),
                     Span::styled("asdf", s.fg(Color::Green)),
                     Span::styled(" bar ", s),
-                    Span::styled("foobar¬", s.fg(Color::Green)),
+                    Span::styled("foobar", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("4:", s.fg(Color::DarkGray)),
-                    Span::styled("baz¬", s.fg(Color::Green)),
+                    Span::styled("baz", s.fg(Color::Green)),
                 ]),
                 Spans::from(vec![
                     Span::styled("5:", s.fg(Color::DarkGray)),

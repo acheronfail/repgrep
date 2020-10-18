@@ -5,164 +5,180 @@ use anyhow::{anyhow, Result};
 use encoding::{DecoderTrap, EncoderTrap};
 
 use crate::encoding::{get_encoder, Bom};
-use crate::model::ReplacementCriteria;
-use crate::rg::de::SubMatch;
+use crate::model::{Item, ReplacementCriteria};
+use crate::rg::de::{ArbitraryData, SubMatch};
 use crate::rg::RgEncoding;
+
+fn perform_replacements_in_file(
+    criteria: &ReplacementCriteria,
+    rg_encoding: &RgEncoding,
+    (path_data, mut items): (&ArbitraryData, Vec<&Item>),
+) -> Result<bool> {
+    log::debug!("File: {} (item count: {})", path_data, items.len());
+    let path_buf = path_data.to_path_buf()?;
+
+    // Check the file for a BOM, detect its encoding and then decode it into a string.
+    let (bom, encoder, mut file_as_str) = {
+        let mut file_contents = vec![];
+        OpenOptions::new()
+            .read(true)
+            .open(&path_buf)?
+            .read_to_end(&mut file_contents)?;
+
+        // Search for a BOM and attempt to detect file encoding.
+        let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
+        log::debug!("BOM: {:?}", bom);
+        log::debug!("Encoder: {}", encoder.name());
+
+        // Strip the BOM before we decode.
+        match bom {
+            // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
+            // See: https://github.com/BurntSushi/ripgrep/issues/1638
+            None | Some(Bom::Utf8) => {}
+            Some(_) => {
+                file_contents = file_contents
+                    .iter()
+                    .skip(bom.unwrap().len())
+                    .copied()
+                    .collect();
+            }
+        }
+
+        log::trace!("Decoding file");
+        let decoded = encoder
+            .decode(&file_contents, DecoderTrap::Strict)
+            .map_err(|e| anyhow!("Failed to decode file: {}", e))?;
+
+        (bom, encoder, decoded)
+    };
+
+    // Sort the items so they're in order - ripgrep should give them to us in order anyway but we sort them here to
+    // future-proof against any changes.
+    // NOTE: we're sorting by the offset here with the assumption that no two Match items within one file will have
+    // the same offset.
+    items.sort_unstable_by_key(|i| i.offset());
+
+    // Iterate over the items in _reverse_ order -> this is so offsets can stay the same even though we're making
+    // changes to the string.
+    let mut did_skip_replacement = false;
+    for (i, item) in items.iter().rev().enumerate() {
+        let offset = item.offset().unwrap();
+        log::debug!("Item[{}] offset: {}", i, offset);
+
+        // Iterate backwards so the offset doesn't change as we make replacements.
+        for (i, sub_item) in item
+            .sub_items()
+            .iter()
+            .rev()
+            .filter(|s| s.should_replace)
+            .enumerate()
+        {
+            let SubMatch { range, text } = &sub_item.sub_match;
+            log::debug!("SubMatch[{}] range: {:?}, data: \"{}\"", i, range, text);
+
+            let normalised_range = (offset + range.start)..(offset + range.end);
+            let str_to_remove = &file_as_str[normalised_range.clone()];
+            let matched_bytes = text.to_vec();
+
+            if str_to_remove.as_bytes() == matched_bytes.as_slice() {
+                let removed_str = str_to_remove.to_string();
+                file_as_str.replace_range(normalised_range, &criteria.text);
+
+                log::debug!(
+                    "Replacement - reported line: {:?}, removed: \"{}\", added: \"{}\"",
+                    item.line_number(),
+                    removed_str,
+                    criteria.text
+                );
+            } else {
+                log::warn!("Matched bytes do not match bytes to replace!");
+                log::warn!("\tFile: \"{}\"", path_buf.display());
+                log::warn!("\tMatch: data=\"{}\", bytes={:?}", text, matched_bytes);
+                log::warn!("\tOffset: {}", offset + range.start);
+                did_skip_replacement = true;
+            }
+        }
+    }
+
+    // Convert back into the detected encoding.
+    log::trace!("Re-encoding file");
+    let replaced_contents = encoder
+        .encode(&file_as_str, EncoderTrap::Strict)
+        .map_err(|e| anyhow!("Failed to encode replaced string: {}", e))?;
+
+    // Create a temporary file.
+    #[cfg(not(windows))]
+    let temp_file_path = &path_buf.with_extension("rgr");
+    // FIXME: for reasons unknown to me Windows fails with permissions errors if we try to create a new file
+    // next to the original, so for now, we don't create a temporary file.
+    #[cfg(windows)]
+    let temp_file_path = &path_buf;
+
+    log::debug!("Creating: {}", temp_file_path.display());
+
+    // Write modified string into a temporary file.
+    let mut dest_file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(&temp_file_path)?;
+
+    // Write a BOM if one existed beforehand.
+    if let Some(bom) = bom {
+        // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either therefore no need to re-write one
+        // See: https://github.com/BurntSushi/ripgrep/issues/1638
+        if !matches!(bom, Bom::Utf8) {
+            let bom_bytes = bom.bytes();
+            log::debug!("Writing BOM: {:?}", bom_bytes);
+            dest_file.write_all(bom_bytes)?;
+        }
+    }
+
+    // Write the replaced contents.
+    log::debug!("Writing: {}", temp_file_path.display());
+    dest_file.write_all(&replaced_contents)?;
+
+    // Overwrite the original file with the patched temp file.
+    #[cfg(not(windows))]
+    {
+        log::debug!(
+            "Moving {} to {}",
+            temp_file_path.display(),
+            path_buf.display()
+        );
+        std::fs::rename(temp_file_path, &path_buf)?;
+    }
+
+    Ok(did_skip_replacement)
+}
 
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
     log::trace!("--- PERFORM REPLACEMENTS ---");
     log::debug!("Replacement text: \"{}\"", criteria.text);
 
-    let mut replacement_count = 0;
-    let mut replacements_skipped = 0;
     let rg_encoding = RgEncoding::from(&criteria.encoding);
     log::debug!("User passed encoding: {:?}", rg_encoding);
 
     // Group items by their file so we only open each file once.
-    for (path_data, mut items) in criteria.as_map() {
-        let path_buf = path_data.to_path_buf()?;
-        log::debug!("File: {} (item count: {})", path_buf.display(), items.len());
-
-        // Check the file for a BOM, detect its encoding and then decode it into a string.
-        let (bom, encoder, mut file_as_str) = {
-            let mut file_contents = vec![];
-            OpenOptions::new()
-                .read(true)
-                .open(&path_buf)?
-                .read_to_end(&mut file_contents)?;
-
-            // Search for a BOM and attempt to detect file encoding.
-            let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
-            log::debug!("BOM: {:?}", bom);
-            log::debug!("Encoder: {}", encoder.name());
-
-            // Strip the BOM before we decode.
-            match bom {
-                // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
-                // See: https://github.com/BurntSushi/ripgrep/issues/1638
-                None | Some(Bom::Utf8) => {}
-                Some(_) => {
-                    file_contents = file_contents
-                        .iter()
-                        .skip(bom.unwrap().len())
-                        .copied()
-                        .collect();
+    let mut did_skip_replacement = false;
+    for meta in criteria.as_map() {
+        match perform_replacements_in_file(&criteria, &rg_encoding, meta) {
+            Ok(did_skip) => {
+                if did_skip == true {
+                    did_skip_replacement = true
                 }
             }
-
-            log::trace!("Decoding file");
-            let decoded = encoder
-                .decode(&file_contents, DecoderTrap::Strict)
-                .map_err(|e| anyhow!("Failed to decode file: {}", e))?;
-
-            (bom, encoder, decoded)
-        };
-
-        // Sort the items so they're in order - ripgrep should give them to us in order anyway but we sort them here to
-        // future-proof against any changes.
-        // NOTE: we're sorting by the offset here with the assumption that no two Match items within one file will have
-        // the same offset.
-        items.sort_unstable_by_key(|i| i.offset());
-
-        // Iterate over the items in _reverse_ order -> this is so offsets can stay the same even though we're making
-        // changes to the string.
-        for (i, item) in items.iter().rev().enumerate() {
-            let offset = item.offset().unwrap();
-            log::debug!("Item[{}] offset: {}", i, offset);
-
-            // Iterate backwards so the offset doesn't change as we make replacements.
-            for (i, sub_item) in item
-                .sub_items()
-                .iter()
-                .rev()
-                .filter(|s| s.should_replace)
-                .enumerate()
-            {
-                let SubMatch { range, text } = &sub_item.sub_match;
-                log::debug!("SubMatch[{}] range: {:?}, data: \"{}\"", i, range, text);
-
-                let normalised_range = (offset + range.start)..(offset + range.end);
-                let str_to_remove = &file_as_str[normalised_range.clone()];
-                let matched_bytes = text.to_vec();
-
-                if str_to_remove.as_bytes() == matched_bytes.as_slice() {
-                    let removed_str = str_to_remove.to_string();
-                    file_as_str.replace_range(normalised_range, &criteria.text);
-
-                    log::debug!(
-                        "Replacement - reported line: {:?}, removed: \"{}\", added: \"{}\"",
-                        item.line_number(),
-                        removed_str,
-                        criteria.text
-                    );
-                    replacement_count += 1;
-                } else {
-                    log::warn!("Matched bytes do not match bytes to replace!");
-                    log::warn!("\tFile: \"{}\"", path_buf.display());
-                    log::warn!("\tMatch: data=\"{}\", bytes={:?}", text, matched_bytes);
-                    log::warn!("\tOffset: {}", offset + range.start);
-                    replacements_skipped += 1;
-                }
+            Err(e) => {
+                did_skip_replacement = true;
+                log::warn!("Failed to make all replacements: {}", e);
+                continue;
             }
-        }
-
-        // Convert back into the detected encoding.
-        log::trace!("Re-encoding file");
-        let replaced_contents = encoder
-            .encode(&file_as_str, EncoderTrap::Strict)
-            .map_err(|e| anyhow!("Failed to encode replaced string: {}", e))?;
-
-        // Create a temporary file.
-        #[cfg(not(windows))]
-        let temp_file_path = &path_buf.with_extension("rgr");
-        // FIXME: for reasons unknown to me Windows fails with permissions errors if we try to create a new file
-        // next to the original, so for now, we don't create a temporary file.
-        #[cfg(windows)]
-        let temp_file_path = &path_buf;
-
-        log::debug!("Creating: {}", temp_file_path.display());
-
-        // Write modified string into a temporary file.
-        let mut dest_file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(&temp_file_path)?;
-
-        // Write a BOM if one existed beforehand.
-        if let Some(bom) = bom {
-            // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either therefore no need to re-write one
-            // See: https://github.com/BurntSushi/ripgrep/issues/1638
-            if !matches!(bom, Bom::Utf8) {
-                let bom_bytes = bom.bytes();
-                log::debug!("Writing BOM: {:?}", bom_bytes);
-                dest_file.write_all(bom_bytes)?;
-            }
-        }
-
-        // Write the replaced contents.
-        log::debug!("Writing: {}", temp_file_path.display());
-        dest_file.write_all(&replaced_contents)?;
-
-        // Overwrite the original file with the patched temp file.
-        #[cfg(not(windows))]
-        {
-            log::debug!(
-                "Moving {} to {}",
-                temp_file_path.display(),
-                path_buf.display()
-            );
-            std::fs::rename(temp_file_path, &path_buf)?;
         }
     }
 
-    log::info!("Replacement count: {}", replacement_count);
-    log::info!("Replacements skipped: {}", replacements_skipped);
-    if replacements_skipped > 0 {
-        Err(anyhow!(
-            "failed to perform all replacements (skipped {})",
-            replacements_skipped
-        ))
+    if did_skip_replacement {
+        log::warn!("Failed to perform all replacements");
+        Err(anyhow!("Failed to perform all replacements, see log"))
     } else {
         Ok(())
     }

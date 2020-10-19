@@ -107,14 +107,9 @@ fn perform_replacements_in_file(
         .map_err(|e| anyhow!("Failed to encode replaced string: {}", e))?;
 
     // Create a temporary file.
-    #[cfg(not(windows))]
-    let temp_file_path = &path_buf.with_extension("rgr");
-    // FIXME: for reasons unknown to me Windows fails with permissions errors if we try to create a new file
-    // next to the original, so for now, we don't create a temporary file.
-    #[cfg(windows)]
-    let temp_file_path = &path_buf;
-
-    log::debug!("Creating: {}", temp_file_path.display());
+    let temp_file = tempfile::NamedTempFile::new()?;
+    let temp_file_path = temp_file.path();
+    log::debug!("Creating temporary file: {}", temp_file_path.display());
 
     // Write modified string into a temporary file.
     let mut dest_file = OpenOptions::new()
@@ -139,15 +134,12 @@ fn perform_replacements_in_file(
     dest_file.write_all(&replaced_contents)?;
 
     // Overwrite the original file with the patched temp file.
-    #[cfg(not(windows))]
-    {
-        log::debug!(
-            "Moving {} to {}",
-            temp_file_path.display(),
-            path_buf.display()
-        );
-        std::fs::rename(temp_file_path, &path_buf)?;
-    }
+    log::debug!(
+        "Moving {} to {}",
+        temp_file_path.display(),
+        path_buf.display()
+    );
+    temp_file.into_temp_path().persist(&path_buf)?;
 
     Ok(did_skip_replacement)
 }
@@ -171,6 +163,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
             Err(e) => {
                 did_skip_replacement = true;
                 log::warn!("Failed to make all replacements: {}", e);
+                eprintln!("Failed to make all replacements: {}", e);
                 continue;
             }
         }

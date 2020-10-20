@@ -3,6 +3,7 @@ use std::io::{Read, Write};
 
 use anyhow::{anyhow, Result};
 use encoding::{DecoderTrap, EncoderTrap};
+use tempfile::NamedTempFile;
 
 use crate::encoding::{get_encoder, Bom};
 use crate::model::{Item, ReplacementCriteria};
@@ -107,16 +108,9 @@ fn perform_replacements_in_file(
         .map_err(|e| anyhow!("Failed to encode replaced string: {}", e))?;
 
     // Create a temporary file.
-    let temp_file = tempfile::NamedTempFile::new()?;
-    let temp_file_path = temp_file.path();
-    log::debug!("Creating temporary file: {}", temp_file_path.display());
-
-    // Write modified string into a temporary file.
-    let mut dest_file = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(&temp_file_path)?;
+    let mut temp_file = NamedTempFile::new()?;
+    let temp_file_path = temp_file.path().display().to_string();
+    log::debug!("Creating temporary file: {}", temp_file_path);
 
     // Write a BOM if one existed beforehand.
     if let Some(bom) = bom {
@@ -125,20 +119,16 @@ fn perform_replacements_in_file(
         if !matches!(bom, Bom::Utf8) {
             let bom_bytes = bom.bytes();
             log::debug!("Writing BOM: {:?}", bom_bytes);
-            dest_file.write_all(bom_bytes)?;
+            temp_file.write_all(bom_bytes)?;
         }
     }
 
     // Write the replaced contents.
-    log::debug!("Writing: {}", temp_file_path.display());
-    dest_file.write_all(&replaced_contents)?;
+    log::debug!("Writing: {}", temp_file_path);
+    temp_file.write_all(&replaced_contents)?;
 
     // Overwrite the original file with the patched temp file.
-    log::debug!(
-        "Moving {} to {}",
-        temp_file_path.display(),
-        path_buf.display()
-    );
+    log::debug!("Moving {} to {}", temp_file_path, path_buf.display());
     temp_file.into_temp_path().persist(&path_buf)?;
 
     Ok(did_skip_replacement)
@@ -181,6 +171,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
 mod tests {
     use std::fs::{self, OpenOptions};
     use std::io::{Read, Write};
+    use std::path::PathBuf;
 
     use pretty_assertions::assert_eq;
     use tempfile::NamedTempFile;
@@ -190,34 +181,46 @@ mod tests {
     use crate::rg::de::test_utilities::RgMessageBuilder;
     use crate::rg::de::{Duration, RgMessageKind, Stats, SubMatch};
 
-    fn temp_rg_msg(
-        mut f: &NamedTempFile,
-        offset: usize,
-        lines: impl AsRef<str>,
-        submatches: Vec<SubMatch>,
-    ) -> Item {
-        f.write_all(lines.as_ref().as_bytes()).unwrap();
+    macro_rules! temp_item {
+        ($offset:expr, $lines:expr, $submatches:expr) => {{
+            let p = temp_file!($lines);
+            let item = Item::new(
+                0,
+                RgMessageBuilder::new(RgMessageKind::Match)
+                    .with_path_text(p.to_string_lossy().to_string())
+                    .with_lines_text($lines.to_string())
+                    .with_submatches($submatches)
+                    .with_offset($offset)
+                    .build(),
+            );
 
-        Item::new(
-            0,
-            RgMessageBuilder::new(RgMessageKind::Match)
-                .with_path_text(f.path().to_string_lossy().to_string())
-                .with_lines_text(lines.as_ref().to_string())
-                .with_submatches(submatches)
-                .with_offset(offset)
-                .build(),
-        )
+            (item, p)
+        }};
+    }
+
+    // NOTE: due to permission issues on Windows platforms, we need to first "keep" the temporary files otherwise
+    // we cannot atomically replace them. See https://github.com/Stebalien/tempfile/issues/131
+    macro_rules! temp_file {
+        (bytes, $content:expr) => {{
+            let mut file = NamedTempFile::new().unwrap();
+            file.write_all($content).unwrap();
+            // NOTE: we *must* drop the file here, otherwise Windows will fail with permissions errors
+            let (_, p) = file.keep().unwrap();
+            p
+        }};
+        ($content:expr) => {
+            temp_file!(bytes, $content.as_bytes())
+        };
     }
 
     #[test]
     fn it_performs_replacements_only_on_match_items() {
         let text = "foo bar baz";
-        let build_item = |kind, mut f: &NamedTempFile| {
-            f.write_all(text.as_bytes()).unwrap();
+        let build_item = |kind, p: &PathBuf| {
             Item::new(
                 0,
                 RgMessageBuilder::new(kind)
-                    .with_path_text(f.path().to_string_lossy())
+                    .with_path_text(p.to_string_lossy())
                     .with_lines_text(text)
                     .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
                     .with_stats(Stats::new())
@@ -227,108 +230,83 @@ mod tests {
             )
         };
 
-        let f1 = NamedTempFile::new().unwrap();
-        let f2 = NamedTempFile::new().unwrap();
-        let f3 = NamedTempFile::new().unwrap();
-        let f4 = NamedTempFile::new().unwrap();
-        let f5 = NamedTempFile::new().unwrap();
+        let p1 = temp_file!(text);
+        let p2 = temp_file!(text);
+        let p3 = temp_file!(text);
+        let p4 = temp_file!(text);
+        let p5 = temp_file!(text);
 
         let items = vec![
-            build_item(RgMessageKind::Begin, &f1),
-            build_item(RgMessageKind::Context, &f2),
-            build_item(RgMessageKind::Match, &f3),
-            build_item(RgMessageKind::End, &f4),
-            build_item(RgMessageKind::Summary, &f5),
+            build_item(RgMessageKind::Begin, &p1),
+            build_item(RgMessageKind::Context, &p2),
+            build_item(RgMessageKind::Match, &p3),
+            build_item(RgMessageKind::End, &p4),
+            build_item(RgMessageKind::Summary, &p5),
         ];
 
         perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
-
-        assert_eq!(fs::read_to_string(f1.path()).unwrap(), text);
-        assert_eq!(fs::read_to_string(f2.path()).unwrap(), text);
-        assert_eq!(fs::read_to_string(f3.path()).unwrap(), "NEW_VALUE bar baz");
-        assert_eq!(fs::read_to_string(f4.path()).unwrap(), text);
-        assert_eq!(fs::read_to_string(f5.path()).unwrap(), text);
+        assert_eq!(fs::read_to_string(p1).unwrap(), text);
+        assert_eq!(fs::read_to_string(p2).unwrap(), text);
+        assert_eq!(fs::read_to_string(p3).unwrap(), "NEW_VALUE bar baz");
+        assert_eq!(fs::read_to_string(p4).unwrap(), text);
+        assert_eq!(fs::read_to_string(p5).unwrap(), text);
     }
 
     #[test]
     fn it_performs_replacements_in_separate_files() {
-        let f1 = NamedTempFile::new().unwrap();
-        let f2 = NamedTempFile::new().unwrap();
-        let f3 = NamedTempFile::new().unwrap();
+        let (item1, p1) = temp_item!(0, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]);
+        let (item2, p2) = temp_item!(0, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]);
+        let (item3, p3) = temp_item!(0, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]);
 
-        let items = vec![
-            temp_rg_msg(&f1, 0, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]),
-            temp_rg_msg(&f2, 0, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]),
-            temp_rg_msg(
-                &f3,
-                0,
-                "bar baz foo",
-                vec![SubMatch::new_text("foo", 8..11)],
-            ),
-        ];
-
+        let items = vec![item1, item2, item3];
         perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
-        assert_eq!(fs::read_to_string(f1.path()).unwrap(), "NEW_VALUE bar baz");
-        assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz NEW_VALUE bar");
-        assert_eq!(fs::read_to_string(f3.path()).unwrap(), "bar baz NEW_VALUE");
+        assert_eq!(fs::read_to_string(p1).unwrap(), "NEW_VALUE bar baz");
+        assert_eq!(fs::read_to_string(p2).unwrap(), "baz NEW_VALUE bar");
+        assert_eq!(fs::read_to_string(p3).unwrap(), "bar baz NEW_VALUE");
     }
 
     #[test]
     fn it_does_not_replace_deselected_matches() {
-        let f1 = NamedTempFile::new().unwrap();
-        let f2 = NamedTempFile::new().unwrap();
-        let f3 = NamedTempFile::new().unwrap();
+        let (item1, p1) = temp_item!(0, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]);
+        let (item2, p2) = temp_item!(0, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]);
+        let (item3, p3) = temp_item!(0, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]);
 
-        let mut items = vec![
-            temp_rg_msg(&f1, 0, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]),
-            temp_rg_msg(&f2, 0, "baz foo bar", vec![SubMatch::new_text("foo", 4..7)]),
-            temp_rg_msg(
-                &f3,
-                0,
-                "bar baz foo",
-                vec![SubMatch::new_text("foo", 8..11)],
-            ),
-        ];
+        let mut items = vec![item1, item2, item3];
 
         items[0].set_should_replace(0, false);
         items[1].set_should_replace(0, true);
         items[2].set_should_replace(0, false);
 
         perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
-        assert_eq!(fs::read_to_string(f1.path()).unwrap(), "foo bar baz");
-        assert_eq!(fs::read_to_string(f2.path()).unwrap(), "baz NEW_VALUE bar");
-        assert_eq!(fs::read_to_string(f3.path()).unwrap(), "bar baz foo");
+        assert_eq!(fs::read_to_string(p1).unwrap(), "foo bar baz");
+        assert_eq!(fs::read_to_string(p2).unwrap(), "baz NEW_VALUE bar");
+        assert_eq!(fs::read_to_string(p3).unwrap(), "bar baz foo");
     }
 
     #[test]
     fn it_performs_multiple_replacements_one_file() {
-        let f = NamedTempFile::new().unwrap();
-        let item = temp_rg_msg(
-            &f,
+        let (item, p) = temp_item!(
             0,
             "foo bar baz",
             vec![
                 SubMatch::new_text("foo", 0..3),
                 SubMatch::new_text("bar", 4..7),
                 SubMatch::new_text("baz", 8..11),
-            ],
+            ]
         );
 
         perform_replacements(ReplacementCriteria::new("NEW_VALUE", vec![item])).unwrap();
         assert_eq!(
-            fs::read_to_string(f.path()).unwrap(),
+            fs::read_to_string(p).unwrap(),
             "NEW_VALUE NEW_VALUE NEW_VALUE"
         );
     }
 
     #[test]
     fn it_performs_replacements_on_multiple_lines() {
-        let mut f = NamedTempFile::new().unwrap();
+        let p = temp_file!("foo bar baz\n...\nbaz foo bar\n...\nbar baz foo");
 
-        f.write_all(b"foo bar baz\n...\nbaz foo bar\n...\nbar baz foo")
-            .unwrap();
-
-        let path_string = f.path().to_string_lossy();
+        let path_string = p.to_string_lossy();
         let items = vec![
             Item::new(
                 0,
@@ -361,19 +339,16 @@ mod tests {
 
         perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
         assert_eq!(
-            fs::read_to_string(f.path()).unwrap(),
+            fs::read_to_string(p).unwrap(),
             "NEW_VALUE bar baz\n...\nbaz NEW_VALUE bar\n...\nbar baz NEW_VALUE"
         );
     }
 
     #[test]
     fn it_performs_replacements_on_multiline_matches() {
-        let mut f = NamedTempFile::new().unwrap();
+        let p = temp_file!("foo bar baz\n...\nbaz 1\n22\n333 bar\n...\nbar 4444 foo");
 
-        f.write_all(b"foo bar baz\n...\nbaz 1\n22\n333 bar\n...\nbar 4444 foo")
-            .unwrap();
-
-        let path_string = f.path().to_string_lossy();
+        let path_string = p.to_string_lossy();
         let items = vec![
             Item::new(
                 0,
@@ -397,7 +372,7 @@ mod tests {
 
         perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
         assert_eq!(
-            fs::read_to_string(f.path()).unwrap(),
+            fs::read_to_string(p).unwrap(),
             "foo bar baz\n...\nbaz NEW_VALUE bar\n...\nbar NEW_VALUE foo"
         );
     }
@@ -444,8 +419,7 @@ mod tests {
             fn $name() {
                 let src_bytes = hex::decode($src).unwrap();
 
-                let mut f = NamedTempFile::new().unwrap();
-                f.write_all(&src_bytes).unwrap();
+                let p = temp_file!(bytes, &src_bytes);
 
                 let items: Vec<Item> = $submatches
                     .iter()
@@ -453,7 +427,7 @@ mod tests {
                         Item::new(
                             0,
                             RgMessageBuilder::new(RgMessageKind::Match)
-                                .with_path_text(f.path().to_string_lossy())
+                                .with_path_text(p.to_string_lossy())
                                 .with_lines_text(&format!("{}\n", $needle))
                                 .with_submatches(vec![SubMatch::new_text($needle, range.clone())])
                                 .with_offset(*offset)
@@ -468,7 +442,7 @@ mod tests {
                 let mut file_bytes = vec![];
                 OpenOptions::new()
                     .read(true)
-                    .open(f.path())
+                    .open(p)
                     .unwrap()
                     .read_to_end(&mut file_bytes)
                     .unwrap();

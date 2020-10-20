@@ -3,11 +3,33 @@ use std::path::PathBuf;
 
 use tui::style::{Color, Modifier, Style};
 use tui::text::{Span, Spans};
+use unicode_width::UnicodeWidthStr;
 
-use crate::model::Printable;
+use crate::model::{Printable, PrintableStyle};
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, SubMatch};
 use crate::ui::app::AppUiState;
 use crate::ui::render::UiItemContext;
+
+macro_rules! format_line_number {
+    ($content:expr) => {
+        format!("{}:", $content)
+    };
+}
+
+fn line_count(available_width: usize, text: impl AsRef<str>) -> usize {
+    #[cfg(not(release))]
+    assert!(available_width != 0);
+
+    let line_width = text.as_ref().width();
+    // lines that wrap
+    let mut count = line_width / available_width;
+    // any remainder on the last line
+    if line_width % available_width > 0 {
+        count += 1;
+    }
+
+    count
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SubItem {
@@ -27,8 +49,14 @@ impl SubItem {
 }
 
 impl SubItem {
-    pub fn line_count(&self) -> usize {
-        self.sub_match.text.lossy_utf8().lines().count()
+    pub fn line_count(&self, list_width: u16, style: PrintableStyle) -> usize {
+        let list_width = list_width as usize;
+        self.sub_match
+            .text
+            .to_printable(style)
+            .lines()
+            .map(|line| line_count(list_width, line))
+            .sum::<usize>()
     }
 
     /// A SubItem contains the "match". A match _may_ be over multiple lines, but there will only ever
@@ -162,29 +190,20 @@ impl Item {
         self.path().and_then(|data| data.to_path_buf().ok())
     }
 
-    pub fn line_count(&self, list_width: u16) -> usize {
-        #[cfg(not(release))]
-        assert!(list_width != 0);
-
+    pub fn line_count(&self, list_width: u16, style: PrintableStyle) -> usize {
         match &self.rg_message {
             RgMessage::Begin { .. } | RgMessage::End { .. } => 1,
             RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => {
                 let list_width = list_width as usize;
+                let line_number = self.line_number().unwrap();
                 lines
-                    .lossy_utf8()
+                    .to_printable(style)
                     .lines()
-                    .map(|line| {
-                        use unicode_width::UnicodeWidthStr;
-
-                        let line_width = line.width();
-                        // lines that wrap
-                        let mut lines = line_width / list_width;
-                        // any remainder on the last line
-                        if line_width % list_width > 0 {
-                            lines += 1;
-                        }
-
-                        lines
+                    .enumerate()
+                    .map(|(i, line)| {
+                        let line_number = format_line_number!(line_number + i);
+                        let available_width = list_width.saturating_sub(line_number.width());
+                        line_count(available_width, line)
                     })
                     .sum::<usize>()
             }
@@ -209,7 +228,10 @@ impl Item {
                     line_number_style = line_number_style.fg(Color::DarkGray);
                 }
 
-                $spans.push(Span::styled(format!("{}:", $content), line_number_style));
+                $spans.push(Span::styled(
+                    format_line_number!($content),
+                    line_number_style,
+                ));
             }};
         };
 
@@ -822,22 +844,84 @@ mod tests {
     }
 
     #[test]
-    fn line_count() {
-        let list_width = 80_u16;
-        assert_eq!(new_item(RG_JSON_BEGIN).line_count(list_width), 1);
-        assert_eq!(new_item(RG_JSON_MATCH).line_count(list_width), 1);
-        assert_eq!(new_item(RG_JSON_MATCH_LINE_WRAP).line_count(list_width), 2);
-        assert_eq!(
-            new_item(RG_JSON_MATCH_LINE_WRAP_MULTI).line_count(list_width),
-            3
-        );
-        assert_eq!(
-            new_item(RG_JSON_CONTEXT_LINE_WRAP).line_count(list_width),
-            2
-        );
-        assert_eq!(new_item(RG_JSON_CONTEXT).line_count(list_width), 1);
-        assert_eq!(new_item(RG_JSON_END).line_count(list_width), 1);
-        assert_eq!(new_item(RG_JSON_SUMMARY).line_count(list_width), 0);
+    fn line_count_hidden() {
+        let w = 80_u16;
+        let s = PrintableStyle::Hidden;
+        assert_eq!(new_item(RG_JSON_BEGIN).line_count(w, s), 1);
+        assert_eq!(new_item(RG_JSON_MATCH).line_count(w, s), 1);
+        assert_eq!(new_item(RG_JSON_MATCH_LINE_WRAP).line_count(w, s), 2);
+        assert_eq!(new_item(RG_JSON_MATCH_LINE_WRAP_MULTI).line_count(w, s), 3);
+        assert_eq!(new_item(RG_JSON_CONTEXT_LINE_WRAP).line_count(w, s), 2);
+        assert_eq!(new_item(RG_JSON_CONTEXT).line_count(w, s), 1);
+        assert_eq!(new_item(RG_JSON_END).line_count(w, s), 1);
+        assert_eq!(new_item(RG_JSON_SUMMARY).line_count(w, s), 0);
+    }
+
+    macro_rules! assert_line_count {
+        ($json:expr, $width:expr, $style:expr, $line_count:expr, $submatch_counts:expr) => {{
+            let item = new_item($json);
+            let line_count = item.line_count($width, $style);
+
+            let expected_submatch_counts: &[usize] = $submatch_counts;
+            let actual_submatch_counts: Vec<usize> = item
+                .sub_items
+                .iter()
+                .map(|s| s.line_count($width, $style))
+                .collect();
+            assert_eq!(
+                (line_count, &actual_submatch_counts[..]),
+                ($line_count, expected_submatch_counts)
+            );
+        }};
+    }
+
+    #[test]
+    fn line_count_multiple_lines() {
+        let w = 80_u16;
+        let styles = vec![
+            PrintableStyle::Hidden,
+            PrintableStyle::All(false),
+            PrintableStyle::Common(false),
+        ];
+        for s in styles {
+            assert_line_count!(RG_JSON_BEGIN, w, s, 1, &[]);
+            assert_line_count!(RG_JSON_MATCH, w, s, 1, &[1, 1]);
+            assert_line_count!(RG_JSON_MATCH_MULTILINE, w, s, 3, &[3, 1]);
+            assert_line_count!(RG_JSON_MATCH_LINE_WRAP, w, s, 2, &[1]);
+            assert_line_count!(
+                RG_JSON_MATCH_LINE_WRAP_MULTI,
+                w,
+                s,
+                3,
+                &[1, 1, 1, 1, 1, 1, 1]
+            );
+            assert_line_count!(RG_JSON_CONTEXT_LINE_WRAP, w, s, 2, &[]);
+            assert_line_count!(RG_JSON_CONTEXT, w, s, 1, &[]);
+            assert_line_count!(RG_JSON_END, w, s, 1, &[]);
+            assert_line_count!(RG_JSON_SUMMARY, w, s, 0, &[]);
+        }
+    }
+    #[test]
+    fn line_count_one_line() {
+        let w = 80_u16;
+        let styles = vec![PrintableStyle::All(true), PrintableStyle::Common(true)];
+        for s in styles {
+            assert_line_count!(RG_JSON_BEGIN, w, s, 1, &[]);
+            assert_line_count!(RG_JSON_MATCH, w, s, 1, &[1, 1]);
+            assert_line_count!(RG_JSON_MATCH_MULTILINE, w, s, 1, &[1, 1]);
+            assert_line_count!(RG_JSON_MATCH_LINE_WRAP, w, s, 2, &[1]);
+            assert_line_count!(
+                RG_JSON_MATCH_LINE_WRAP_MULTI,
+                w,
+                s,
+                3,
+                &[1, 1, 1, 1, 1, 1, 1]
+            );
+            assert_line_count!(RG_JSON_CONTEXT_LINE_WRAP, w, s, 2, &[]);
+            assert_line_count!(RG_JSON_CONTEXT, w, s, 1, &[]);
+            assert_line_count!(RG_JSON_END, w, s, 1, &[]);
+            assert_line_count!(RG_JSON_SUMMARY, w, s, 0, &[]);
+        }
     }
 
     #[test]

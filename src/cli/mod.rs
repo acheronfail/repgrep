@@ -8,6 +8,8 @@ use clap::{Clap, IntoApp};
 
 use args::Args;
 
+pub const ENV_JSON_FILE: &str = "RGR_JSON_FILE";
+
 /// This is where we perform our validation of the arguments.
 fn validate_arguments(mut args: Args) -> Result<Args> {
     // Check we have a pattern.

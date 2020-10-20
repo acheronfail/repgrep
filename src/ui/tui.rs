@@ -12,17 +12,17 @@ use crate::model::ReplacementCriteria;
 use crate::rg::de::RgMessage;
 use crate::ui::app::{App, AppState};
 
-const MINIMUM_WIDTH: u16 = 40;
-const MINIMUM_HEIGHT: u16 = 40;
+const MINIMUM_WIDTH: u16 = 70;
+const MINIMUM_HEIGHT: u16 = 20;
 
 pub struct Tui {
     app: App,
 }
 
 impl Tui {
-    pub fn new(rg_cmdline: String, rg_results: Vec<RgMessage>) -> Tui {
+    pub fn new(rg_cmdline: String, rg_messages: Vec<RgMessage>) -> Tui {
         Tui {
-            app: App::new(rg_cmdline, rg_results),
+            app: App::new(rg_cmdline, rg_messages),
         }
     }
 

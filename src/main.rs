@@ -7,6 +7,7 @@ mod ui;
 mod util;
 
 use std::env;
+use std::fs::File;
 use std::process;
 
 use anyhow::Result;
@@ -14,6 +15,8 @@ use clap::crate_name;
 use flexi_logger::{opt_format, Logger};
 use rg::exec::run_ripgrep;
 use ui::tui::Tui;
+
+use crate::rg::read::read_messages;
 
 fn init_logging() -> Result<::std::path::PathBuf> {
     let log_dir = env::temp_dir().join(format!(".{}", crate_name!()));
@@ -54,19 +57,42 @@ fn main() {
         }
     };
 
-    log::debug!(
-        "User args for rg: {:?}",
-        args.rg_args().into_iter().collect::<Vec<_>>()
-    );
-    match run_ripgrep(args.rg_args()) {
-        Ok(rg_results) => {
+    macro_rules! run_ripgrep {
+        () => {{
+            let display_args = args.rg_args().into_iter().collect::<Vec<_>>();
+            log::debug!("User args for rg: {:?}", display_args);
+            run_ripgrep(args.rg_args())
+        }};
+    }
+
+    let rg_json = match env::var(cli::ENV_JSON_FILE) {
+        Ok(path) => {
+            log::debug!(
+                "Found {}={}, reading messages from file",
+                cli::ENV_JSON_FILE,
+                &path
+            );
+            match File::open(path) {
+                Ok(json_file) => read_messages(json_file),
+                Err(e) => {
+                    log::warn!("Failed to open file: {}", e);
+                    log::warn!("Falling back to running rg");
+                    run_ripgrep!()
+                }
+            }
+        }
+        Err(_) => run_ripgrep!(),
+    };
+
+    match rg_json {
+        Ok(rg_messages) => {
             let rg_cmdline: String = args
                 .rg_args()
                 .map(|s| s.to_string_lossy().into_owned())
                 .collect::<Vec<_>>()
                 .join(" ");
 
-            let result = Tui::new(rg_cmdline, rg_results).start();
+            let result = Tui::new(rg_cmdline, rg_messages).start();
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {

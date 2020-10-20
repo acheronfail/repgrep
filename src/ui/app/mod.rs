@@ -23,11 +23,11 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(rg_cmdline: String, rg_results: Vec<RgMessage>) -> App {
+    pub fn new(rg_cmdline: String, rg_messages: Vec<RgMessage>) -> App {
         let mut list = vec![];
         let mut maybe_stats = None;
 
-        for (i, rg_message) in rg_results.into_iter().enumerate() {
+        for (i, rg_message) in rg_messages.into_iter().enumerate() {
             match rg_message {
                 RgMessage::Summary { stats, .. } => {
                     maybe_stats = Some(stats);

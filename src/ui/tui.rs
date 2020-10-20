@@ -12,8 +12,8 @@ use crate::model::ReplacementCriteria;
 use crate::rg::de::RgMessage;
 use crate::ui::app::{App, AppState};
 
-const MINIMUM_WIDTH: u16 = 40;
-const MINIMUM_HEIGHT: u16 = 40;
+const MINIMUM_WIDTH: u16 = 70;
+const MINIMUM_HEIGHT: u16 = 20;
 
 pub struct Tui {
     app: App,

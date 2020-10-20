@@ -37,12 +37,20 @@ impl PrintableStyle {
     }
 
     /// Returns the "one line" representation of the current `PrintableStyle`.
-    pub fn one_line(self) -> Self {
+    pub fn as_one_line(self) -> Self {
         match self {
             PrintableStyle::Hidden => PrintableStyle::Common(true),
             PrintableStyle::Common(_) => PrintableStyle::Common(true),
             PrintableStyle::All(_) => PrintableStyle::All(true),
         }
+    }
+
+    /// Returns the "one line" representation of the current `PrintableStyle`.
+    pub fn is_one_line(self) -> bool {
+        matches!(
+            self,
+            PrintableStyle::Common(true) | PrintableStyle::All(true)
+        )
     }
 }
 

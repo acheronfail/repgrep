@@ -60,7 +60,7 @@ impl App {
                 if input.is_empty() {
                     Span::styled("<empty>", Style::default().fg(Color::DarkGray))
                 } else {
-                    Span::from(input.to_printable(self.printable_style.one_line()))
+                    Span::from(input.to_printable(self.printable_style.as_one_line()))
                 },
             ],
             AppUiState::ConfirmReplacement(_) => vec![Span::from(

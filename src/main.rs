@@ -40,8 +40,6 @@ fn main() {
         }
     };
 
-
-
     macro_rules! exit_with_error {
         ($( $eprintln_arg:expr ),*) => {
             log::error!($( $eprintln_arg ),*);
@@ -67,10 +65,13 @@ fn main() {
         }};
     }
 
-    // TODO: logs and documentation
     let rg_json = match env::var(cli::ENV_JSON_FILE) {
         Ok(path) => {
-            log::debug!("Found {}={}, reading messages from file", cli::ENV_JSON_FILE, &path);
+            log::debug!(
+                "Found {}={}, reading messages from file",
+                cli::ENV_JSON_FILE,
+                &path
+            );
             match File::open(path) {
                 Ok(json_file) => read_messages(json_file),
                 Err(e) => {
@@ -80,7 +81,7 @@ fn main() {
                 }
             }
         }
-        Err(_) => run_ripgrep!()
+        Err(_) => run_ripgrep!(),
     };
 
     match rg_json {

@@ -4,7 +4,7 @@ use crossterm::event::{Event, KeyCode, KeyModifiers};
 use either::Either;
 use tui::layout::Rect;
 
-use crate::model::{Movement, PrintableStyle, ReplacementCriteria};
+use crate::model::{Movement, ReplacementCriteria};
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppState, AppUiState};
 use crate::util::clamp;
@@ -228,30 +228,24 @@ impl App {
 
     /// Update the UI's indicator position to point to the start of the selected item, and in the case of
     /// a match which spans multiple lines and has multiple submatches, the start of the selected submatch.
+    /// Note that this is also the mechanism which scrolls tui-rs' list interface.
     fn update_indicator(&mut self, term_size: Rect) {
         let item_idx = self.list_state.selected_item();
         let match_idx = self.list_state.selected_submatch();
 
-        let indicator_idx = match self.printable_style {
-            // if we're displaying multiline matches on a single line, then the indicator index will always
-            // match the item index
-            PrintableStyle::Common(true) | PrintableStyle::All(true) => item_idx,
-            _ => {
-                let main_view_list_rect = self.main_view_list_rect(term_size);
+        let main_view_list_rect = self.main_view_list_rect(term_size);
 
-                let mut indicator_idx = 0;
-                for item in &self.list[0..item_idx] {
-                    indicator_idx += item.line_count(main_view_list_rect.width);
-                }
+        let mut indicator_idx = 0;
+        for item in &self.list[0..item_idx] {
+            indicator_idx += item.line_count(main_view_list_rect.width, self.printable_style);
+        }
 
-                if match_idx > 0 {
-                    for sub_item in &self.list[item_idx].sub_items()[0..match_idx] {
-                        indicator_idx += sub_item.line_count() - 1;
-                    }
-                }
-                indicator_idx
+        if match_idx > 0 {
+            for sub_item in &self.list[item_idx].sub_items()[0..match_idx] {
+                indicator_idx +=
+                    sub_item.line_count(main_view_list_rect.width, self.printable_style) - 1;
             }
-        };
+        }
 
         self.list_state.set_indicator(indicator_idx);
     }

@@ -20,9 +20,9 @@ pub struct Tui {
 }
 
 impl Tui {
-    pub fn new(rg_cmdline: String, rg_results: Vec<RgMessage>) -> Tui {
+    pub fn new(rg_cmdline: String, rg_messages: Vec<RgMessage>) -> Tui {
         Tui {
-            app: App::new(rg_cmdline, rg_results),
+            app: App::new(rg_cmdline, rg_messages),
         }
     }
 

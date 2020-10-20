@@ -59,14 +59,14 @@ fn main() {
         args.rg_args().into_iter().collect::<Vec<_>>()
     );
     match run_ripgrep(args.rg_args()) {
-        Ok(rg_results) => {
+        Ok(rg_messages) => {
             let rg_cmdline: String = args
                 .rg_args()
                 .map(|s| s.to_string_lossy().into_owned())
                 .collect::<Vec<_>>()
                 .join(" ");
 
-            let result = Tui::new(rg_cmdline, rg_results).start();
+            let result = Tui::new(rg_cmdline, rg_messages).start();
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {

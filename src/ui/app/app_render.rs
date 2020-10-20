@@ -225,12 +225,13 @@ impl App {
     }
 
     fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
+        let list_rect = self.main_view_list_rect(f.size());
         let ctx = &UiItemContext {
             replacement_text: self.get_replacement_text(),
             printable_style: self.printable_style,
             app_list_state: &self.list_state,
             app_ui_state: &self.ui_state,
-            rect: self.main_view_list_rect(f.size()),
+            list_rect,
         };
 
         let match_items = self

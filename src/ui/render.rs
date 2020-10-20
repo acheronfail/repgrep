@@ -14,5 +14,5 @@ pub struct UiItemContext<'a> {
     /// The `PrintableStyle` with which the UI should be built.
     pub printable_style: PrintableStyle,
     /// The `Rect` that the items will be rendered into.
-    pub rect: Rect,
+    pub list_rect: Rect,
 }

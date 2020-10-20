@@ -391,7 +391,7 @@ impl Item {
         };
 
         // wrap lines
-        let max_width = ctx.rect.width as usize;
+        let max_width = ctx.list_rect.width as usize;
         span_lines
             .into_iter()
             .flat_map(|spans| {
@@ -600,13 +600,13 @@ mod tests {
             replacement_text,
             app_list_state,
             app_ui_state,
-            rect: Rect::new(0, 0, 80, 24),
+            list_rect: Rect::new(0, 0, 80, 24),
         }
     }
 
     fn new_app_list_state() -> AppListState {
         let mut list_state = AppListState::new();
-        list_state.set_indicator(999);
+        list_state.set_indicator_pos(999);
         list_state.set_selected_item(999);
         list_state.set_selected_submatch(999);
         list_state

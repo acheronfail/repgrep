@@ -58,83 +58,75 @@ pub trait Printable {
     fn to_printable(&self, style: PrintableStyle) -> String;
 }
 
-impl Printable for char {
-    fn to_printable(&self, style: PrintableStyle) -> String {
-        match style {
-            PrintableStyle::Hidden => match self {
-                // Print common control characters as a single space
-                '\x09' | '\x0D' => String::from(" "),
-
-                // Strip all other control characters to hide them
-                '\x00' | '\x01' | '\x02' | '\x03' | '\x04' | '\x05' | '\x06' | '\x07' | '\x08'
-                | '\x0B' | '\x0C' | '\x0E' | '\x0F' | '\x10' | '\x11' | '\x12' | '\x13'
-                | '\x14' | '\x15' | '\x16' | '\x17' | '\x18' | '\x19' | '\x1A' | '\x1B'
-                | '\x1C' | '\x1D' | '\x1E' | '\x1F' | '\x7F' => String::from(""),
-
-                // Pass through space and line feeds: spaces are terminal friendly, and line feeds are handled during
-                // conversion from `Item`s to `Span`s.
-                '\x0A' | '\x20' | _ => String::from(*self),
-            },
-            PrintableStyle::Common(oneline) => match self {
-                // Print common whitespace as symbols
-                '\x09' => String::from("→"), // HT (Horizontal Tab)
-                '\x0A' => String::from(if oneline { "¬" } else { "¬\n" }), // LF (Line feed)
-                '\x0D' => String::from("¤"),  // CR (Carriage return)
-                '\x20' => String::from("␣"), // SP (Space)
-
-                // Print other non-printable whitespace with a replacement
-                '\x00' | '\x01' | '\x02' | '\x03' | '\x04' | '\x05' | '\x06' | '\x07' | '\x08'
-                | '\x0B' | '\x0C' | '\x0E' | '\x0F' | '\x10' | '\x11' | '\x12' | '\x13'
-                | '\x14' | '\x15' | '\x16' | '\x17' | '\x18' | '\x19' | '\x1A' | '\x1B'
-                | '\x1C' | '\x1D' | '\x1E' | '\x1F' | '\x7F' => String::from("•"),
-
-                // Pass through the rest
-                _ => String::from(*self),
-            },
-            PrintableStyle::All(oneline) => match self {
-                '\x00' => String::from("␀"), // NULL (Null character)
-                '\x01' => String::from("␁"), // SOH (Start of Header)
-                '\x02' => String::from("␂"), // STX (Start of Text)
-                '\x03' => String::from("␃"), // ETX (End of Text)
-                '\x04' => String::from("␄"), // EOT (End of Trans.)
-                '\x05' => String::from("␅"), // ENQ (Enquiry)
-                '\x06' => String::from("␆"), // ACK (Acknowledgement)
-                '\x07' => String::from("␇"), // BEL (Bell)
-                '\x08' => String::from("␈"), // BS (Backspace)
-                '\x09' => String::from("␉"), // HT (Horizontal Tab)
-                '\x0A' => String::from(if oneline { "␊" } else { "␊\n" }), // LF (Line feed)
-                '\x0B' => String::from("␋"), // VT (Vertical Tab)
-                '\x0C' => String::from("␌"), // FF (Form feed)
-                '\x0D' => String::from("␍"), // CR (Carriage return)
-                '\x0E' => String::from("␎"), // SO (Shift Out)
-                '\x0F' => String::from("␏"), // SI (Shift In)
-                '\x10' => String::from("␐"), // DLE (Data link escape)
-                '\x11' => String::from("␑"), // DC1 (Device control 1)
-                '\x12' => String::from("␒"), // DC2 (Device control 2)
-                '\x13' => String::from("␓"), // DC3 (Device control 3)
-                '\x14' => String::from("␔"), // DC4 (Device control 4)
-                '\x15' => String::from("␕"), // NAK (Negative acknowl.)
-                '\x16' => String::from("␖"), // SYN (Synchronous idle)
-                '\x17' => String::from("␗"), // ETB (End of trans. block)
-                '\x18' => String::from("␘"), // CAN (Cancel)
-                '\x19' => String::from("␙"), // EM (End of medium)
-                '\x1A' => String::from("␚"), // SUB (Substitute)
-                '\x1B' => String::from("␛"), // ESC (Escape)
-                '\x1C' => String::from("␜"), // FS (File separator)
-                '\x1D' => String::from("␝"), // GS (Group separator)
-                '\x1E' => String::from("␞"), // RS (Record separator)
-                '\x1F' => String::from("␟"), // US (Unit separator)
-                '\x20' => String::from("␠"), // SP (Space)
-                '\x7F' => String::from("␡"), // DEL (Delete)
-                _ => String::from(*self),
-            },
-        }
-    }
-}
-
 impl Printable for &str {
     fn to_printable(&self, style: PrintableStyle) -> String {
-        self.chars().map(|ch| ch.to_printable(style)).collect()
+        match style {
+            PrintableStyle::Hidden => self
+                // Print common control characters as a single space
+                .replace(&['\x09', '\x0D'][..], " ")
+                // Strip all other control characters to hide them
+                .replace(
+                    &[
+                        '\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08',
+                        '\x0B', '\x0C', '\x0E', '\x0F', '\x10', '\x11', '\x12', '\x13', '\x14',
+                        '\x15', '\x16', '\x17', '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D',
+                        '\x1E', '\x1F', '\x7F',
+                    ][..],
+                    "",
+                ),
+
+            PrintableStyle::Common(oneline) => self
+                // Print common whitespace as symbols
+                .replace('\x09', "→") // HT (Horizontal Tab)
+                .replace('\x0A', if oneline { "¬" } else { "¬\n" }) // LF (Line feed)
+                .replace('\x0D', "¤") // CR (Carriage return)
+                .replace('\x20', "␣") // SP (Space)
+                // Print other control characters with a replacement
+                .replace(
+                    &[
+                        '\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08',
+                        '\x0B', '\x0C', '\x0E', '\x0F', '\x10', '\x11', '\x12', '\x13', '\x14',
+                        '\x15', '\x16', '\x17', '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D',
+                        '\x1E', '\x1F', '\x7F',
+                    ][..],
+                    "•",
+                ),
+            PrintableStyle::All(oneline) => self
+                .replace('\x00', "␀") // NULL (Null character)
+                .replace('\x01', "␁") // SOH (Start of Header)
+                .replace('\x02', "␂") // STX (Start of Text)
+                .replace('\x03', "␃") // ETX (End of Text)
+                .replace('\x04', "␄") // EOT (End of Trans.)
+                .replace('\x05', "␅") // ENQ (Enquiry)
+                .replace('\x06', "␆") // ACK (Acknowledgement)
+                .replace('\x07', "␇") // BEL (Bell)
+                .replace('\x08', "␈") // BS (Backspace)
+                .replace('\x09', "␉") // HT (Horizontal Tab)
+                .replace('\x0A', if oneline { "␊" } else { "␊\n" }) // LF (Line feed)
+                .replace('\x0B', "␋") // VT (Vertical Tab)
+                .replace('\x0C', "␌") // FF (Form feed)
+                .replace('\x0D', "␍") // CR (Carriage return)
+                .replace('\x0E', "␎") // SO (Shift Out)
+                .replace('\x0F', "␏") // SI (Shift In)
+                .replace('\x10', "␐") // DLE (Data link escape)
+                .replace('\x11', "␑") // DC1 (Device control 1)
+                .replace('\x12', "␒") // DC2 (Device control 2)
+                .replace('\x13', "␓") // DC3 (Device control 3)
+                .replace('\x14', "␔") // DC4 (Device control 4)
+                .replace('\x15', "␕") // NAK (Negative acknowl.)
+                .replace('\x16', "␖") // SYN (Synchronous idle)
+                .replace('\x17', "␗") // ETB (End of trans. block)
+                .replace('\x18', "␘") // CAN (Cancel)
+                .replace('\x19', "␙") // EM (End of medium)
+                .replace('\x1A', "␚") // SUB (Substitute)
+                .replace('\x1B', "␛") // ESC (Escape)
+                .replace('\x1C', "␜") // FS (File separator)
+                .replace('\x1D', "␝") // GS (Group separator)
+                .replace('\x1E', "␞") // RS (Record separator)
+                .replace('\x1F', "␟") // US (Unit separator)
+                .replace('\x20', "␠") // SP (Space)
+                .replace('\x7F', "␡"), // DEL (Delete)
+        }
     }
 }
 

@@ -247,7 +247,7 @@ impl App {
             }
         }
 
-        self.list_state.set_indicator(indicator_idx);
+        self.list_state.set_indicator_pos(indicator_idx);
     }
 
     pub(crate) fn move_pos(&mut self, movement: Movement, term_size: Rect) {

@@ -29,7 +29,7 @@ impl AppListState {
         &mut self.indicator
     }
 
-    pub fn set_indicator(&mut self, idx: usize) {
+    pub fn set_indicator_pos(&mut self, idx: usize) {
         self.indicator.select(Some(idx));
     }
 

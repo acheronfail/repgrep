@@ -1,5 +1,6 @@
 mod args;
 
+use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
@@ -13,7 +14,7 @@ pub const ENV_JSON_FILE: &str = "RGR_JSON_FILE";
 /// This is where we perform our validation of the arguments.
 fn validate_arguments(mut args: Args) -> Result<Args> {
     // Check we have a pattern.
-    if args.pattern.is_none() && args.patterns.is_empty() {
+    if args.pattern.is_none() && args.patterns.is_empty() && env::var(ENV_JSON_FILE).is_err() {
         return Err(anyhow!("No pattern was provided!"));
     }
 
@@ -25,7 +26,7 @@ fn validate_arguments(mut args: Args) -> Result<Args> {
 
     // We don't support binary searches.
     if args.unrestricted > 2 {
-        eprintln!("Binary file searching is not supported. Changing -uuu to -uu");
+        log::warn!("Binary file searching is not supported. Changing -uuu to -uu");
         args.unrestricted = 2;
     }
 

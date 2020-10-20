@@ -10,16 +10,27 @@ DESCRIPTION
 In order to use this tool you must have first installed *rg* (AKA: *ripgrep*).
 See: https://github.com/BurntSushi/ripgrep/#installation.
 
+USAGE
+-----
+
+**Normal Usage**
+
 Upon start all command line arguments are passed down to *rg* (adding *--json* and *--no-config*).
 The JSON output is then parsed, and you are presented with a terminal interface (described below).
 
 Note since we use the *--json* flag, a number of *rg*'s flags are unavailable.
 See *rgr --help* for a list of supported flags that will be sent through to *ripgrep*.
 
-To see the keybindings, press *?* while in the **SELECT** mode.
+**Reading results from a file**
+
+This tool also supports reading results from a JSON file, with the following use case in mind:
+
+* The user runs "rg --json <args> > rg-results.json"
+* Now, this tool can be run with those results via "RGR_JSON_FILE=./rg-results.json rgr"
 
 INTERFACE
 ---------
+To see a list of keybindings, press *?* while in the **SELECT** mode.
 There are a few different modes:
 
 **SELECT**

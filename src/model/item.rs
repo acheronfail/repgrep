@@ -259,7 +259,7 @@ impl Item {
 
                     // NOTE: since `"foo\n".lines().collect()` == `vec!["foo"]` we need to make sure the
                     // last newline isn't trimmed.
-                    if text.ends_with("\n") {
+                    if !ctx.printable_style.is_one_line() && text.ends_with("\n") {
                         spans.push(Span::from(""));
                     }
 
@@ -850,5 +850,20 @@ mod tests {
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_MATCH_LINE_WRAP_MULTI).to_span_lines(&ctx));
+    }
+
+    #[test]
+    fn to_span_lines_input_replacement_trailing_line_feed() {
+        let replacement = "foobar\n";
+        let app_list_state = new_app_list_state();
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        // Should add a line
+        assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
+
+        // Should not add a line
+        ctx.printable_style = ctx.printable_style.as_one_line();
+        assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
     }
 }

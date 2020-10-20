@@ -40,7 +40,10 @@ impl Tui {
         let (tx, rx) = mpsc::channel();
 
         thread::spawn(move || loop {
-            tx.send(event::read().unwrap()).unwrap();
+            match tx.send(event::read().expect("failed to read event from terminal")) {
+                Ok(_) => {}
+                Err(e) => log::warn!("failed to send event to the main thread: {}", e),
+            }
         });
 
         term.clear()?;

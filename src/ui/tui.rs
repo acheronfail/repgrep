@@ -2,7 +2,7 @@ use std::io::{self, Write};
 use std::sync::mpsc;
 use std::thread;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
@@ -11,9 +11,6 @@ use tui::{backend::CrosstermBackend, Terminal};
 use crate::model::ReplacementCriteria;
 use crate::rg::de::RgMessage;
 use crate::ui::app::{App, AppState};
-
-const MINIMUM_WIDTH: u16 = 70;
-const MINIMUM_HEIGHT: u16 = 20;
 
 pub struct Tui {
     app: App,
@@ -49,15 +46,7 @@ impl Tui {
         term.clear()?;
 
         loop {
-            let term_size = term.size()?;
-            if term_size.width < MINIMUM_WIDTH || term_size.height < MINIMUM_HEIGHT {
-                return Err(anyhow!(
-                    "Minimum terminal dimensions are {}x{}!",
-                    MINIMUM_WIDTH,
-                    MINIMUM_HEIGHT
-                ));
-            }
-
+            let term_size = term.get_frame().size();
             term.draw(|mut f| self.app.draw(&mut f))?;
 
             let event = rx.recv()?;

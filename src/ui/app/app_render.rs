@@ -1,5 +1,6 @@
 /// Rendering for `App`.
 use clap::crate_name;
+use const_format::formatcp;
 use tui::backend::Backend;
 use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use tui::style::{Color, Modifier, Style};
@@ -13,6 +14,15 @@ use crate::ui::app::{App, AppUiState};
 use crate::ui::render::UiItemContext;
 
 const LIST_HIGHLIGHT_SYMBOL: &str = "-> ";
+const MINIMUM_WIDTH: u16 = 70;
+const MINIMUM_HEIGHT: u16 = 20;
+const TOO_SMALL_MESSAGE: &str = formatcp!(
+    "Terminal window is too small!
+Minimum dimensions are: {}x{}.
+Resize your terminal window or press 'esc' or 'q' to quit.",
+    MINIMUM_WIDTH,
+    MINIMUM_HEIGHT
+);
 
 impl App {
     // The UI is:
@@ -24,7 +34,12 @@ impl App {
     // | command line (user input for replacement text, etc)
     // _
     pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let (root_split, stats_and_input_split) = self.get_layouts(f.size());
+        let frame = f.size();
+        if self.is_frame_too_small(frame) {
+            return self.draw_too_small_view(f, frame);
+        }
+
+        let (root_split, stats_and_input_split) = self.get_layouts(frame);
         if matches!(self.ui_state, AppUiState::Help) {
             self.draw_help_view(f, root_split[0]);
         } else {
@@ -46,6 +61,15 @@ impl App {
             .split(root_split[1]);
 
         (root_split, stats_and_input_split)
+    }
+
+    pub(crate) fn is_frame_too_small(&self, frame: Rect) -> bool {
+        frame.width < MINIMUM_WIDTH || frame.height < MINIMUM_HEIGHT
+    }
+
+    fn draw_too_small_view<B: Backend>(&self, f: &mut Frame<B>, r: Rect) {
+        let p = Paragraph::new(Text::from(TOO_SMALL_MESSAGE)).wrap(Wrap { trim: false });
+        f.render_widget(p, r);
     }
 
     fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {

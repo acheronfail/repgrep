@@ -12,6 +12,14 @@ use crate::util::clamp;
 impl App {
     pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
         if let Event::Key(key) = event {
+            if self.is_frame_too_small(term_size) {
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Cancelled,
+                    _ => {}
+                }
+                return Ok(());
+            }
+
             // Common Ctrl+Key scroll keybindings that apply to multiple modes.
             let control_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
             if control_pressed {

@@ -6,9 +6,10 @@ use encoding::{DecoderTrap, EncoderTrap};
 use tempfile::NamedTempFile;
 
 use crate::encoding::{get_encoder, Bom};
-use crate::model::{Item, ReplacementCriteria};
+use crate::model::ReplacementCriteria;
 use crate::rg::de::{ArbitraryData, SubMatch};
 use crate::rg::RgEncoding;
+use crate::ui::line::Item;
 
 fn perform_replacements_in_file(
     criteria: &ReplacementCriteria,
@@ -177,6 +178,7 @@ mod tests {
     use tempfile::NamedTempFile;
 
     use crate::model::*;
+    use crate::ui::line::*;
     use crate::replace::perform_replacements;
     use crate::rg::de::test_utilities::RgMessageBuilder;
     use crate::rg::de::{Duration, RgMessageKind, Stats, SubMatch};

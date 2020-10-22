@@ -2,8 +2,9 @@ mod app_events;
 mod app_render;
 mod state;
 
-use crate::model::{Item, PrintableStyle};
+use crate::model::PrintableStyle;
 use crate::rg::de::{RgMessage, Stats};
+use crate::ui::line::Item;
 use state::HelpTextState;
 pub use state::{AppListState, AppState, AppUiState};
 

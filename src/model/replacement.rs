@@ -1,7 +1,7 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-use crate::model::Item;
+use crate::ui::line::Item;
 use crate::rg::de::{ArbitraryData, RgMessageKind};
 
 #[derive(Debug)]

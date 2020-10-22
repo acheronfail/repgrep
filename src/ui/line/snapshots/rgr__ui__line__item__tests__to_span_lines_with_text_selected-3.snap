@@ -1,0 +1,32 @@
+---
+source: src/ui/line/item.rs
+expression: new_item(RG_JSON_CONTEXT).to_span_lines(&ctx)
+---
+[
+    Spans(
+        [
+            Span {
+                content: "198:",
+                style: Style {
+                    fg: Some(
+                        Yellow,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "  }",
+                style: Style {
+                    fg: Some(
+                        Yellow,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+]

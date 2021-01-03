@@ -1,0 +1,30 @@
+---
+source: src/ui/line/item.rs
+expression: new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx)
+---
+[
+    Spans(
+        [
+            Span {
+                content: "198:",
+                style: Style {
+                    fg: Some(
+                        DarkGray,
+                    ),
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+            Span {
+                content: "  �}",
+                style: Style {
+                    fg: None,
+                    bg: None,
+                    add_modifier: (empty),
+                    sub_modifier: (empty),
+                },
+            },
+        ],
+    ),
+]

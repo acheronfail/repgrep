@@ -1,8 +1,8 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-use crate::ui::line::Item;
 use crate::rg::de::{ArbitraryData, RgMessageKind};
+use crate::ui::line::Item;
 
 #[derive(Debug)]
 pub struct ReplacementCriteria {

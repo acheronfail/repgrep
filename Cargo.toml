@@ -16,22 +16,22 @@ name = "rgr"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0.33"
+anyhow = "1.0.37"
 base64 = "0.13.0"
 chardet = "0.2.4"
 clap = "3.0.0-beta.2"
-const_format = "0.2.8"
-crossterm = "0.18.0"
+const_format = "0.2.11"
+crossterm = "0.19.0"
 either = "1.6.1"
 encoding = "0.2.33"
-flexi_logger = "0.16.1"
+flexi_logger = "0.16.3"
 log = "0.4.11"
 safe-transmute = "0.11.0"
-serde = { version = "1.0.117", features = ["derive"] }
-serde_derive = "1.0.117"
-serde_json = "1.0.59"
+serde = { version = "1.0.118", features = ["derive"] }
+serde_derive = "1.0.118"
+serde_json = "1.0.61"
 tempfile = "3.1.0"
-tui = { version = "0.12.0", default-features = false, features = ["crossterm"] }
+tui = { version = "0.14.0", default-features = false, features = ["crossterm"] }
 unicode-width = "0.1.8"
 
 [build-dependencies]
@@ -40,5 +40,5 @@ clap_generate = "3.0.0-beta.2"
 
 [dev-dependencies]
 hex = "0.4.2"
-insta = { version = "1.1.0", features = ["backtrace"] }
+insta = { version = "1.5.1", features = ["backtrace"] }
 pretty_assertions = "0.6.1"

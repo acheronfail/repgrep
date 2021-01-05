@@ -178,10 +178,10 @@ mod tests {
     use tempfile::NamedTempFile;
 
     use crate::model::*;
-    use crate::ui::line::*;
     use crate::replace::perform_replacements;
     use crate::rg::de::test_utilities::RgMessageBuilder;
     use crate::rg::de::{Duration, RgMessageKind, Stats, SubMatch};
+    use crate::ui::line::*;
 
     macro_rules! temp_item {
         ($offset:expr, $lines:expr, $submatches:expr) => {{

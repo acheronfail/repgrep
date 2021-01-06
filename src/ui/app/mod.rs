@@ -48,7 +48,7 @@ impl App {
             list,
             ui_state: AppUiState::SelectMatches,
             help_text_state: HelpTextState::new(HELP_TEXT),
-            printable_style: PrintableStyle::Hidden,
+            printable_style: PrintableStyle::default(),
         }
     }
 }

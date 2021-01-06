@@ -12,6 +12,12 @@ pub enum PrintableStyle {
     All(OneLine),
 }
 
+impl Default for PrintableStyle {
+    fn default() -> Self {
+        PrintableStyle::Hidden
+    }
+}
+
 impl Display for PrintableStyle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

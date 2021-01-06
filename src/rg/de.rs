@@ -341,9 +341,8 @@ pub mod test_utilities {
     pub const RG_JSON_MATCH_MULTILINE: &str = r#"{"type":"match","data":{"path":{"text":"./foo/baz"},"lines":{"text":"baz 1\n22\n333 bar 4444\n"},"line_number":3,"absolute_offset":16,"submatches":[{"match":{"text":"1\n22\n333"},"start":4,"end":12},{"match":{"text":"4444"},"start":17,"end":21}]}}"#;
 
     pub const RG_JSON_MATCH_LINE_WRAP: &str = r#"{"type":"match","data":{"path":{"text":"./foo/baz"},"lines":{"text":"123456789!123456789@123456789#123456789$123456789%123456789^123456789&123456789*123456789(123456789_one_hundred_characters_wowzers\n"},"line_number":3,"absolute_offset":16,"submatches":[{"match":{"text":"one_hundred"},"start":100,"end":111}]}}"#;
-    pub const RG_JSON_CONTEXT_LINE_WRAP: &str = r#"{"type":"context","data":{"path":{"text":"./foo/baz"},"lines":{"text":"123456789!123456789@123456789#123456789$123456789%123456789^123456789&123456789*123456789(123456789_a_context_line\n"},"line_number":4,"absolute_offset":131,"submatches":[]}}"#;
-
     pub const RG_JSON_MATCH_LINE_WRAP_MULTI: &str = r#"{"type":"match","data":{"path":{"text":"./foo/baz"},"lines":{"text":"foo foo foo foo foo bar foo foo foo foo foo bar foo foo foo foo foo bar foo foo foo foo foo bar foo foo foo foo foo bar foo foo foo foo foo bar foo foo foo foo foo bar\n"},"line_number":1,"absolute_offset":0,"submatches":[{"match":{"text":"bar"},"start":20,"end":23},{"match":{"text":"bar"},"start":44,"end":47},{"match":{"text":"bar"},"start":68,"end":71},{"match":{"text":"bar"},"start":92,"end":95},{"match":{"text":"bar"},"start":116,"end":119},{"match":{"text":"bar"},"start":140,"end":143},{"match":{"text":"bar"},"start":164,"end":167}]}}"#;
+    pub const RG_JSON_CONTEXT_LINE_WRAP: &str = r#"{"type":"context","data":{"path":{"text":"./foo/baz"},"lines":{"text":"123456789!123456789@123456789#123456789$123456789%123456789^123456789&123456789*123456789(123456789_a_context_line\n"},"line_number":4,"absolute_offset":131,"submatches":[]}}"#;
 
     pub const RG_B64_JSON_BEGIN: &str =
         r#"{"type":"begin","data":{"path":{"bytes":"Li9hL2Zv/28="}}}"#;

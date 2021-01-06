@@ -20,13 +20,7 @@ impl Default for PrintableStyle {
 
 impl Display for PrintableStyle {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            PrintableStyle::Hidden => write!(f, "H"),
-            PrintableStyle::Common(false) => write!(f, "C"),
-            PrintableStyle::Common(true) => write!(f, "c"),
-            PrintableStyle::All(false) => write!(f, "A"),
-            PrintableStyle::All(true) => write!(f, "a"),
-        }
+        write!(f, "{}", self.symbol())
     }
 }
 
@@ -57,6 +51,16 @@ impl PrintableStyle {
             self,
             PrintableStyle::Common(true) | PrintableStyle::All(true)
         )
+    }
+
+    pub fn symbol(self) -> char {
+        match self {
+            PrintableStyle::Hidden => 'H',
+            PrintableStyle::Common(false) => 'C',
+            PrintableStyle::Common(true) => 'c',
+            PrintableStyle::All(false) => 'A',
+            PrintableStyle::All(true) => 'a',
+        }
     }
 }
 

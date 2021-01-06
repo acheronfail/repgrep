@@ -174,44 +174,48 @@ impl App {
             .split(r);
 
         let help_table = Table::new(
-            ["[Key]", "[Action]"].iter(),
             vec![
-                Row::StyledData(["MODE: ALL"].iter(), title_style),
-                Row::Data(["control + b", "move backward one page"].iter()),
-                Row::Data(["control + f", "move forward one page"].iter()),
-                Row::Data(["control + v", "toggle how control characters are rendered"].iter()),
-                Row::Data([].iter()),
-                Row::StyledData(["MODE: SELECT"].iter(), title_style),
-                Row::Data(["k, up", "move to previous match"].iter()),
-                Row::Data(["j, down", "move to next match"].iter()),
-                Row::Data(["K, shift + up", "move to previous file"].iter()),
-                Row::Data(["J, shift + down", "move to next file"].iter()),
-                Row::Data(["space", "toggle selection"].iter()),
-                Row::Data(["a, A", "toggle selection for all matches"].iter()),
-                Row::Data(["s, S", "toggle selection for whole line"].iter()),
-                Row::Data(["enter, r, R", "accept selection"].iter()),
-                Row::Data(["q, esc", "quit"].iter()),
-                Row::Data(["?", "show help and keybindings"].iter()),
-                Row::Data([].iter()),
-                Row::StyledData(["MODE: REPLACE"].iter(), title_style),
-                Row::Data(["control + s", "accept replacement text"].iter()),
-                Row::Data(["esc", "previous mode"].iter()),
-                Row::Data([].iter()),
-                Row::StyledData(["MODE: CONFIRM"].iter(), title_style),
-                Row::Data(["enter", "write replacements to disk"].iter()),
-                Row::Data(["q, esc", "previous mode"].iter()),
+                Row::new(vec!["MODE: ALL"]).style(title_style),
+                Row::new(vec!["control + b", "move backward one page"]),
+                Row::new(vec!["control + f", "move forward one page"]),
+                Row::new(vec![
+                    "control + v",
+                    "toggle how control characters are rendered",
+                ])
+                .bottom_margin(1),
+                Row::new(vec!["MODE: SELECT"]).style(title_style),
+                Row::new(vec!["k, up", "move to previous match"]),
+                Row::new(vec!["j, down", "move to next match"]),
+                Row::new(vec!["K, shift + up", "move to previous file"]),
+                Row::new(vec!["J, shift + down", "move to next file"]),
+                Row::new(vec!["space", "toggle selection"]),
+                Row::new(vec!["a, A", "toggle selection for all matches"]),
+                Row::new(vec!["s, S", "toggle selection for whole line"]),
+                Row::new(vec!["enter, r, R", "accept selection"]),
+                Row::new(vec!["q, esc", "quit"]),
+                Row::new(vec!["?", "show help and keybindings"]).bottom_margin(1),
+                Row::new(vec!["MODE: REPLACE"]).style(title_style),
+                Row::new(vec!["control + s", "accept replacement text"]),
+                Row::new(vec!["esc", "previous mode"]).bottom_margin(1),
+                Row::new(vec!["MODE: CONFIRM"]).style(title_style),
+                Row::new(vec!["enter", "write replacements to disk"]),
+                Row::new(vec!["q, esc", "previous mode"]),
             ]
             .into_iter(),
+        )
+        .header(
+            Row::new(vec!["[Key]", "[Action]"])
+                .style(
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )
+                .bottom_margin(1),
         )
         .block(
             Block::default()
                 .borders(Borders::ALL)
                 .title(Span::styled("Keybindings", Style::from(title_style))),
-        )
-        .header_style(
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
         )
         .widths(&[Constraint::Length(20), Constraint::Length(50)])
         .column_spacing(1);

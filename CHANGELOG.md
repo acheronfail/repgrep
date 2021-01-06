@@ -1,3 +1,7 @@
+# 0.10.2
+
+- fae12f4 fix: remove more obsolete github actions set env
+
 # 0.10.1
 
 - fae1703 fix: remove obsolete github actions set env

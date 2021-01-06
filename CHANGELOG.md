@@ -1,3 +1,54 @@
+# 0.10.0
+
+- d18c833 Merge pull request #59 from acheronfail/chore/cargo-readme-and-badges
+- 8717526 Merge pull request #58 from acheronfail/fix/indicator-position-line-wrapping
+- fae1ca2 fix: make moving the indicator position more robust
+- fae12c4 docs: use cargo-readme to generate README.md with badges
+- fae1a49 refactor: Display trait for PrintableStyle
+- fae152b chore: impl Default for PrintableStyle
+- 3482b57 Merge pull request #56 from acheronfail/chore/upgrade-dependencies
+- fae1444 chore: upgrade dependencies
+- fae1fa9 ci: remove scheduled action
+- c464d18 Merge pull request #55 from acheronfail/refactor/code-health
+- fae1fcf refactor: move Item and SubItem into ui module
+- 1b780b9 Merge pull request #54 from acheronfail/feat/handle-too-small-window
+- fae18ba feat: handle the case when the terminal window is too small
+- 699d5f6 Merge pull request #52 from acheronfail/refactor/performance-issues
+- fae1147 refactor: use .replace rather than collecting chars to strings
+- fae10a0 fix(app): allow no arguments when reading from a file
+- ac740cf Merge pull request #50 from acheronfail/fix/indicator-position
+- fae1ab1 fix(ui): various issues with indicator positions
+- fae1c7f feat(app): allow reading rg messages from a file
+- fae1fd0 fix(ui): change minimum dimensions from 40x40 to 70x20
+- fae1d9f refactor: rename rg_results to rg_messages
+- e9500f8 Merge pull request #49 from acheronfail/fix/trailing-newlines
+- fae1e8a fix(ui): new lines were incorrectly inserted in one line modes
+- 879b2e3 Merge pull request #17 from acheronfail/chore/housekeeping
+- fae1fb2 fix(tests): use NamedTempFile::keep to address Windows issues
+- fae1959 fix(replace): try using tempfile for atomic writing
+- efbedd7 Merge pull request #46 from acheronfail/fix/continue-on-error
+- a8bcb5e Merge pull request #45 from acheronfail/chore/add-debugging-helpers
+- fae1cd6 chore(debug): add logging utilities via RUST_LOG env var
+- fae1b42 fix(replace): fallback to UTF-8 rather than ASCII
+- fae12bf fix(replace): continue to next file on error
+- 4429361 Merge pull request #44 from acheronfail/chore/add-snapshots
+- fae1c0a fix(dev): use backtrace feature for insta
+- fae128f chore(dev): use insta for snapshot testing
+- 3d3d67c Merge pull request #43 from acheronfail/fix/incorrect-line-numbers
+- fae1cd8 change(ui): default to PrintableStyle::Hidden
+- bebc2b8 Merge pull request #41 from acheronfail/fix/unselected-matches-disappearing
+- fae14a9 fix(ui): deselected matches will no longer disappear when confirming
+- fae12c6 fix(ui): improve rendering of line numbers with multiline spans
+- 74aa955 Merge pull request #40 from acheronfail/fix/control-characters
+- fae12fc feat: display CtrlChars in stats line and fix control chars rendering
+- fae17bb fix(doc): update incorrect keybinding in manpage
+- dc11c8f Merge pull request #34 from acheronfail/fix/wrap-long-lines
+- fae1db6 feat: implement wrapping for lines longer than terminal width
+- fae1a6f chore(doc): update README.md
+- 0aff672 Merge pull request #31 from acheronfail/fix/update-actions
+- fae1d0d chore: update justfile
+- fae16d9 fix: update deprecated set-env calls and update cross
+
 # 0.9.0
 
 - dd66f4f Merge pull request #30 from acheronfail/feat/allow-multiline-replacements

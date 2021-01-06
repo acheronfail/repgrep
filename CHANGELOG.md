@@ -1,3 +1,7 @@
+# 0.10.1
+
+- fae1703 fix: remove obsolete github actions set env
+
 # 0.10.0
 
 - d18c833 Merge pull request #59 from acheronfail/chore/cargo-readme-and-badges

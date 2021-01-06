@@ -240,20 +240,31 @@ impl App {
     fn update_indicator(&mut self, term_size: Rect) {
         let item_idx = self.list_state.selected_item();
         let match_idx = self.list_state.selected_submatch();
+        log::trace!("update_indicator: item={} match={}", item_idx, match_idx);
 
         let main_view_list_rect = self.main_view_list_rect(term_size);
 
         let mut indicator_idx = 0;
         for item in &self.list[0..item_idx] {
-            indicator_idx += item.line_count(main_view_list_rect.width, self.printable_style);
+            let item_height = item.line_count(main_view_list_rect.width, self.printable_style);
+            indicator_idx += item_height;
+            log::debug!(
+                "item height={} (indicator_idx={})",
+                item_height,
+                indicator_idx
+            );
         }
 
-        if match_idx > 0 {
-            for sub_item in &self.list[item_idx].sub_items()[0..match_idx] {
-                indicator_idx +=
-                    sub_item.line_count(main_view_list_rect.width, self.printable_style) - 1;
-            }
-        }
+        let height_to_sub_item = self.list[item_idx]
+            .line_count_at(match_idx, main_view_list_rect.width, self.printable_style)
+            // sub 1 here because the indicator starts at position 1 of the item
+            .saturating_sub(1);
+        indicator_idx += height_to_sub_item;
+        log::debug!(
+            "sub_item height={} (indicator_idx={})",
+            height_to_sub_item,
+            indicator_idx
+        );
 
         self.list_state.set_indicator_pos(indicator_idx);
     }
@@ -387,6 +398,7 @@ mod tests {
             RgMessage::from_str(RG_JSON_BEGIN),
             RgMessage::from_str(RG_JSON_CONTEXT_LINE_WRAP),
             RgMessage::from_str(RG_JSON_MATCH_LINE_WRAP),
+            RgMessage::from_str(RG_JSON_MATCH_LINE_WRAP_MULTI),
             RgMessage::from_str(RG_JSON_END),
             RgMessage::from_str(RG_JSON_SUMMARY),
         ];
@@ -396,8 +408,15 @@ mod tests {
 
     // Valid positions for the app returned by `new_app_line_wrapping`.
     const POS_WRAP_BEGIN: PosTriple = (0, 0, 0);
-    const POS_WRAP_MATCH: PosTriple = (2, 0, 3);
-    const POS_WRAP_END: PosTriple = (3, 0, 5);
+    const POS_WRAP_MATCH: PosTriple = (2, 0, 4);
+    const POS_WRAP_MATCH_MULTI_0_1: PosTriple = (3, 0, 5);
+    const POS_WRAP_MATCH_MULTI_0_2: PosTriple = (3, 1, 5);
+    const POS_WRAP_MATCH_MULTI_0_3: PosTriple = (3, 2, 5);
+    const POS_WRAP_MATCH_MULTI_0_4: PosTriple = (3, 3, 6);
+    const POS_WRAP_MATCH_MULTI_0_5: PosTriple = (3, 4, 6);
+    const POS_WRAP_MATCH_MULTI_0_6: PosTriple = (3, 5, 6);
+    const POS_WRAP_MATCH_MULTI_0_7: PosTriple = (3, 6, 7);
+    const POS_WRAP_END: PosTriple = (4, 0, 8);
 
     #[test]
     fn it_toggles_item_all_sub_items() {
@@ -505,8 +524,22 @@ mod tests {
         let mut app = new_app_line_wrapping();
         assert_list_state!(app, POS_WRAP_BEGIN);
         move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH_MULTI_0_1);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH_MULTI_0_2);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH_MULTI_0_3);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH_MULTI_0_4);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH_MULTI_0_5);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH_MULTI_0_6);
+        move_and_assert_list_state!(app, Movement::Next, POS_WRAP_MATCH_MULTI_0_7);
         move_and_assert_list_state!(app, Movement::Next, POS_WRAP_END);
         move_and_assert_list_state!(app, Movement::Next, POS_WRAP_END);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH_MULTI_0_7);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH_MULTI_0_6);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH_MULTI_0_5);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH_MULTI_0_4);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH_MULTI_0_3);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH_MULTI_0_2);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH_MULTI_0_1);
         move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH);
         move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_BEGIN);
         move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_BEGIN);

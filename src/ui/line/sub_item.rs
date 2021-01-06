@@ -1,9 +1,8 @@
 use tui::style::{Color, Modifier, Style};
 use tui::text::Span;
 
-use crate::model::{Printable, PrintableStyle};
+use crate::model::Printable;
 use crate::rg::de::SubMatch;
-use crate::ui::line::line_count;
 use crate::ui::render::UiItemContext;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -24,16 +23,6 @@ impl SubItem {
 }
 
 impl SubItem {
-    pub fn line_count(&self, list_width: u16, style: PrintableStyle) -> usize {
-        let list_width = list_width as usize;
-        self.sub_match
-            .text
-            .to_printable(style)
-            .lines()
-            .map(|line| line_count(list_width, line))
-            .sum::<usize>()
-    }
-
     /// A SubItem contains the "match". A match _may_ be over multiple lines, but there will only ever
     /// be a single span on each line. So this returns a list of "lines": one span for each line.
     pub fn to_span_lines(&self, ctx: &UiItemContext, is_item_selected: bool) -> Vec<Span> {

@@ -110,6 +110,39 @@ impl Item {
         self.path().and_then(|data| data.to_path_buf().ok())
     }
 
+    pub fn line_count_at(&self, match_idx: usize, list_width: u16, style: PrintableStyle) -> usize {
+        match &self.rg_message {
+            RgMessage::Begin { .. } | RgMessage::End { .. } => 0,
+            RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => {
+                let list_width = list_width as usize;
+                let line_number = self.line_number().unwrap();
+                let line_bytes = lines.to_vec();
+
+                let line_bytes = if let Some(start_of_match) = self
+                    .sub_items
+                    .get(match_idx)
+                    .map(|si| si.sub_match.range.start)
+                {
+                    &line_bytes[0..start_of_match]
+                } else {
+                    &line_bytes[0..]
+                };
+
+                String::from_utf8_lossy(line_bytes)
+                    .to_printable(style)
+                    .lines()
+                    .enumerate()
+                    .map(|(i, line)| {
+                        let line_number = format_line_number!(line_number + i);
+                        let available_width = list_width.saturating_sub(line_number.width());
+                        line_count(available_width, line)
+                    })
+                    .sum::<usize>()
+            }
+            RgMessage::Summary { .. } => 0,
+        }
+    }
+
     pub fn line_count(&self, list_width: u16, style: PrintableStyle) -> usize {
         match &self.rg_message {
             RgMessage::Begin { .. } | RgMessage::End { .. } => 1,
@@ -189,7 +222,7 @@ impl Item {
             } => {
                 let mut line_number = line_number.clone();
 
-                // Read the lines as bytes since we split it at the ranges that ripgrep gives us in each of the submatches.
+                // Read the lines as bytes since we split it at the byte ranges that ripgrep gives us in each of the submatches.
                 let lines_bytes = lines.to_vec();
                 let replacement_spans = ctx.replacement_text.map(|text| {
                     let replacement_style = base_style.fg(Color::Green);
@@ -785,10 +818,8 @@ mod tests {
             let line_count = item.line_count($width, $style);
 
             let expected_submatch_counts: &[usize] = $submatch_counts;
-            let actual_submatch_counts: Vec<usize> = item
-                .sub_items
-                .iter()
-                .map(|s| s.line_count($width, $style))
+            let actual_submatch_counts: Vec<usize> = (0..item.sub_items.len())
+                .map(|i| item.line_count_at(i, $width, $style))
                 .collect();
             assert_eq!(
                 (line_count, &actual_submatch_counts[..]),
@@ -808,14 +839,14 @@ mod tests {
         for s in styles {
             assert_line_count!(RG_JSON_BEGIN, w, s, 1, &[]);
             assert_line_count!(RG_JSON_MATCH, w, s, 1, &[1, 1]);
-            assert_line_count!(RG_JSON_MATCH_MULTILINE, w, s, 3, &[3, 1]);
-            assert_line_count!(RG_JSON_MATCH_LINE_WRAP, w, s, 2, &[1]);
+            assert_line_count!(RG_JSON_MATCH_MULTILINE, w, s, 3, &[1, 3]);
+            assert_line_count!(RG_JSON_MATCH_LINE_WRAP, w, s, 2, &[2]);
             assert_line_count!(
                 RG_JSON_MATCH_LINE_WRAP_MULTI,
                 w,
                 s,
                 3,
-                &[1, 1, 1, 1, 1, 1, 1]
+                &[1, 1, 1, 2, 2, 2, 3]
             );
             assert_line_count!(RG_JSON_CONTEXT_LINE_WRAP, w, s, 2, &[]);
             assert_line_count!(RG_JSON_CONTEXT, w, s, 1, &[]);
@@ -831,13 +862,13 @@ mod tests {
             assert_line_count!(RG_JSON_BEGIN, w, s, 1, &[]);
             assert_line_count!(RG_JSON_MATCH, w, s, 1, &[1, 1]);
             assert_line_count!(RG_JSON_MATCH_MULTILINE, w, s, 1, &[1, 1]);
-            assert_line_count!(RG_JSON_MATCH_LINE_WRAP, w, s, 2, &[1]);
+            assert_line_count!(RG_JSON_MATCH_LINE_WRAP, w, s, 2, &[2]);
             assert_line_count!(
                 RG_JSON_MATCH_LINE_WRAP_MULTI,
                 w,
                 s,
                 3,
-                &[1, 1, 1, 1, 1, 1, 1]
+                &[1, 1, 1, 2, 2, 2, 3]
             );
             assert_line_count!(RG_JSON_CONTEXT_LINE_WRAP, w, s, 2, &[]);
             assert_line_count!(RG_JSON_CONTEXT, w, s, 1, &[]);

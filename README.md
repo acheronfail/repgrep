@@ -1,3 +1,8 @@
+[![crate](https://img.shields.io/crates/v/repgrep)](https://crates.io/crates/repgrep)
+[![documentation](https://docs.rs/repgrep/badge.svg)](https://docs.rs/repgrep)
+[![Average time to resolve an issue](https://isitmaintained.com/badge/resolution/acheronfail/repgrep.svg)](https://isitmaintained.com/project/acheronfail/repgrep "Average time to resolve an issue")
+[![Percentage of issues still open](https://isitmaintained.com/badge/open/acheronfail/repgrep.svg)](https://isitmaintained.com/project/acheronfail/repgrep "Percentage of issues still open")
+
 # repgrep (rgr)
 
 _An interactive replacer for `ripgrep`._
@@ -66,3 +71,5 @@ cargo install --path .
 [`ripgrep`]: https://github.com/BurntSushi/ripgrep
 [releases]: https://github.com/acheronfail/repgrep/releases
 [`ripgrep` installation instructions]: https://github.com/BurntSushi/ripgrep/#installation
+
+License: Unlicense OR MIT OR Apache-2.0

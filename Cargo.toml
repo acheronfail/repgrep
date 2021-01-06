@@ -11,6 +11,10 @@ license = "Unlicense OR MIT OR Apache-2.0"
 edition = "2018"
 build = "build.rs"
 
+[badges]
+is-it-maintained-issue-resolution = { repository = "acheronfail/repgrep" }
+is-it-maintained-open-issues = { repository = "acheronfail/repgrep" }
+
 [[bin]]
 name = "rgr"
 path = "src/main.rs"

@@ -514,7 +514,10 @@ mod tests {
 
     macro_rules! move_and_assert_list_state {
         ($app:expr, $movement:expr, $triple:expr) => {
-            $app.move_pos($movement, Rect::new(0, 0, 80, 24));
+            move_and_assert_list_state!($app, $movement, $triple, Rect::new(0, 0, 80, 24))
+        };
+        ($app:expr, $movement:expr, $triple:expr, $rect:expr) => {
+            $app.move_pos($movement, $rect);
             assert_list_state!($app, $triple);
         };
     }
@@ -543,6 +546,35 @@ mod tests {
         move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_MATCH);
         move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_BEGIN);
         move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_BEGIN);
+    }
+
+    // NOTE: this test ensures that the indicator position is correct for matches that start on the
+    // _first_ character of the next line
+    #[test]
+    fn movement_line_wrapping_at_end() {
+        let rect = Rect::new(0, 0, 145, 24);
+        let mut app = new_app_line_wrapping();
+        assert_list_state!(app, POS_WRAP_BEGIN);
+        move_and_assert_list_state!(app, Movement::Next, (2, 0, 2), rect);
+        move_and_assert_list_state!(app, Movement::Next, (3, 0, 3), rect);
+        move_and_assert_list_state!(app, Movement::Next, (3, 1, 3), rect);
+        move_and_assert_list_state!(app, Movement::Next, (3, 2, 3), rect);
+        move_and_assert_list_state!(app, Movement::Next, (3, 3, 3), rect);
+        move_and_assert_list_state!(app, Movement::Next, (3, 4, 3), rect);
+        move_and_assert_list_state!(app, Movement::Next, (3, 5, 4), rect);
+        move_and_assert_list_state!(app, Movement::Next, (3, 6, 4), rect);
+        move_and_assert_list_state!(app, Movement::Next, (4, 0, 5), rect);
+        move_and_assert_list_state!(app, Movement::Next, (4, 0, 5), rect);
+        move_and_assert_list_state!(app, Movement::Prev, (3, 6, 4), rect);
+        move_and_assert_list_state!(app, Movement::Prev, (3, 5, 4), rect);
+        move_and_assert_list_state!(app, Movement::Prev, (3, 4, 3), rect);
+        move_and_assert_list_state!(app, Movement::Prev, (3, 3, 3), rect);
+        move_and_assert_list_state!(app, Movement::Prev, (3, 2, 3), rect);
+        move_and_assert_list_state!(app, Movement::Prev, (3, 1, 3), rect);
+        move_and_assert_list_state!(app, Movement::Prev, (3, 0, 3), rect);
+        move_and_assert_list_state!(app, Movement::Prev, (2, 0, 2), rect);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_BEGIN, rect);
+        move_and_assert_list_state!(app, Movement::Prev, POS_WRAP_BEGIN, rect);
     }
 
     #[test]

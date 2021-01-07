@@ -1,3 +1,7 @@
+# 0.10.3
+
+- fae1877 fix: incorrect indicator position for matches on next line
+
 # 0.10.2
 
 - fae12f4 fix: remove more obsolete github actions set env

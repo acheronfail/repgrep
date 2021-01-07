@@ -44,5 +44,5 @@ clap_generate = "3.0.0-beta.2"
 
 [dev-dependencies]
 hex = "0.4.2"
-insta = { version = "1.5.1", features = ["backtrace"] }
+insta = { version = "1.5.2", features = ["backtrace"] }
 pretty_assertions = "0.6.1"

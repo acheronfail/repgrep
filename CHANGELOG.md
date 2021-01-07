@@ -1,3 +1,7 @@
+# 0.10.4
+
+- fae103e chore: upgrade dependencies and regenerate lockfile
+
 # 0.10.3
 
 - fae1877 fix: incorrect indicator position for matches on next line

@@ -9,7 +9,7 @@ use crate::format_line_number;
 use crate::model::{Printable, PrintableStyle};
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind};
 use crate::ui::app::AppUiState;
-use crate::ui::line::{line_count, SubItem};
+use crate::ui::line::SubItem;
 use crate::ui::render::UiItemContext;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -128,14 +128,21 @@ impl Item {
                     &line_bytes[0..]
                 };
 
-                String::from_utf8_lossy(line_bytes)
-                    .to_printable(style)
-                    .lines()
+                let line = String::from_utf8_lossy(line_bytes).to_printable(style);
+                let lines = line.lines().collect::<Vec<_>>();
+                lines
+                    .iter()
                     .enumerate()
                     .map(|(i, line)| {
-                        let line_number = format_line_number!(line_number + i);
-                        let available_width = list_width.saturating_sub(line_number.width());
-                        line_count(available_width, line)
+                        let available_width =
+                            list_width.saturating_sub(format_line_number!(line_number + i).width());
+                        let line_width = line.width();
+                        let height = line_width / available_width;
+                        if line_width % available_width == 0 && i == lines.len() + 1 {
+                            height
+                        } else {
+                            height + 1
+                        }
                     })
                     .sum::<usize>()
             }
@@ -149,14 +156,21 @@ impl Item {
             RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => {
                 let list_width = list_width as usize;
                 let line_number = self.line_number().unwrap();
+                let lines = lines.to_printable(style);
+                let lines = lines.lines().collect::<Vec<_>>();
                 lines
-                    .to_printable(style)
-                    .lines()
+                    .iter()
                     .enumerate()
                     .map(|(i, line)| {
-                        let line_number = format_line_number!(line_number + i);
-                        let available_width = list_width.saturating_sub(line_number.width());
-                        line_count(available_width, line)
+                        let available_width =
+                            list_width.saturating_sub(format_line_number!(line_number + i).width());
+                        let line_width = line.width();
+                        let height = line_width / available_width;
+                        if line_width % available_width == 0 {
+                            height
+                        } else {
+                            height + 1
+                        }
                     })
                     .sum::<usize>()
             }
@@ -826,6 +840,13 @@ mod tests {
                 ($line_count, expected_submatch_counts)
             );
         }};
+    }
+
+    #[test]
+    fn line_count_full_line() {
+        // NOTE: terminal is 80 wide, indicator is 3, and line number is 2, so 75 for the line
+        assert_line_count!(RG_JSON_CONTEXT_75_LONG, 80, PrintableStyle::Hidden, 1, &[]);
+        assert_line_count!(RG_JSON_MATCH_75_LONG, 80, PrintableStyle::Hidden, 1, &[1]);
     }
 
     #[test]

@@ -72,7 +72,10 @@ pub enum AppUiState {
 
 impl AppUiState {
     pub fn is_replacing(&self) -> bool {
-        matches!(self, AppUiState::InputReplacement(_) | AppUiState::ConfirmReplacement(_))
+        matches!(
+            self,
+            AppUiState::InputReplacement(_) | AppUiState::ConfirmReplacement(_)
+        )
     }
 
     /// Represent the `AppUiState` as a `Text`.

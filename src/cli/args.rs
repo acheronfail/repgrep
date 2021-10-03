@@ -40,7 +40,7 @@ pub struct Args {
     #[clap(name = "PATH", parse(from_os_str))]
     pub paths: Vec<PathBuf>,
     /// Used to provide multiple patterns.
-    #[clap(short = 'e', long = "regexp", multiple = true, number_of_values = 1)]
+    #[clap(short = 'e', long = "regexp", multiple_values = true, number_of_values = 1)]
     pub patterns: Vec<String>,
 
     // FLAGS
@@ -90,10 +90,10 @@ pub struct Args {
     #[clap(long = "trim")]
     pub trim: bool,
     /// Search only a specific type of file.
-    #[clap(short = 't', long = "type", multiple = true, number_of_values = 1)]
+    #[clap(short = 't', long = "type", multiple_values = true, number_of_values = 1)]
     pub r#type: Vec<String>,
     /// Inverse of --type.
-    #[clap(short = 'T', long = "type-not", multiple = true, number_of_values = 1)]
+    #[clap(short = 'T', long = "type-not", multiple_values = true, number_of_values = 1)]
     pub type_not: Vec<String>,
     /// Set the "unrestricted" searching options for ripgrep.
     /// Note that this is currently limited to only two occurrences `-uu` since
@@ -112,10 +112,10 @@ pub struct Args {
 
     // FILES & IGNORES
     /// A list of globs to match files.
-    #[clap(short = 'g', long = "glob", multiple = true, number_of_values = 1)]
+    #[clap(short = 'g', long = "glob", multiple_values = true, number_of_values = 1)]
     pub glob: Vec<String>,
     /// A list of case insensitive globs to match files.
-    #[clap(long = "iglob", multiple = true, number_of_values = 1)]
+    #[clap(long = "iglob", multiple_values = true, number_of_values = 1)]
     pub iglob: Vec<String>,
     /// Search hidden files.
     #[clap(long = "hidden")]

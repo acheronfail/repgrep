@@ -200,7 +200,7 @@ impl Item {
                     line_number_style,
                 ));
             }};
-        };
+        }
 
         let span_lines = match &self.rg_message {
             RgMessage::Begin { .. } => vec![vec![Span::styled(
@@ -234,7 +234,7 @@ impl Item {
             RgMessage::Match {
                 lines, line_number, ..
             } => {
-                let mut line_number = line_number.clone();
+                let mut line_number = *line_number;
 
                 // Read the lines as bytes since we split it at the byte ranges that ripgrep gives us in each of the submatches.
                 let lines_bytes = lines.to_vec();
@@ -248,7 +248,7 @@ impl Item {
 
                     // NOTE: since `"foo\n".lines().collect()` == `vec!["foo"]` we need to make sure the
                     // last newline isn't trimmed.
-                    if !ctx.printable_style.is_one_line() && text.ends_with("\n") {
+                    if !ctx.printable_style.is_one_line() && text.ends_with('\n') {
                         spans.push(Span::from(""));
                     }
 

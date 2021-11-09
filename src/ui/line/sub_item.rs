@@ -31,20 +31,16 @@ impl SubItem {
             if self.should_replace {
                 s = s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT);
             }
-        } else {
-            if is_item_selected && ctx.app_list_state.selected_submatch() == self.index {
-                if self.should_replace {
-                    s = s.fg(Color::Black).bg(Color::Yellow);
-                } else {
-                    s = s.fg(Color::Yellow).bg(Color::DarkGray);
-                }
+        } else if is_item_selected && ctx.app_list_state.selected_submatch() == self.index {
+            if self.should_replace {
+                s = s.fg(Color::Black).bg(Color::Yellow);
             } else {
-                if self.should_replace {
-                    s = s.fg(Color::Black).bg(Color::Red);
-                } else {
-                    s = s.fg(Color::Red).bg(Color::DarkGray);
-                }
+                s = s.fg(Color::Yellow).bg(Color::DarkGray);
             }
+        } else if self.should_replace {
+            s = s.fg(Color::Black).bg(Color::Red);
+        } else {
+            s = s.fg(Color::Red).bg(Color::DarkGray);
         }
 
         self.sub_match

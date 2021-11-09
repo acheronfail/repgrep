@@ -7,7 +7,7 @@ use crate::rg::RgEncoding;
 /// Returns a tuple of a BOM (if one exists) and an encoding.
 pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, EncodingRef) {
     // Check if this file has a BOM (Byte Order Mark).
-    let bom = Bom::from_slice(&bytes);
+    let bom = Bom::from_slice(bytes);
 
     // Try to detect the encoding of the file.
     let encoder = bom
@@ -32,7 +32,7 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
         })
         // nothing so far, try detecting the encoding
         .or_else(|| {
-            let (encoding, confidence, _) = chardet::detect(&bytes);
+            let (encoding, confidence, _) = chardet::detect(bytes);
             log::debug!(
                 "Attempting to detect encoding - cncoding: {}, Confidence: {}",
                 encoding,

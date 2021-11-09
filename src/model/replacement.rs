@@ -33,9 +33,9 @@ impl ReplacementCriteria {
             // Collect into a map of paths -> matches.
             .fold(HashMap::new(), |mut map, item| {
                 match map.entry(item.path().unwrap()) {
-                    Entry::Occupied(e) => e.into_mut().push(&item),
+                    Entry::Occupied(e) => e.into_mut().push(item),
                     Entry::Vacant(e) => {
-                        e.insert(vec![&item]);
+                        e.insert(vec![item]);
                     }
                 }
 

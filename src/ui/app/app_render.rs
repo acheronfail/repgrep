@@ -215,14 +215,14 @@ impl App {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(Span::styled("Keybindings", Style::from(title_style))),
+                .title(Span::styled("Keybindings", title_style)),
         )
         .widths(&[Constraint::Length(20), Constraint::Length(50)])
         .column_spacing(1);
 
         f.render_widget(help_table, hsplit[1]);
 
-        let help_title = Span::styled(format!("{} help", crate_name!()), Style::from(title_style));
+        let help_title = Span::styled(format!("{} help", crate_name!()), title_style);
         let help_text = self.help_text_state.text(hsplit[0].height as usize);
         let help_text = Text::from(help_text.as_ref());
         let help_paragraph = Paragraph::new(help_text)
@@ -266,9 +266,9 @@ impl App {
             .list
             .iter()
             .flat_map(|item| {
-                item.to_span_lines(&ctx)
+                item.to_span_lines(ctx)
                     .into_iter()
-                    .map(|spans| ListItem::new(spans))
+                    .map(ListItem::new)
                     .collect::<Vec<ListItem>>()
             })
             .collect::<Vec<ListItem>>();

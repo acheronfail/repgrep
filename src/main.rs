@@ -114,7 +114,7 @@ fn main() {
             eprintln!("Logs available at: {}", log_dir.display());
             process::exit(1);
         };
-    };
+    }
 
     let args = match cli::parse_arguments() {
         Ok(args) => args,

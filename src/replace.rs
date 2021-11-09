@@ -28,7 +28,7 @@ fn perform_replacements_in_file(
             .read_to_end(&mut file_contents)?;
 
         // Search for a BOM and attempt to detect file encoding.
-        let (bom, encoder) = get_encoder(&file_contents, &rg_encoding);
+        let (bom, encoder) = get_encoder(&file_contents, rg_encoding);
         log::debug!("BOM: {:?}", bom);
         log::debug!("Encoder: {}", encoder.name());
 
@@ -147,7 +147,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
     for meta in criteria.as_map() {
         match perform_replacements_in_file(&criteria, &rg_encoding, meta) {
             Ok(did_skip) => {
-                if did_skip == true {
+                if did_skip {
                     did_skip_replacement = true
                 }
             }

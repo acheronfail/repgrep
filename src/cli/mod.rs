@@ -5,7 +5,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
-use clap::{Parser, IntoApp};
+use clap::{IntoApp, Parser};
 
 use args::Args;
 

@@ -43,8 +43,7 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-18.04
-          # NOTE: clap uses `os_str_bytes` which requires 1.57.0
-          # See: https://github.com/dylni/os_str_bytes/blob/54defdb1c7f2b15bb430074ba6460c479a13be80/README.md?plain=1#L55
+          # NOTE: flexi_logger requires 1.60.0
           rust: 1.57.0
         - build: stable
           os: ubuntu-18.04

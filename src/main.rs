@@ -79,7 +79,7 @@ use std::process;
 
 use anyhow::Result;
 use clap::crate_name;
-use flexi_logger::{opt_format, Logger};
+use flexi_logger::{opt_format, FileSpec, Logger};
 use rg::exec::run_ripgrep;
 use ui::tui::Tui;
 
@@ -87,9 +87,10 @@ use crate::rg::read::read_messages;
 
 fn init_logging() -> Result<::std::path::PathBuf> {
     let log_dir = env::temp_dir().join(format!(".{}", crate_name!()));
-    Logger::with_env()
-        .log_to_file()
-        .directory(&log_dir)
+    let log_spec = FileSpec::default().directory(&log_dir);
+    Logger::try_with_env()
+        .expect("Please pass a valid RUST_LOG string, see: https://docs.rs/flexi_logger/latest/flexi_logger/struct.LogSpecification.html")
+        .log_to_file(log_spec)
         .format(opt_format)
         .start()?;
 

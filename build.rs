@@ -54,10 +54,9 @@ fn main() {
     macro_rules! gen {
         ($shell:expr) => {{
             let path = generate_to(
-                $shell,
-                &mut app,  // We need to specify what generator to use
-                "rgr",     // We need to specify the bin name manually
-                &outdir,   // We need to specify where to write to
+                $shell, &mut app, // We need to specify what generator to use
+                "rgr",    // We need to specify the bin name manually
+                &outdir,  // We need to specify where to write to
             )
             .expect("failed to generate completion");
 

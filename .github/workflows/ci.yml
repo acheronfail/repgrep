@@ -43,9 +43,8 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-18.04
-          # NOTE: needed for `impl From<char> for String`
-          # See: https://github.com/rust-lang/rust/pull/73466/
-          rust: 1.46.0
+          # NOTE: flexi_logger requires 1.60.0
+          rust: 1.60.0
         - build: stable
           os: ubuntu-18.04
           rust: stable

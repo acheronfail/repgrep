@@ -1,3 +1,24 @@
+# 0.10.6
+
+- 5be7287 Merge pull request #69 from acheronfail/release/0.10.6
+- 9f50cb7 Merge pull request #68 from acheronfail/fix/ci-and-building-issues
+- fae19b9 fix: incorrect rust version in ci.yml
+- fae1a87 0.10.6
+- fae1b4c upd: update flexi_logger and other dependencies
+- fae125f fix: ci and building issues
+- fae197c fix: flush keyboard events if drawing to the terminal is slow
+
+# 0.10.5
+
+- 482293e 0.10.5
+- 0f38d52 chore: update to clap v3 (finally it is out!)
+- fae1661 repo: cargo clippy
+- 6006df9 Merge pull request #62 from cpkio/multiple-fix
+- fae1d85 fmt
+- bef7bb8 Fixed build errors
+- 70e751e Merge pull request #60 from acheronfail/fix/indicator-position-full-lines
+- fae1d69 fix: indicator position issue with full-length lines
+
 # 0.10.4
 
 - fae103e chore: upgrade dependencies and regenerate lockfile

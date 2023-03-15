@@ -166,7 +166,7 @@ impl Item {
                             list_width.saturating_sub(format_line_number!(line_number + i).width());
                         let line_width = line.width();
                         let height = line_width / available_width;
-                        if line_width % available_width == 0 {
+                        if line_width > 0 && line_width % available_width == 0 {
                             height
                         } else {
                             height + 1
@@ -840,6 +840,18 @@ mod tests {
                 ($line_count, expected_submatch_counts)
             );
         }};
+    }
+
+    #[test]
+    fn line_count_empty_context_lines() {
+        assert_line_count!(
+            RG_JSON_CONTEXT_EMPTY,
+            80,
+            PrintableStyle::All(false),
+            1,
+            &[]
+        );
+        assert_line_count!(RG_JSON_CONTEXT_EMPTY, 80, PrintableStyle::Hidden, 1, &[]);
     }
 
     #[test]

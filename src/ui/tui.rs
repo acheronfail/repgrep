@@ -1,6 +1,7 @@
 use std::io;
 use std::sync::mpsc;
 use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture};
@@ -46,8 +47,16 @@ impl Tui {
         term.clear()?;
 
         loop {
+            let before_draw = Instant::now();
             let term_size = term.get_frame().size();
             term.draw(|mut f| self.app.draw(&mut f))?;
+
+            // If drawing to the terminal is slow, flush all keyboard events so they're not buffered.
+            // (Otherwise with very slow updates, the user has to wait for all keyboard events to be processed
+            // before being able to quit the app, etc).
+            if before_draw.elapsed() > Duration::from_millis(200) {
+                while let Ok(_) = rx.try_recv() {}
+            }
 
             let event = rx.recv()?;
             self.app.on_event(term_size, event)?;

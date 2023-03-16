@@ -411,6 +411,7 @@ impl Item {
 mod tests {
     use std::path::PathBuf;
 
+    use base64_simd::STANDARD as base64;
     use insta::assert_debug_snapshot;
     use pretty_assertions::assert_eq;
     use tui::layout::Rect;
@@ -514,7 +515,7 @@ mod tests {
             Item::new(
                 0,
                 RgMessageBuilder::new(kind)
-                    .with_path_base64(base64::encode(&invalid_utf8_name_bytes))
+                    .with_path_base64(base64.encode_to_string(&invalid_utf8_name_bytes))
                     .with_lines_text("foo bar baz")
                     .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
                     .with_stats(Stats::new())

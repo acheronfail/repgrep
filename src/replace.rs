@@ -174,6 +174,7 @@ mod tests {
     use std::io::{Read, Write};
     use std::path::PathBuf;
 
+    use base64_simd::STANDARD as base64;
     use pretty_assertions::assert_eq;
     use tempfile::NamedTempFile;
 
@@ -402,7 +403,7 @@ mod tests {
         let item = Item::new(
             0,
             RgMessageBuilder::new(RgMessageKind::Match)
-                .with_path_base64(base64::encode(p.as_os_str().as_bytes()))
+                .with_path_base64(base64.encode_to_string(p.as_os_str().as_bytes()))
                 .with_lines_text(lines.to_string())
                 .with_submatches(vec![SubMatch::new_text("o", 4..5)])
                 .with_offset(0)

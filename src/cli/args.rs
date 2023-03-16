@@ -9,8 +9,8 @@ use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use clap::Parser;
 use clap::{crate_authors, crate_version};
+use clap::{ArgAction, Parser};
 
 // TODO: options to support in the future
 // -P/--pcre2
@@ -35,13 +35,13 @@ pub struct Args {
     #[clap(name = "PATTERN")]
     pub pattern: Option<String>,
     /// The paths in which to search.
-    #[clap(name = "PATH", parse(from_os_str))]
+    #[clap(name = "PATH")]
     pub paths: Vec<PathBuf>,
     /// Used to provide multiple patterns.
     #[clap(
         short = 'e',
         long = "regexp",
-        multiple_values = true,
+        num_args = 1..,
         number_of_values = 1
     )]
     pub patterns: Vec<String>,
@@ -96,7 +96,7 @@ pub struct Args {
     #[clap(
         short = 't',
         long = "type",
-        multiple_values = true,
+        num_args = 1..,
         number_of_values = 1
     )]
     pub r#type: Vec<String>,
@@ -104,15 +104,15 @@ pub struct Args {
     #[clap(
         short = 'T',
         long = "type-not",
-        multiple_values = true,
+        num_args = 1..,
         number_of_values = 1
     )]
     pub type_not: Vec<String>,
     /// Set the "unrestricted" searching options for ripgrep.
     /// Note that this is currently limited to only two occurrences `-uu` since
     /// binary searching is not supported in repgrep.
-    #[clap(short = 'u', long = "unrestricted", parse(from_occurrences))]
-    pub unrestricted: usize,
+    #[clap(short = 'u', long = "unrestricted", action = ArgAction::Count)]
+    pub unrestricted: u8,
     /// Allow matches to span multiple lines.
     #[clap(short = 'U', long = "multiline")]
     pub multiline: bool,
@@ -128,12 +128,12 @@ pub struct Args {
     #[clap(
         short = 'g',
         long = "glob",
-        multiple_values = true,
+        num_args = 1..,
         number_of_values = 1
     )]
     pub glob: Vec<String>,
     /// A list of case insensitive globs to match files.
-    #[clap(long = "iglob", multiple_values = true, number_of_values = 1)]
+    #[clap(long = "iglob", num_args = 1.., number_of_values = 1)]
     pub iglob: Vec<String>,
     /// Search hidden files.
     #[clap(long = "hidden")]

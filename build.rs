@@ -1,4 +1,4 @@
-use clap::IntoApp;
+use clap::CommandFactory;
 use clap_complete::{generate_to, shells};
 use std::env;
 use std::fs;
@@ -50,7 +50,7 @@ fn main() {
     fs::write(Path::new(&outdir).join("repgrep-stamp"), "").unwrap();
 
     // Generate completions.
-    let mut app = cli::Args::into_app();
+    let mut app = cli::Args::command();
     macro_rules! gen {
         ($shell:expr) => {{
             let path = generate_to(

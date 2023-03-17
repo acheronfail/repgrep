@@ -169,3 +169,15 @@ impl Args {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use clap::CommandFactory;
+
+    use super::Args;
+
+    #[test]
+    fn verify_cli() {
+        Args::command().debug_assert()
+    }
+}

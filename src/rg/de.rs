@@ -206,7 +206,7 @@ mod tests {
 
         let bytes_as_u8 = safe_transmute::transmute_to_bytes(&invalid_utf8_wide[..]);
         let data = ArbitraryData::Base64 {
-            bytes: base64::encode(&bytes_as_u8[..]),
+            bytes: base64.encode_to_string(&bytes_as_u8[..]),
         };
 
         assert_eq!(data.to_os_string().unwrap(), invalid_utf8_os_string);

@@ -7,6 +7,7 @@ use std::ops::Range;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use base64_simd::STANDARD as base64;
 use serde::{Deserialize, Serialize};
 
 /// A helper to easily select the `RgMessage` kind.
@@ -67,7 +68,7 @@ impl ArbitraryData {
     pub fn to_vec(&self) -> Vec<u8> {
         match self {
             ArbitraryData::Text { text } => text.as_bytes().to_vec(),
-            ArbitraryData::Base64 { bytes } => base64::decode(bytes).unwrap(),
+            ArbitraryData::Base64 { bytes } => base64.decode_to_vec(bytes).unwrap(),
         }
     }
 
@@ -111,7 +112,7 @@ impl ArbitraryData {
         match self {
             ArbitraryData::Text { text } => text.to_owned(),
             ArbitraryData::Base64 { bytes } => {
-                String::from_utf8_lossy(base64::decode(bytes).unwrap().as_slice()).to_string()
+                String::from_utf8_lossy(base64.decode_to_vec(bytes).unwrap().as_slice()).to_string()
             }
         }
     }
@@ -185,7 +186,7 @@ mod tests {
         let invalid_utf8_os_string = OsString::from_vec(invalid_utf8.clone());
 
         let data = ArbitraryData::Base64 {
-            bytes: base64::encode(&invalid_utf8[..]),
+            bytes: base64.encode_to_string(&invalid_utf8[..]),
         };
 
         assert_eq!(data.to_os_string().unwrap(), invalid_utf8_os_string);
@@ -205,7 +206,7 @@ mod tests {
 
         let bytes_as_u8 = safe_transmute::transmute_to_bytes(&invalid_utf8_wide[..]);
         let data = ArbitraryData::Base64 {
-            bytes: base64::encode(&bytes_as_u8[..]),
+            bytes: base64.encode_to_string(&bytes_as_u8[..]),
         };
 
         assert_eq!(data.to_os_string().unwrap(), invalid_utf8_os_string);
@@ -376,9 +377,9 @@ pub mod test_utilities {
                 range,
             }
         }
-        pub fn new_base64(base64: impl AsRef<str>, range: Range<usize>) -> SubMatch {
+        pub fn new_base64(b64: impl AsRef<str>, range: Range<usize>) -> SubMatch {
             SubMatch {
-                text: ArbitraryData::new_with_base64(base64.as_ref().to_owned()),
+                text: ArbitraryData::new_with_base64(b64.as_ref().to_owned()),
                 range,
             }
         }

@@ -9,8 +9,8 @@ use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use clap::Parser;
 use clap::{crate_authors, crate_version};
+use clap::{ArgAction, Parser};
 
 // TODO: options to support in the future
 // -P/--pcre2
@@ -35,13 +35,13 @@ pub struct Args {
     #[clap(name = "PATTERN")]
     pub pattern: Option<String>,
     /// The paths in which to search.
-    #[clap(name = "PATH", parse(from_os_str))]
+    #[clap(name = "PATH")]
     pub paths: Vec<PathBuf>,
     /// Used to provide multiple patterns.
     #[clap(
         short = 'e',
         long = "regexp",
-        multiple_values = true,
+        num_args = 1..,
         number_of_values = 1
     )]
     pub patterns: Vec<String>,
@@ -96,7 +96,7 @@ pub struct Args {
     #[clap(
         short = 't',
         long = "type",
-        multiple_values = true,
+        num_args = 1..,
         number_of_values = 1
     )]
     pub r#type: Vec<String>,
@@ -104,15 +104,15 @@ pub struct Args {
     #[clap(
         short = 'T',
         long = "type-not",
-        multiple_values = true,
+        num_args = 1..,
         number_of_values = 1
     )]
     pub type_not: Vec<String>,
     /// Set the "unrestricted" searching options for ripgrep.
     /// Note that this is currently limited to only two occurrences `-uu` since
     /// binary searching is not supported in repgrep.
-    #[clap(short = 'u', long = "unrestricted", parse(from_occurrences))]
-    pub unrestricted: usize,
+    #[clap(short = 'u', long = "unrestricted", action = ArgAction::Count)]
+    pub unrestricted: u8,
     /// Allow matches to span multiple lines.
     #[clap(short = 'U', long = "multiline")]
     pub multiline: bool,
@@ -128,15 +128,15 @@ pub struct Args {
     #[clap(
         short = 'g',
         long = "glob",
-        multiple_values = true,
+        num_args = 1..,
         number_of_values = 1
     )]
     pub glob: Vec<String>,
     /// A list of case insensitive globs to match files.
-    #[clap(long = "iglob", multiple_values = true, number_of_values = 1)]
+    #[clap(long = "iglob", num_args = 1.., number_of_values = 1)]
     pub iglob: Vec<String>,
     /// Search hidden files.
-    #[clap(long = "hidden")]
+    #[clap(short = '.', long = "hidden")]
     pub hidden: bool,
     /// Use the given ignore file when searching.
     #[clap(long = "ignore-file")]
@@ -158,14 +158,241 @@ impl Args {
         // Skip the first argument, which _should_ be the binary name.
         env::args_os().skip(1)
     }
+}
 
-    /// Returns the patterns used by `rg` in the search.
-    #[allow(unused)]
-    pub fn rg_patterns(&self) -> Vec<&str> {
-        if let Some(pattern) = &self.pattern {
-            vec![pattern]
-        } else {
-            self.patterns.iter().map(|p| p.as_ref()).collect()
-        }
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use clap::{CommandFactory, Parser};
+
+    use super::Args;
+
+    #[test]
+    fn verify_cli() {
+        Args::command().debug_assert()
+    }
+
+    #[test]
+    fn verify_pattern() {
+        let args = Args::parse_from(&["rgr", "foobar"]);
+        assert_eq!(args.pattern, Some(String::from("foobar")));
+    }
+
+    #[test]
+    fn verify_paths() {
+        let args = Args::parse_from(&["rgr", "foobar", "/tmp", "/dev"]);
+        assert_eq!(
+            args.paths,
+            vec![PathBuf::from("/tmp"), PathBuf::from("/dev")]
+        );
+    }
+
+    #[test]
+    fn verify_patterns() {
+        let args = Args::parse_from(&["rgr", "-e=foobar", "-e", "pattern"]);
+        assert_eq!(
+            args.patterns,
+            vec![String::from("foobar"), String::from("pattern")]
+        );
+    }
+
+    #[test]
+    fn verify_after_context() {
+        let args = Args::parse_from(&["rgr", ".", "-A5"]);
+        assert_eq!(args.after_context, Some(5));
+    }
+
+    #[test]
+    fn verify_before_context() {
+        let args = Args::parse_from(&["rgr", ".", "-B=10"]);
+        assert_eq!(args.before_context, Some(10));
+    }
+
+    #[test]
+    fn verify_context() {
+        let args = Args::parse_from(&["rgr", ".", "-C", "42"]);
+        assert_eq!(args.context, Some(42));
+    }
+
+    #[test]
+    fn verify_crlf() {
+        let args = Args::parse_from(&["rgr", ".", "--crlf"]);
+        assert_eq!(args.crlf, true);
+    }
+
+    #[test]
+    fn verify_encoding() {
+        let args = Args::parse_from(&["rgr", ".", "-Eutf-8"]);
+        assert_eq!(args.encoding, Some(String::from("utf-8")));
+        let args = Args::parse_from(&["rgr", ".", "--encoding", "utf-16"]);
+        assert_eq!(args.encoding, Some(String::from("utf-16")));
+    }
+
+    #[test]
+    fn verify_follow_symlinks() {
+        let args = Args::parse_from(&["rgr", ".", "-L"]);
+        assert_eq!(args.follow_symlinks, true);
+        let args = Args::parse_from(&["rgr", ".", "--follow"]);
+        assert_eq!(args.follow_symlinks, true);
+    }
+
+    #[test]
+    fn verify_ignore_case() {
+        let args = Args::parse_from(&["rgr", ".", "-i"]);
+        assert_eq!(args.ignore_case, true);
+        let args = Args::parse_from(&["rgr", ".", "--ignore-case"]);
+        assert_eq!(args.ignore_case, true);
+    }
+
+    #[test]
+    fn verify_invert_match() {
+        let args = Args::parse_from(&["rgr", ".", "-v"]);
+        assert_eq!(args.invert_match, true);
+        let args = Args::parse_from(&["rgr", ".", "--invert-match"]);
+        assert_eq!(args.invert_match, true);
+    }
+
+    #[test]
+    fn verify_passthru() {
+        let args = Args::parse_from(&["rgr", ".", "--passthru"]);
+        assert_eq!(args.passthru, true);
+    }
+
+    #[test]
+    fn verify_smart_case() {
+        let args = Args::parse_from(&["rgr", ".", "-S"]);
+        assert_eq!(args.smart_case, true);
+        let args = Args::parse_from(&["rgr", ".", "--smart-case"]);
+        assert_eq!(args.smart_case, true);
+    }
+
+    #[test]
+    fn verify_case_sensitive() {
+        let args = Args::parse_from(&["rgr", ".", "-s"]);
+        assert_eq!(args.case_sensitive, true);
+        let args = Args::parse_from(&["rgr", ".", "--case-sensitive"]);
+        assert_eq!(args.case_sensitive, true);
+    }
+
+    #[test]
+    fn verify_sort() {
+        let args = Args::parse_from(&["rgr", ".", "--sort=path"]);
+        assert_eq!(args.sort, Some(String::from("path")));
+    }
+
+    #[test]
+    fn verify_sortr() {
+        let args = Args::parse_from(&["rgr", ".", "--sortr=created"]);
+        assert_eq!(args.sortr, Some(String::from("created")));
+    }
+
+    #[test]
+    fn verify_threads() {
+        let args = Args::parse_from(&["rgr", ".", "-j12"]);
+        assert_eq!(args.threads, Some(12));
+        let args = Args::parse_from(&["rgr", ".", "--threads=4"]);
+        assert_eq!(args.threads, Some(4));
+    }
+
+    #[test]
+    fn verify_trim() {
+        let args = Args::parse_from(&["rgr", ".", "--trim"]);
+        assert_eq!(args.trim, true);
+    }
+
+    #[test]
+    fn verify_type() {
+        let args = Args::parse_from(&["rgr", ".", "-tcss"]);
+        assert_eq!(args.r#type, vec![String::from("css")]);
+        let args = Args::parse_from(&["rgr", ".", "-tcss", "--type=html"]);
+        assert_eq!(args.r#type, vec![String::from("css"), String::from("html")]);
+    }
+
+    #[test]
+    fn verify_type_not() {
+        let args = Args::parse_from(&["rgr", ".", "-Tcss"]);
+        assert_eq!(args.type_not, vec![String::from("css")]);
+        let args = Args::parse_from(&["rgr", ".", "-Tcss", "--type-not=html"]);
+        assert_eq!(
+            args.type_not,
+            vec![String::from("css"), String::from("html")]
+        );
+    }
+
+    #[test]
+    fn verify_unrestricted() {
+        let args = Args::parse_from(&["rgr", ".", "-u"]);
+        assert_eq!(args.unrestricted, 1);
+        let args = Args::parse_from(&["rgr", ".", "-uu"]);
+        assert_eq!(args.unrestricted, 2);
+        let args = Args::parse_from(&["rgr", ".", "--unrestricted"]);
+        assert_eq!(args.unrestricted, 1);
+    }
+
+    #[test]
+    fn verify_multiline() {
+        let args = Args::parse_from(&["rgr", ".", "--multiline"]);
+        assert_eq!(args.multiline, true);
+    }
+
+    #[test]
+    fn verify_multiline_dotall() {
+        let args = Args::parse_from(&["rgr", ".", "--multiline-dotall"]);
+        assert_eq!(args.multiline_dotall, true);
+    }
+
+    #[test]
+    fn verify_word_regexp() {
+        let args = Args::parse_from(&["rgr", ".", "-w"]);
+        assert_eq!(args.word_regexp, true);
+        let args = Args::parse_from(&["rgr", ".", "--word-regexp"]);
+        assert_eq!(args.word_regexp, true);
+    }
+
+    #[test]
+    fn verify_glob() {
+        let args = Args::parse_from(&["rgr", ".", "-g=asdf"]);
+        assert_eq!(args.glob, vec![String::from("asdf")]);
+        let args = Args::parse_from(&["rgr", ".", "-g=asdf", "--glob", "qwerty"]);
+        assert_eq!(
+            args.glob,
+            vec![String::from("asdf"), String::from("qwerty")]
+        );
+    }
+
+    #[test]
+    fn verify_iglob() {
+        let args = Args::parse_from(&["rgr", ".", "--iglob=zxcv"]);
+        assert_eq!(args.iglob, vec![String::from("zxcv")]);
+    }
+
+    #[test]
+    fn verify_hidden() {
+        let args = Args::parse_from(&["rgr", ".", "-."]);
+        assert_eq!(args.hidden, true);
+        let args = Args::parse_from(&["rgr", ".", "--hidden"]);
+        assert_eq!(args.hidden, true);
+    }
+
+    #[test]
+    fn verify_ignore_file() {
+        let args = Args::parse_from(&["rgr", ".", "--ignore-file=my/path/to/.gitignore"]);
+        assert_eq!(
+            args.ignore_file,
+            Some(PathBuf::from("my/path/to/.gitignore"))
+        );
+    }
+
+    #[test]
+    fn verify_ignore_file_case_insensitive() {
+        let args = Args::parse_from(&["rgr", ".", "--ignore-file-case-insensitive"]);
+        assert_eq!(args.ignore_file_case_insensitive, true);
+    }
+
+    #[test]
+    fn verify_one_file_system() {
+        let args = Args::parse_from(&["rgr", ".", "--one-file-system"]);
+        assert_eq!(args.one_file_system, true);
     }
 }

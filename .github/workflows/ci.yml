@@ -43,8 +43,8 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-18.04
-          # NOTE: flexi_logger requires 1.60.0
-          rust: 1.60.0
+          # NOTE: clap v4 requires 1.64.0
+          rust: 1.64.0
         - build: stable
           os: ubuntu-18.04
           rust: stable

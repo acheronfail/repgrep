@@ -1,7 +1,6 @@
 mod args;
 
 use std::env;
-use std::ffi::OsString;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
@@ -43,23 +42,34 @@ pub fn parse_arguments() -> Result<Args> {
     validate_arguments(Args::parse())
 }
 
-/// Parses arguments from a list. (used in tests.)
-#[allow(unused)]
-pub fn parse_arguments_from<I, T>(itr: I) -> Result<Args>
-where
-    I: IntoIterator<Item = T>,
-    T: Into<OsString> + Clone,
-{
-    validate_arguments(Args::parse_from(itr))
-}
-
 #[cfg(test)]
 mod tests {
+    use std::ffi::OsString;
     use std::path::PathBuf;
 
+    use anyhow::Result;
+    use clap::Parser;
     use pretty_assertions::assert_eq;
 
-    use crate::cli::parse_arguments_from;
+    use super::{validate_arguments, Args};
+
+    /// Parses arguments from a list.
+    fn parse_arguments_from<I, T>(itr: I) -> Result<Args>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<OsString> + Clone,
+    {
+        validate_arguments(Args::parse_from(itr))
+    }
+
+    /// Returns the patterns used by `rg` in the search.
+    fn rg_patterns(args: &Args) -> Vec<&str> {
+        if let Some(pattern) = &args.pattern {
+            vec![pattern]
+        } else {
+            args.patterns.iter().map(|p| p.as_ref()).collect()
+        }
+    }
 
     #[test]
     fn checks_if_no_pattern_was_passed() {
@@ -103,7 +113,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            args.rg_patterns(),
+            rg_patterns(&args),
             vec!["pattern-flag", "pattern-flag-long"]
         );
     }

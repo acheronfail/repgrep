@@ -5,7 +5,7 @@ on:
   push:
     # Enable when testing release infrastructure on a branch.
     # branches:
-    # - release/xyz
+    - test/release
     tags:
     - '[0-9]+.[0-9]+.[0-9]+'
 jobs:
@@ -69,30 +69,30 @@ jobs:
       matrix:
         build: [linux-gnu, linux-musl, linux-arm-gnueabihf, macos, win-msvc, win-gnu, win32-msvc]
         include:
-        - build: linux-gnu
-          os: ubuntu-18.04
-          rust: nightly
-          target: x86_64-unknown-linux-gnu
-        - build: linux-musl
-          os: ubuntu-18.04
-          rust: nightly
-          target: x86_64-unknown-linux-musl
-        - build: linux-arm-gnueabihf
-          os: ubuntu-18.04
-          rust: nightly
-          target: arm-unknown-linux-gnueabihf
-        - build: macos
-          os: macos-latest
-          rust: nightly
-          target: x86_64-apple-darwin
+        # - build: linux-gnu
+        #   os: ubuntu-18.04
+        #   rust: nightly
+        #   target: x86_64-unknown-linux-gnu
+        # - build: linux-musl
+        #   os: ubuntu-18.04
+        #   rust: nightly
+        #   target: x86_64-unknown-linux-musl
+        # - build: linux-arm-gnueabihf
+        #   os: ubuntu-18.04
+        #   rust: nightly
+        #   target: arm-unknown-linux-gnueabihf
+        # - build: macos
+        #   os: macos-latest
+        #   rust: nightly
+        #   target: x86_64-apple-darwin
         - build: win-msvc
           os: windows-2019
           rust: nightly
           target: x86_64-pc-windows-msvc
-        - build: win-gnu
-          os: windows-2019
-          rust: nightly-x86_64-gnu
-          target: x86_64-pc-windows-gnu
+        # - build: win-gnu
+        #   os: windows-2019
+        #   rust: nightly-x86_64-gnu
+        #   target: x86_64-pc-windows-gnu
         - build: win32-msvc
           os: windows-2019
           rust: nightly
@@ -185,6 +185,10 @@ jobs:
         cp "$outdir"/{_rgr,rgr.bash,rgr.fish,_rgr.ps1} "$staging/complete/"
 
         if [ "${{ matrix.os }}" = "windows-2019" ]; then
+          ls -la "target/"
+          ls -la "target/${{ matrix.target }}"
+          ls -la "target/${{ matrix.target }}/release/"
+          ls -la "$staging/"
           cp "target/${{ matrix.target }}/release/rgr.exe" "$staging/"
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
@@ -195,45 +199,45 @@ jobs:
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
         fi
 
-    - name: Upload release archive
-      uses: actions/upload-release-asset@v1.0.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.RELEASE_UPLOAD_URL }}
-        asset_path: ${{ env.ASSET }}
-        asset_name: ${{ env.ASSET }}
-        asset_content_type: application/octet-stream
+    # - name: Upload release archive
+    #   uses: actions/upload-release-asset@v1.0.1
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   with:
+    #     upload_url: ${{ env.RELEASE_UPLOAD_URL }}
+    #     asset_path: ${{ env.ASSET }}
+    #     asset_name: ${{ env.ASSET }}
+    #     asset_content_type: application/octet-stream
 
 
   # This job runs _after_ the `create-release` job, and uses the artifacts that it created.
-  publish-crate:
-    name: publish-crate
-    needs: ['build-release']
-    runs-on: ubuntu-18.04
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 1
-        submodules: recursive
+  # publish-crate:
+  #   name: publish-crate
+  #   needs: ['build-release']
+  #   runs-on: ubuntu-18.04
+  #   steps:
+  #   - name: Checkout repository
+  #     uses: actions/checkout@v2
+  #     with:
+  #       fetch-depth: 1
+  #       submodules: recursive
 
-    - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-18.04'
-      run: |
-        ci/install-packages-ubuntu.sh
+  #   - name: Install packages (Ubuntu)
+  #     if: matrix.os == 'ubuntu-18.04'
+  #     run: |
+  #       ci/install-packages-ubuntu.sh
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        profile: minimal
-        override: true
-        target: x86_64-unknown-linux-gnu
+  #   - name: Install Rust
+  #     uses: actions-rs/toolchain@v1
+  #     with:
+  #       toolchain: nightly
+  #       profile: minimal
+  #       override: true
+  #       target: x86_64-unknown-linux-gnu
 
-    - name: Publish Crate
-      shell: bash
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: |
-        cargo publish
+  #   - name: Publish Crate
+  #     shell: bash
+  #     env:
+  #       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+  #     run: |
+  #       cargo publish

@@ -116,7 +116,7 @@ jobs:
         ci/install-packages-macos.sh
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v2
+      uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
         profile: minimal
@@ -225,7 +225,7 @@ jobs:
         ci/install-packages-ubuntu.sh
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v2
+      uses: actions-rs/toolchain@v1
       with:
         toolchain: nightly
         profile: minimal

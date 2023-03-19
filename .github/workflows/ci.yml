@@ -101,7 +101,7 @@ jobs:
         ci/install-packages-macos.sh
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v2
+      uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
         profile: minimal
@@ -169,7 +169,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
     - name: Install Rust
-      uses: actions-rs/toolchain@v2
+      uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         override: true

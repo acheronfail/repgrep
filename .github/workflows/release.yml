@@ -5,7 +5,7 @@ on:
   push:
     # Enable when testing release infrastructure on a branch.
     # branches:
-    # - release/xyz
+    # - test-release
     tags:
     - '[0-9]+.[0-9]+.[0-9]+'
 jobs:
@@ -100,7 +100,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         fetch-depth: 1
         submodules: recursive
@@ -171,6 +171,7 @@ jobs:
 
     # FIXME: for some reasons the manpage isn't generated in CI from the build.rs script.
     # So we build it (again?) here too.
+    # NOTE: the windows builds don't create a target-triple directory under "target/"
     - name: Build archive
       shell: bash
       run: |
@@ -185,7 +186,7 @@ jobs:
         cp "$outdir"/{_rgr,rgr.bash,rgr.fish,_rgr.ps1} "$staging/complete/"
 
         if [ "${{ matrix.os }}" = "windows-2019" ]; then
-          cp "target/${{ matrix.target }}/release/rgr.exe" "$staging/"
+          cp "target/release/rgr.exe" "$staging/"
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
         else

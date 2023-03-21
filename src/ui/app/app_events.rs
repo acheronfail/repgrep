@@ -11,142 +11,152 @@ use crate::util::clamp;
 
 impl App {
     pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
-        if let Event::Key(key) = event {
-            if self.is_frame_too_small(term_size) {
-                match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Cancelled,
-                    _ => {}
-                }
-                return Ok(());
+        match event {
+            Event::Resize(w, h) => {
+                let new_size = Rect::new(term_size.x, term_size.y, w, h);
+                self.update_indicator(new_size);
             }
-
-            // Common Ctrl+Key scroll keybindings that apply to multiple modes.
-            let control_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
-            if control_pressed {
-                let did_handle_key = match &self.ui_state {
-                    AppUiState::SelectMatches
-                    | AppUiState::InputReplacement(_)
-                    | AppUiState::ConfirmReplacement(_) => match key.code {
-                        // Page movements
-                        KeyCode::Char('b') => {
-                            self.move_pos(
-                                Movement::Backward(self.main_view_list_rect(term_size).height),
-                                term_size,
-                            );
-                            true
-                        }
-                        KeyCode::Char('f') => {
-                            self.move_pos(
-                                Movement::Forward(self.main_view_list_rect(term_size).height),
-                                term_size,
-                            );
-                            true
-                        }
-
-                        // Toggle whitespace style
-                        KeyCode::Char('v') => {
-                            self.printable_style = self.printable_style.cycle();
-                            self.update_indicator(term_size);
-                            true
-                        }
-                        _ => false,
-                    },
-                    _ => false,
-                };
-
-                // If a key was handled then stop processing any other events.
-                if did_handle_key {
-                    return Ok(());
-                }
-            }
-
-            match &self.ui_state {
-                AppUiState::ConfirmReplacement(replacement) => match key.code {
-                    KeyCode::Esc | KeyCode::Char('q') => {
-                        self.ui_state = AppUiState::InputReplacement(replacement.to_owned())
-                    }
-                    KeyCode::Enter => {
-                        self.state = AppState::Complete(ReplacementCriteria::new(
-                            replacement,
-                            self.list.clone(),
-                        ));
-                    }
-                    _ => {}
-                },
-                AppUiState::Help => match key.code {
-                    KeyCode::Esc | KeyCode::Char('q') => self.ui_state = AppUiState::SelectMatches,
-                    KeyCode::Char('k') | KeyCode::Up => self.help_text_state.decr(),
-                    KeyCode::Char('j') | KeyCode::Down => self.help_text_state.incr(),
-                    _ => {}
-                },
-                AppUiState::SelectMatches => {
-                    let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+            Event::Key(key) => {
+                if self.is_frame_too_small(term_size) {
                     match key.code {
-                        KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => self.move_pos(
-                            if shift {
-                                Movement::PrevFile
-                            } else {
-                                Movement::PrevLine
-                            },
-                            term_size,
-                        ),
-                        KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => self.move_pos(
-                            if shift {
-                                Movement::NextFile
-                            } else {
-                                Movement::NextLine
-                            },
-                            term_size,
-                        ),
-                        KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
-                            self.move_pos(Movement::Prev, term_size)
-                        }
-                        KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
-                            self.move_pos(Movement::Next, term_size)
-                        }
-                        KeyCode::Char(' ') => self.toggle_item(false),
-                        KeyCode::Char('s') | KeyCode::Char('S') => self.toggle_item(true),
-                        KeyCode::Char('a') | KeyCode::Char('A') => self.toggle_all_items(),
-                        KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
-                        KeyCode::Char('?') => self.ui_state = AppUiState::Help,
-                        KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
-                            self.ui_state = AppUiState::InputReplacement(String::new())
-                        }
+                        KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Cancelled,
                         _ => {}
                     }
+                    return Ok(());
                 }
-                AppUiState::InputReplacement(ref input) => match key.code {
-                    KeyCode::Char(ch) => {
-                        if control_pressed && ch == 's' {
-                            self.ui_state = AppUiState::ConfirmReplacement(input.to_owned());
-                        } else {
-                            self.ui_state =
-                                AppUiState::InputReplacement(format!("{}{}", input, ch));
-                        }
-                    }
-                    KeyCode::Backspace => {
-                        if !input.is_empty() {
-                            // trim off the last character
-                            let input = input.chars().rev().skip(1).collect::<Vec<_>>();
-                            let input = input.iter().rev().collect::<String>();
-                            self.ui_state = AppUiState::InputReplacement(input);
-                        }
-                    }
-                    KeyCode::Esc => self.ui_state = AppUiState::SelectMatches,
-                    KeyCode::Enter => {
-                        self.ui_state = AppUiState::InputReplacement(format!("{}\n", input));
-                    }
 
-                    // TODO: use arrow keys to move "cursor" in text
-                    KeyCode::Up => {}
-                    KeyCode::Down => {}
-                    KeyCode::Left => {}
-                    KeyCode::Right => {}
-                    // TODO: use "delete" key to forward delete
-                    KeyCode::Delete => {}
-                    _ => {}
-                },
+                // Common Ctrl+Key scroll keybindings that apply to multiple modes.
+                let control_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
+                if control_pressed {
+                    let did_handle_key = match &self.ui_state {
+                        AppUiState::SelectMatches
+                        | AppUiState::InputReplacement(_)
+                        | AppUiState::ConfirmReplacement(_) => match key.code {
+                            // Page movements
+                            KeyCode::Char('b') => {
+                                self.move_pos(
+                                    Movement::Backward(self.main_view_list_rect(term_size).height),
+                                    term_size,
+                                );
+                                true
+                            }
+                            KeyCode::Char('f') => {
+                                self.move_pos(
+                                    Movement::Forward(self.main_view_list_rect(term_size).height),
+                                    term_size,
+                                );
+                                true
+                            }
+
+                            // Toggle whitespace style
+                            KeyCode::Char('v') => {
+                                self.printable_style = self.printable_style.cycle();
+                                self.update_indicator(term_size);
+                                true
+                            }
+                            _ => false,
+                        },
+                        _ => false,
+                    };
+
+                    // If a key was handled then stop processing any other events.
+                    if did_handle_key {
+                        return Ok(());
+                    }
+                }
+
+                match &self.ui_state {
+                    AppUiState::ConfirmReplacement(replacement) => match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') => {
+                            self.ui_state = AppUiState::InputReplacement(replacement.to_owned())
+                        }
+                        KeyCode::Enter => {
+                            self.state = AppState::Complete(ReplacementCriteria::new(
+                                replacement,
+                                self.list.clone(),
+                            ));
+                        }
+                        _ => {}
+                    },
+                    AppUiState::Help => match key.code {
+                        KeyCode::Esc | KeyCode::Char('q') => {
+                            self.ui_state = AppUiState::SelectMatches
+                        }
+                        KeyCode::Char('k') | KeyCode::Up => self.help_text_state.decr(),
+                        KeyCode::Char('j') | KeyCode::Down => self.help_text_state.incr(),
+                        _ => {}
+                    },
+                    AppUiState::SelectMatches => {
+                        let shift = key.modifiers.contains(KeyModifiers::SHIFT);
+                        match key.code {
+                            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => self.move_pos(
+                                if shift {
+                                    Movement::PrevFile
+                                } else {
+                                    Movement::PrevLine
+                                },
+                                term_size,
+                            ),
+                            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => self
+                                .move_pos(
+                                    if shift {
+                                        Movement::NextFile
+                                    } else {
+                                        Movement::NextLine
+                                    },
+                                    term_size,
+                                ),
+                            KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
+                                self.move_pos(Movement::Prev, term_size)
+                            }
+                            KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
+                                self.move_pos(Movement::Next, term_size)
+                            }
+                            KeyCode::Char(' ') => self.toggle_item(false),
+                            KeyCode::Char('s') | KeyCode::Char('S') => self.toggle_item(true),
+                            KeyCode::Char('a') | KeyCode::Char('A') => self.toggle_all_items(),
+                            KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
+                            KeyCode::Char('?') => self.ui_state = AppUiState::Help,
+                            KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
+                                self.ui_state = AppUiState::InputReplacement(String::new())
+                            }
+                            _ => {}
+                        }
+                    }
+                    AppUiState::InputReplacement(ref input) => match key.code {
+                        KeyCode::Char(ch) => {
+                            if control_pressed && ch == 's' {
+                                self.ui_state = AppUiState::ConfirmReplacement(input.to_owned());
+                            } else {
+                                self.ui_state =
+                                    AppUiState::InputReplacement(format!("{}{}", input, ch));
+                            }
+                        }
+                        KeyCode::Backspace => {
+                            if !input.is_empty() {
+                                // trim off the last character
+                                let input = input.chars().rev().skip(1).collect::<Vec<_>>();
+                                let input = input.iter().rev().collect::<String>();
+                                self.ui_state = AppUiState::InputReplacement(input);
+                            }
+                        }
+                        KeyCode::Esc => self.ui_state = AppUiState::SelectMatches,
+                        KeyCode::Enter => {
+                            self.ui_state = AppUiState::InputReplacement(format!("{}\n", input));
+                        }
+
+                        // TODO: use arrow keys to move "cursor" in text
+                        KeyCode::Up => {}
+                        KeyCode::Down => {}
+                        KeyCode::Left => {}
+                        KeyCode::Right => {}
+                        // TODO: use "delete" key to forward delete
+                        KeyCode::Delete => {}
+                        _ => {}
+                    },
+                }
             }
+            _ => {}
         }
 
         Ok(())
@@ -240,19 +250,12 @@ impl App {
     fn update_indicator(&mut self, term_size: Rect) {
         let item_idx = self.list_state.selected_item();
         let match_idx = self.list_state.selected_submatch();
-        log::trace!("update_indicator: item={} match={}", item_idx, match_idx);
-
         let main_view_list_rect = self.main_view_list_rect(term_size);
 
         let mut indicator_idx = 0;
         for item in &self.list[0..item_idx] {
             let item_height = item.line_count(main_view_list_rect.width, self.printable_style);
             indicator_idx += item_height;
-            log::debug!(
-                "item height={} (indicator_idx={})",
-                item_height,
-                indicator_idx
-            );
         }
 
         let height_to_sub_item = self.list[item_idx]
@@ -260,13 +263,20 @@ impl App {
             // sub 1 here because the indicator starts at position 1 of the item
             .saturating_sub(1);
         indicator_idx += height_to_sub_item;
-        log::debug!(
-            "sub_item height={} (indicator_idx={})",
-            height_to_sub_item,
-            indicator_idx
-        );
 
-        self.list_state.set_indicator_pos(indicator_idx);
+        // calculate the new position of the visible window if needed
+        let height = main_view_list_rect.height as usize;
+        let window_start = self.list_state.window_start();
+        if indicator_idx >= window_start + height {
+            self.list_state.set_window_start(indicator_idx - height + 1);
+        } else if indicator_idx < window_start {
+            self.list_state.set_window_start(indicator_idx);
+        }
+
+        // adjust `indicator_idx` by the start of the window, since we only pass
+        // the visible lines to the terminal (but our indices are absolute)
+        self.list_state
+            .set_indicator_pos(indicator_idx - window_start);
     }
 
     pub(crate) fn move_pos(&mut self, movement: Movement, term_size: Rect) {

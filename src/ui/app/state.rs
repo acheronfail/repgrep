@@ -12,6 +12,10 @@ pub struct AppListState {
     selected_submatch: usize,
     /// The position of the indicator on the left of the main list view
     indicator: ListState,
+    /// The position of the start of the visible window in the main list view.
+    /// We only send the visible lines to the renderer for performance reasons, and
+    /// this represents the beginning of the visible window.
+    window_start: usize,
 }
 
 impl AppListState {
@@ -22,6 +26,7 @@ impl AppListState {
             selected_item: 0,
             selected_submatch: 0,
             indicator: list_state,
+            window_start: 0,
         }
     }
 
@@ -31,6 +36,14 @@ impl AppListState {
 
     pub fn set_indicator_pos(&mut self, idx: usize) {
         self.indicator.select(Some(idx));
+    }
+
+    pub fn window_start(&self) -> usize {
+        self.window_start
+    }
+
+    pub fn set_window_start(&mut self, start: usize) {
+        self.window_start = start;
     }
 
     pub fn selected_item(&self) -> usize {
@@ -76,6 +89,14 @@ impl AppUiState {
             self,
             AppUiState::InputReplacement(_) | AppUiState::ConfirmReplacement(_)
         )
+    }
+
+    pub fn get_replacement_text(&self) -> Option<&str> {
+        match &self {
+            AppUiState::InputReplacement(replacement)
+            | AppUiState::ConfirmReplacement(replacement) => Some(replacement.as_str()),
+            _ => None,
+        }
     }
 
     /// Represent the `AppUiState` as a `Text`.

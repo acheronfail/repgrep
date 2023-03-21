@@ -29,6 +29,8 @@ pub struct Item {
     cached_line_count: Option<CachedLineCount>,
 }
 
+// This is implemented manually, so the `cached_line_count` field isn't used in
+// equality checks. All other fields should be included.
 impl PartialEq for Item {
     fn eq(&self, other: &Self) -> bool {
         self.index == other.index

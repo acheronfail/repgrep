@@ -253,7 +253,7 @@ impl App {
         let main_view_list_rect = self.main_view_list_rect(term_size);
 
         let mut indicator_idx = 0;
-        for item in &self.list[0..item_idx] {
+        for item in &mut self.list.as_mut_slice()[0..item_idx] {
             let item_height = item.line_count(main_view_list_rect.width, self.printable_style);
             indicator_idx += item_height;
         }
@@ -264,19 +264,25 @@ impl App {
             .saturating_sub(1);
         indicator_idx += height_to_sub_item;
 
-        // calculate the new position of the visible window if needed
-        let height = main_view_list_rect.height as usize;
-        let window_start = self.list_state.window_start();
-        if indicator_idx >= window_start + height {
-            self.list_state.set_window_start(indicator_idx - height + 1);
-        } else if indicator_idx < window_start {
-            self.list_state.set_window_start(indicator_idx);
+        // update visible window region is required
+        {
+            let height = main_view_list_rect.height as usize;
+            let mut window_start = self.list_state.window_start();
+            // scrolling down past bottom of viewport
+            if indicator_idx >= window_start + height {
+                window_start = indicator_idx - height + 1;
+            }
+            // scrolling up past top of viewport
+            if indicator_idx < window_start {
+                window_start = indicator_idx;
+            }
+            self.list_state.set_window_start(window_start);
         }
 
         // adjust `indicator_idx` by the start of the window, since we only pass
         // the visible lines to the terminal (but our indices are absolute)
         self.list_state
-            .set_indicator_pos(indicator_idx - window_start);
+            .set_indicator_pos(indicator_idx - self.list_state.window_start());
     }
 
     pub(crate) fn move_pos(&mut self, movement: Movement, term_size: Rect) {

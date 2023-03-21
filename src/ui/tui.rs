@@ -48,7 +48,6 @@ impl Tui {
 
         loop {
             let before_draw = Instant::now();
-            let term_size = term.get_frame().size();
             term.draw(|mut f| self.app.draw(&mut f))?;
 
             // If drawing to the terminal is slow, flush all keyboard events so they're not buffered.
@@ -59,6 +58,7 @@ impl Tui {
             }
 
             let event = rx.recv()?;
+            let term_size = term.get_frame().size();
             self.app.on_event(term_size, event)?;
 
             match self.app.state {

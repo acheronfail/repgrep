@@ -12,14 +12,32 @@ use crate::ui::app::AppUiState;
 use crate::ui::line::SubItem;
 use crate::ui::render::UiItemContext;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
+struct CachedLineCount {
+    list_width: u16,
+    value: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct Item {
     pub index: usize,
     pub kind: RgMessageKind,
     rg_message: RgMessage,
 
     sub_items: Vec<SubItem>,
+
+    cached_line_count: Option<CachedLineCount>,
 }
+
+impl PartialEq for Item {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+            && self.kind == other.kind
+            && self.rg_message == other.rg_message
+            && self.sub_items == other.sub_items
+    }
+}
+impl Eq for Item {}
 
 impl Item {
     pub fn new(index: usize, rg_message: RgMessage) -> Item {
@@ -45,6 +63,7 @@ impl Item {
             kind,
             rg_message,
             sub_items,
+            cached_line_count: None,
         }
     }
 
@@ -110,7 +129,12 @@ impl Item {
         self.path().and_then(|data| data.to_path_buf().ok())
     }
 
-    pub fn line_count_at(&self, match_idx: usize, list_width: u16, style: PrintableStyle) -> usize {
+    pub fn line_count_at(
+        &mut self,
+        match_idx: usize,
+        list_width: u16,
+        style: PrintableStyle,
+    ) -> usize {
         match &self.rg_message {
             RgMessage::Begin { .. } | RgMessage::End { .. } => 0,
             RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => {
@@ -150,8 +174,14 @@ impl Item {
         }
     }
 
-    pub fn line_count(&self, list_width: u16, style: PrintableStyle) -> usize {
-        match &self.rg_message {
+    pub fn line_count(&mut self, list_width: u16, style: PrintableStyle) -> usize {
+        if let Some(cache) = &self.cached_line_count {
+            if cache.list_width == list_width {
+                return cache.value;
+            }
+        }
+
+        let count = match &self.rg_message {
             RgMessage::Begin { .. } | RgMessage::End { .. } => 1,
             RgMessage::Match { lines, .. } | RgMessage::Context { lines, .. } => {
                 let list_width = list_width as usize;
@@ -175,7 +205,13 @@ impl Item {
                     .sum::<usize>()
             }
             RgMessage::Summary { .. } => 0,
-        }
+        };
+
+        self.cached_line_count = Some(CachedLineCount {
+            list_width,
+            value: count,
+        });
+        count
     }
 
     pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Spans> {
@@ -829,7 +865,7 @@ mod tests {
 
     macro_rules! assert_line_count {
         ($json:expr, $width:expr, $style:expr, $line_count:expr, $submatch_counts:expr) => {{
-            let item = new_item($json);
+            let mut item = new_item($json);
             let line_count = item.line_count($width, $style);
 
             let expected_submatch_counts: &[usize] = $submatch_counts;

@@ -54,7 +54,7 @@ impl Tui {
             // If drawing to the terminal is slow, flush all keyboard events so they're not buffered.
             // (Otherwise with very slow updates, the user has to wait for all keyboard events to be processed
             // before being able to quit the app, etc).
-            if before_draw.elapsed() > Duration::from_millis(200) {
+            if before_draw.elapsed() > Duration::from_millis(20) {
                 while let Ok(_) = rx.try_recv() {}
             }
 

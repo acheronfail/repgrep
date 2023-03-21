@@ -16,15 +16,14 @@ impl App {
                 let new_size = Rect::new(term_size.x, term_size.y, w, h);
                 self.update_indicator(new_size);
             }
-            Event::Key(key) => {
-                if self.is_frame_too_small(term_size) {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Cancelled,
-                        _ => {}
-                    }
-                    return Ok(());
+            Event::Key(key) if self.is_frame_too_small(term_size) => {
+                match key.code {
+                    KeyCode::Char('q') | KeyCode::Esc => self.state = AppState::Cancelled,
+                    _ => {}
                 }
-
+                return Ok(());
+            }
+            Event::Key(key) => {
                 // Common Ctrl+Key scroll keybindings that apply to multiple modes.
                 let control_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
                 if control_pressed {
@@ -115,6 +114,8 @@ impl App {
                             KeyCode::Char(' ') => self.toggle_item(false),
                             KeyCode::Char('s') | KeyCode::Char('S') => self.toggle_item(true),
                             KeyCode::Char('a') | KeyCode::Char('A') => self.toggle_all_items(),
+                            KeyCode::Char('v') => self.invert_selection_current(),
+                            KeyCode::Char('V') => self.invert_selection_all(),
                             KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
                             KeyCode::Char('?') => self.ui_state = AppUiState::Help,
                             KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
@@ -313,14 +314,7 @@ impl App {
 
         // If Begin item, toggle all matches in it.
         if matches!(self.list[selected_item].kind, RgMessageKind::Begin) {
-            let mut items_to_toggle: Vec<_> = self
-                .list
-                .iter_mut()
-                .skip(selected_item)
-                .take_while(|i| i.kind != RgMessageKind::End)
-                .filter(|i| i.kind == RgMessageKind::Match)
-                .collect();
-
+            let mut items_to_toggle = self.get_all_items_in_file(selected_item);
             let should_replace = items_to_toggle.iter().all(|i| !i.get_should_replace_all());
             for item in items_to_toggle.iter_mut() {
                 item.set_should_replace_all(should_replace);
@@ -333,6 +327,35 @@ impl App {
 
         for item in self.list.iter_mut() {
             item.set_should_replace_all(should_replace);
+        }
+    }
+
+    fn invert_selection_current(&mut self) {
+        let selected_item = self.list_state.selected_item();
+
+        match self.list[selected_item].kind {
+            RgMessageKind::Match => self.list[selected_item].invert_selection(),
+            RgMessageKind::Begin => {
+                for item in self.get_all_items_in_file(selected_item) {
+                    item.invert_selection();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn get_all_items_in_file(&mut self, selected_item: usize) -> Vec<&mut crate::ui::line::Item> {
+        self.list
+            .iter_mut()
+            .skip(selected_item)
+            .take_while(|i| i.kind != RgMessageKind::End)
+            .filter(|i| i.kind == RgMessageKind::Match)
+            .collect()
+    }
+
+    fn invert_selection_all(&mut self) {
+        for item in self.list.iter_mut() {
+            item.invert_selection();
         }
     }
 }

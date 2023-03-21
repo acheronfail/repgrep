@@ -71,71 +71,86 @@ pub trait Printable {
 impl Printable for &str {
     fn to_printable(&self, style: PrintableStyle) -> String {
         match style {
-            PrintableStyle::Hidden => self
-                // Print common control characters as a single space
-                .replace(&['\x09', '\x0D'][..], " ")
-                // Strip all other control characters to hide them
-                .replace(
-                    &[
-                        '\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08',
-                        '\x0B', '\x0C', '\x0E', '\x0F', '\x10', '\x11', '\x12', '\x13', '\x14',
-                        '\x15', '\x16', '\x17', '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D',
-                        '\x1E', '\x1F', '\x7F',
-                    ][..],
-                    "",
-                ),
+            PrintableStyle::Hidden => {
+                let mut s = String::with_capacity(self.len());
+                for ch in self.chars() {
+                    match ch {
+                        '\x00' | '\x01' | '\x02' | '\x03' | '\x04' | '\x05' | '\x06' | '\x07'
+                        | '\x08' | '\x0B' | '\x0C' | '\x0E' | '\x0F' | '\x10' | '\x11' | '\x12'
+                        | '\x13' | '\x14' | '\x15' | '\x16' | '\x17' | '\x18' | '\x19' | '\x1A'
+                        | '\x1B' | '\x1C' | '\x1D' | '\x1E' | '\x1F' | '\x7F' => {}
+                        '\x09' | '\x0D' => s.push(' '),
+                        _ => s.push(ch),
+                    }
+                }
 
-            PrintableStyle::Common(oneline) => self
-                // Print common whitespace as symbols
-                .replace('\x09', "→") // HT (Horizontal Tab)
-                .replace('\x0A', if oneline { "¬" } else { "¬\n" }) // LF (Line feed)
-                .replace('\x0D', "¤") // CR (Carriage return)
-                .replace('\x20', "␣") // SP (Space)
-                // Print other control characters with a replacement
-                .replace(
-                    &[
-                        '\x00', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07', '\x08',
-                        '\x0B', '\x0C', '\x0E', '\x0F', '\x10', '\x11', '\x12', '\x13', '\x14',
-                        '\x15', '\x16', '\x17', '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D',
-                        '\x1E', '\x1F', '\x7F',
-                    ][..],
-                    "•",
-                ),
-            PrintableStyle::All(oneline) => self
-                .replace('\x00', "␀") // NULL (Null character)
-                .replace('\x01', "␁") // SOH (Start of Header)
-                .replace('\x02', "␂") // STX (Start of Text)
-                .replace('\x03', "␃") // ETX (End of Text)
-                .replace('\x04', "␄") // EOT (End of Trans.)
-                .replace('\x05', "␅") // ENQ (Enquiry)
-                .replace('\x06', "␆") // ACK (Acknowledgement)
-                .replace('\x07', "␇") // BEL (Bell)
-                .replace('\x08', "␈") // BS (Backspace)
-                .replace('\x09', "␉") // HT (Horizontal Tab)
-                .replace('\x0A', if oneline { "␊" } else { "␊\n" }) // LF (Line feed)
-                .replace('\x0B', "␋") // VT (Vertical Tab)
-                .replace('\x0C', "␌") // FF (Form feed)
-                .replace('\x0D', "␍") // CR (Carriage return)
-                .replace('\x0E', "␎") // SO (Shift Out)
-                .replace('\x0F', "␏") // SI (Shift In)
-                .replace('\x10', "␐") // DLE (Data link escape)
-                .replace('\x11', "␑") // DC1 (Device control 1)
-                .replace('\x12', "␒") // DC2 (Device control 2)
-                .replace('\x13', "␓") // DC3 (Device control 3)
-                .replace('\x14', "␔") // DC4 (Device control 4)
-                .replace('\x15', "␕") // NAK (Negative acknowl.)
-                .replace('\x16', "␖") // SYN (Synchronous idle)
-                .replace('\x17', "␗") // ETB (End of trans. block)
-                .replace('\x18', "␘") // CAN (Cancel)
-                .replace('\x19', "␙") // EM (End of medium)
-                .replace('\x1A', "␚") // SUB (Substitute)
-                .replace('\x1B', "␛") // ESC (Escape)
-                .replace('\x1C', "␜") // FS (File separator)
-                .replace('\x1D', "␝") // GS (Group separator)
-                .replace('\x1E', "␞") // RS (Record separator)
-                .replace('\x1F', "␟") // US (Unit separator)
-                .replace('\x20', "␠") // SP (Space)
-                .replace('\x7F', "␡"), // DEL (Delete)
+                s
+            }
+
+            PrintableStyle::Common(oneline) => {
+                let mut s = String::with_capacity(self.len());
+                for ch in self.chars() {
+                    match ch {
+                        // Print common whitespace as symbols
+                        '\x09' => s.push('→'), // HT (Horizontal Tab)
+                        '\x0A' => s.push_str(if oneline { "¬" } else { "¬\n" }), // LF (Line feed)
+                        '\x0D' => s.push('¤'),  // CR (Carriage return)
+                        '\x20' => s.push('␣'), // SP (Space)
+                        // Print other control characters with a replacement
+                        '\x00' | '\x01' | '\x02' | '\x03' | '\x04' | '\x05' | '\x06' | '\x07'
+                        | '\x08' | '\x0B' | '\x0C' | '\x0E' | '\x0F' | '\x10' | '\x11' | '\x12'
+                        | '\x13' | '\x14' | '\x15' | '\x16' | '\x17' | '\x18' | '\x19' | '\x1A'
+                        | '\x1B' | '\x1C' | '\x1D' | '\x1E' | '\x1F' | '\x7F' => s.push('•'),
+                        c => s.push(c),
+                    }
+                }
+
+                s
+            }
+            PrintableStyle::All(oneline) => {
+                let mut s = String::with_capacity(self.len());
+                for ch in self.chars() {
+                    match ch {
+                        '\x00' => s.push('␀'), // NULL (Null character)
+                        '\x01' => s.push('␁'), // SOH (Start of Header)
+                        '\x02' => s.push('␂'), // STX (Start of Text)
+                        '\x03' => s.push('␃'), // ETX (End of Text)
+                        '\x04' => s.push('␄'), // EOT (End of Trans.)
+                        '\x05' => s.push('␅'), // ENQ (Enquiry)
+                        '\x06' => s.push('␆'), // ACK (Acknowledgement)
+                        '\x07' => s.push('␇'), // BEL (Bell)
+                        '\x08' => s.push('␈'), // BS (Backspace)
+                        '\x09' => s.push('␉'), // HT (Horizontal Tab)
+                        '\x0A' => s.push_str(if oneline { "␊" } else { "␊\n" }), // LF (Line feed)
+                        '\x0B' => s.push('␋'), // VT (Vertical Tab)
+                        '\x0C' => s.push('␌'), // FF (Form feed)
+                        '\x0D' => s.push('␍'), // CR (Carriage return)
+                        '\x0E' => s.push('␎'), // SO (Shift Out)
+                        '\x0F' => s.push('␏'), // SI (Shift In)
+                        '\x10' => s.push('␐'), // DLE (Data link escape)
+                        '\x11' => s.push('␑'), // DC1 (Device control 1)
+                        '\x12' => s.push('␒'), // DC2 (Device control 2)
+                        '\x13' => s.push('␓'), // DC3 (Device control 3)
+                        '\x14' => s.push('␔'), // DC4 (Device control 4)
+                        '\x15' => s.push('␕'), // NAK (Negative acknowl.)
+                        '\x16' => s.push('␖'), // SYN (Synchronous idle)
+                        '\x17' => s.push('␗'), // ETB (End of trans. block)
+                        '\x18' => s.push('␘'), // CAN (Cancel)
+                        '\x19' => s.push('␙'), // EM (End of medium)
+                        '\x1A' => s.push('␚'), // SUB (Substitute)
+                        '\x1B' => s.push('␛'), // ESC (Escape)
+                        '\x1C' => s.push('␜'), // FS (File separator)
+                        '\x1D' => s.push('␝'), // GS (Group separator)
+                        '\x1E' => s.push('␞'), // RS (Record separator)
+                        '\x1F' => s.push('␟'), // US (Unit separator)
+                        '\x20' => s.push('␠'), // SP (Space)
+                        '\x7F' => s.push('␡'), // DEL (Delete)
+                        c => s.push(c),
+                    }
+                }
+
+                s
+            }
         }
     }
 }

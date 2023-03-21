@@ -232,14 +232,6 @@ impl App {
         f.render_widget(help_paragraph, hsplit[0]);
     }
 
-    fn get_replacement_text(&self) -> Option<&str> {
-        match &self.ui_state {
-            AppUiState::InputReplacement(replacement)
-            | AppUiState::ConfirmReplacement(replacement) => Some(replacement.as_str()),
-            _ => None,
-        }
-    }
-
     fn list_indicator(&self) -> String {
         if self.ui_state.is_replacing() {
             " ".repeat(LIST_HIGHLIGHT_SYMBOL.len())
@@ -254,28 +246,61 @@ impl App {
 
     fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
         let list_rect = self.main_view_list_rect(f.size());
+        let indicator_symbol = self.list_indicator();
+
+        // For performance with large match sets, we only send a single "window"'s
+        // worth of lines to the terminal. For all our calculations, we use a line
+        // count (to generate the list, define the window, determine the position
+        // of the indicator, etc) and only when we send it to the rendering library
+        // do we adjust it for the window. See `App::update_indicator`.
+        let window_height = list_rect.height as usize;
+        let window_start = self.list_state.window_start();
+        let window_end = window_start + window_height;
+
         let ctx = &UiItemContext {
-            replacement_text: self.get_replacement_text(),
+            replacement_text: self.ui_state.get_replacement_text(),
             printable_style: self.printable_style,
             app_list_state: &self.list_state,
             app_ui_state: &self.ui_state,
             list_rect,
         };
 
-        let match_items = self
-            .list
-            .iter()
-            .flat_map(|item| {
-                item.to_span_lines(ctx)
-                    .into_iter()
-                    .map(ListItem::new)
-                    .collect::<Vec<ListItem>>()
-            })
-            .collect::<Vec<ListItem>>();
+        // iterate over all our items and collect only those that will be in the visible
+        // window region of the list (skipping all the others)
+        let mut match_items = vec![];
+        let mut curr_height = 0;
+        for item in self.list.iter_mut() {
+            // we've passed the visible region
+            if curr_height > window_end {
+                break;
+            }
+
+            let line_count = item.line_count(list_rect.width, self.printable_style);
+
+            // items that fall in the visible window, but don't start in the visible window
+            if curr_height < window_start {
+                let gap = (curr_height + line_count).saturating_sub(window_start);
+                if gap > 0 {
+                    let lines = item.to_span_lines(ctx);
+                    let padding = lines.len() - gap;
+                    for line in lines.into_iter().skip(padding) {
+                        match_items.push(ListItem::new(line));
+                    }
+                }
+            }
+
+            // items that start in the visible window
+            if curr_height >= window_start {
+                for line in item.to_span_lines(ctx).into_iter() {
+                    match_items.push(ListItem::new(line));
+                }
+            }
+
+            curr_height += line_count;
+        }
 
         // TODO: highlight the bg of whole line (not just the text on it), currently not possible
         // See: https://github.com/fdehau/tui-rs/issues/239#issuecomment-657070300
-        let indicator_symbol = self.list_indicator();
         let match_list = List::new(match_items)
             .block(Block::default())
             .style(Style::default().fg(Color::White))

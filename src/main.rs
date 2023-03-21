@@ -87,7 +87,14 @@ use crate::rg::read::read_messages;
 
 fn init_logging() -> Result<::std::path::PathBuf> {
     let log_dir = env::temp_dir().join(format!(".{}", crate_name!()));
-    let log_spec = FileSpec::default().directory(&log_dir);
+    let log_spec = if cfg!(debug_assertions) {
+        FileSpec::default()
+            .directory(env::current_dir().unwrap())
+            .basename("rgr")
+            .use_timestamp(false)
+    } else {
+        FileSpec::default().directory(&log_dir)
+    };
     Logger::try_with_env()
         .expect("Please pass a valid RUST_LOG string, see: https://docs.rs/flexi_logger/latest/flexi_logger/struct.LogSpecification.html")
         .log_to_file(log_spec)

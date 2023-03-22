@@ -39,21 +39,26 @@ jobs:
         - nightly-arm
         - macos
         - win-msvc
+        - win32-msvc
         - win-gnu
         include:
         - build: pinned
           os: ubuntu-18.04
           # NOTE: clap v4 requires 1.64.0
           rust: 1.64.0
+          target: x86_64-unknown-linux-gnu
         - build: stable
           os: ubuntu-18.04
           rust: stable
+          target: x86_64-unknown-linux-gnu
         - build: beta
           os: ubuntu-18.04
           rust: beta
+          target: x86_64-unknown-linux-gnu
         - build: nightly
           os: ubuntu-18.04
           rust: nightly
+          target: x86_64-unknown-linux-gnu
         - build: nightly-musl
           os: ubuntu-18.04
           rust: nightly
@@ -69,89 +74,76 @@ jobs:
         - build: nightly-arm
           os: ubuntu-18.04
           rust: nightly
-          # For stripping release binaries:
-          # docker run --rm -v $PWD/target:/target:Z \
-          #   rustembedded/cross:arm-unknown-linux-gnueabihf \
-          #   arm-linux-gnueabihf-strip \
-          #   /target/arm-unknown-linux-gnueabihf/debug/rg
           target: arm-unknown-linux-gnueabihf
         - build: macos
           os: macos-latest
           rust: nightly
+          target: x86_64-apple-darwin
+        - build: macos (arm)
+          os: macos-latest
+          rust: nightly
+          target: aarch64-apple-darwin
         - build: win-msvc
           os: windows-2019
           rust: nightly
+          target: x86_64-pc-windows-msvc
+        - build: win32-msvc
+          os: windows-2019
+          rust: nightly
+          target: i686-pc-windows-msvc
         - build: win-gnu
           os: windows-2019
           rust: nightly-x86_64-gnu
+          target: x86_64-pc-windows-gnu
+
     steps:
+    # checkout the code
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
         submodules: recursive
 
+    # dependencies
     - name: Install packages (Ubuntu)
       if: matrix.os == 'ubuntu-18.04'
       run: |
         ci/install-packages-ubuntu.sh
-
     - name: Install packages (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         ci/install-packages-macos.sh
 
-    - name: Install Rust
+    # rustup
+    - name: Toolchain
       uses: actions-rs/toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
-        profile: minimal
+        target: ${{ matrix.target }}
         override: true
 
-    - name: Use Cross
-      if: matrix.target != ''
-      run: |
-        cargo install cross
-        echo "CARGO=cross" >> $GITHUB_ENV
-        echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
-        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+    # build
+    - name: Build
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --all --verbose --target ${{ matrix.target }}
 
-    - name: Show command used for Cargo
-      run: |
-        echo "cargo command is: ${{ env.CARGO }}"
-        echo "target flag is: ${{ env.TARGET_FLAGS }}"
+    # test
+    - name: Test
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: test
+        args: --all --verbose --target ${{ matrix.target }}
 
-    - name: Build repgrep and all crates
-      run: ${{ env.CARGO }} build --verbose --all ${{ env.TARGET_FLAGS }}
-
-    # This is useful for debugging problems when the expected build artifacts
-    # (like shell completions and man pages) aren't generated.
-    - name: Show build.rs stderr
-      shell: bash
-      run: |
-        set +x
-        stderr="$(find "${{ env.TARGET_DIR }}/debug" -name stderr -print0 | xargs -0 ls -t | head -n1)"
-        if [ -s "$stderr" ]; then
-          echo "===== $stderr ===== "
-          cat "$stderr"
-          echo "====="
-        fi
-        set -x
-
-    - name: Run tests (without cross)
-      if: matrix.target == ''
-      run: ${{ env.CARGO }} test --verbose --all ${{ env.TARGET_FLAGS }}
-
-    - name: Run tests (with cross)
-      if: matrix.target != ''
-      run: ${{ env.CARGO }} test --verbose --all ${{ env.TARGET_FLAGS }}
-
+    # check artifacts
     - name: Test for existence of build artifacts (Windows)
       if: matrix.os == 'windows-2019'
       shell: bash
       run: |
         outdir="$(ci/cargo-out-dir.sh "${{ env.TARGET_DIR }}")"
         ls "$outdir/_rgr.ps1" && file "$outdir/_rgr.ps1"
-
     - name: Test for existence of build artifacts (Unix)
       if: matrix.os != 'windows-2019'
       shell: bash

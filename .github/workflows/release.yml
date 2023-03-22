@@ -100,22 +100,25 @@ jobs:
           target: i686-pc-windows-msvc
 
     steps:
+
+    # checkout
     - name: Checkout repository
       uses: actions/checkout@v3
       with:
         fetch-depth: 1
         submodules: recursive
 
+    # dependencies
     - name: Install packages (Ubuntu)
       if: matrix.os == 'ubuntu-18.04'
       run: |
         ci/install-packages-ubuntu.sh
-
     - name: Install packages (macOS)
       if: matrix.os == 'macos-latest'
       run: |
         ci/install-packages-macos.sh
 
+    # rustup
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
@@ -124,25 +127,12 @@ jobs:
         override: true
         target: ${{ matrix.target }}
 
-    - name: Use Cross
-      run: |
-        cargo install cross
-        echo "CARGO=cross" >> $GITHUB_ENV
-        echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
-        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
-
-    - name: Show command used for Cargo
-      run: |
-        echo "cargo command is: ${{ env.CARGO }}"
-        echo "target flag is: ${{ env.TARGET_FLAGS }}"
-        echo "target dir is: ${{ env.TARGET_DIR }}"
-
+    # prepare github release metadata and urls
     - name: Get release download URL
       uses: actions/download-artifact@v1
       with:
         name: artifacts
         path: artifacts
-
     - name: Set release upload URL and release version
       shell: bash
       run: |
@@ -153,14 +143,19 @@ jobs:
         echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
         echo "release version: $RELEASE_VERSION"
 
+    # build
     - name: Build release binary
-      run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
+      uses: actions-rs/cargo@v1
       timeout-minutes: 10
+      with:
+        use-cross: true
+        command: build
+        args: --release --verbose --target ${{ matrix.rust }}
 
+    # strip
     - name: Strip release binary (linux and macos)
       if: matrix.build == 'linux' || matrix.build == 'macos'
       run: strip "target/${{ matrix.target }}/release/rgr"
-
     - name: Strip release binary (arm)
       if: matrix.build == 'linux-arm'
       run: |
@@ -186,6 +181,10 @@ jobs:
         cp {LICENSE-*,CHANGELOG.md,README.md} "$staging/doc/"
         cp "$outdir"/{_rgr,rgr.bash,rgr.fish,_rgr.ps1} "$staging/complete/"
 
+        ls -la target || true
+        ls -la target/release || true
+        ls -la "target/${{ matrix.target }}" || true
+
         if [ "${{ matrix.os }}" = "windows-2019" ]; then
           cp "target/release/rgr.exe" "$staging/"
           7z a "$staging.zip" "$staging"
@@ -209,33 +208,32 @@ jobs:
 
 
   # This job runs _after_ the `create-release` job, and uses the artifacts that it created.
-  publish-crate:
-    name: publish-crate
-    needs: ['build-release']
-    runs-on: ubuntu-18.04
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 1
-        submodules: recursive
+  # publish-crate:
+  #   name: publish-crate
+  #   needs: ['build-release']
+  #   runs-on: ubuntu-18.04
+  #   steps:
+  #   - name: Checkout repository
+  #     uses: actions/checkout@v2
+  #     with:
+  #       fetch-depth: 1
+  #       submodules: recursive
 
-    - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-18.04'
-      run: |
-        ci/install-packages-ubuntu.sh
+  #   - name: Install packages (Ubuntu)
+  #     if: matrix.os == 'ubuntu-18.04'
+  #     run: |
+  #       ci/install-packages-ubuntu.sh
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        profile: minimal
-        override: true
-        target: x86_64-unknown-linux-gnu
+  #   - name: Install Rust
+  #     uses: actions-rs/toolchain@v1
+  #     with:
+  #       toolchain: nightly
+  #       profile: minimal
+  #       override: true
+  #       target: x86_64-unknown-linux-gnu
 
-    - name: Publish Crate
-      shell: bash
-      env:
-        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-      run: |
-        cargo publish
+  #   - name: Publish Crate
+  #     shell: bash
+  #     env:
+  #       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+  #     run: cargo publish

@@ -1,3 +1,8 @@
+# 0.12.1
+
+- fae1d38 fix: create temp files next to original files
+- af37ebb Merge pull request #77 from acheronfail/feat/ability-to-invert-selection
+
 # 0.12.0
 
 Added a new feature: the ability to "invert" selections:

@@ -1,3 +1,53 @@
+# 0.12.0
+
+Added a new feature: the ability to "invert" selections:
+
+- A single item can be "inverted" (same as toggling it on/off).
+- A file can be "inverted" (invert each match inside file)
+- All matches can be "inverted" (every match is inverted)
+
+This feature can be used with the `v` and `V` keys.
+See the in-app help (`?`) for more.
+
+- fae1e65 add: tests for new invert selection feature
+- fae11be feat: ability to invert selection
+- 2717297 Merge pull request #76 from acheronfail/feat/performance-improvements
+
+# 0.11.0
+
+Significant performance improvements, especially with large result sets from ripgrep.
+Now, only the visible portion of the matches is rendered, rather than everything at once.
+
+- fae17d0 0.11.0
+- fae1c8d add: DEVELOPMENT_NOTES.md
+- fae144b doc: add comment to PartialEq impl for Item
+- fae12df upd: add cache for item line count; fix: some rendering issues with windowing
+- fae1395f upd: only render visible lines
+- fae1068 upd: decrease input flush threshold
+- fae12c4a perf: build printable string in a single iteration rather than multiple
+- fae1232 dev: log to current dir when debug_assertions is enabled
+- c4e6970 Merge pull request #75 from acheronfail/fix/windows-releases
+- cf48568 Merge pull request #74 from acheronfail/fix/readme
+- fae10c0 fix: update minimum rust version in README.md
+
+# 0.10.7
+
+Updated dependencies, and fixed windows builds in CI.
+
+- fae131d 0.10.7
+- fae1f71 fix: misread the version, only 1 exists
+- fae12f43 upd: update actions
+- fae14c9 fix: update ci.yml to fix windows builds
+- f31dce2 Merge pull request #73 from acheronfail/dep/update
+- fae1b59 upd: add tests for cli validation and move test fns behind tests cfg
+- fae1600 fix: update windows test
+- fae1200 upd: minimum rust version needs to be 1.64.0 for clap
+- fae17cc add: debug_assert clap test
+- fae1c61 upd: update dependencies
+- 6984200 Merge pull request #72 from acheronfail/fix/incorrect-indicator-position
+- fae17fa fix: remove test warnings by upgrading insta
+- fae159d fix: incorrect indicator position with empty context lines
+
 # 0.10.6
 
 - 5be7287 Merge pull request #69 from acheronfail/release/0.10.6

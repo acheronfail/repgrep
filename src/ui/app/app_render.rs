@@ -191,6 +191,8 @@ impl App {
                 Row::new(vec!["space", "toggle selection"]),
                 Row::new(vec!["a, A", "toggle selection for all matches"]),
                 Row::new(vec!["s, S", "toggle selection for whole line"]),
+                Row::new(vec!["v", "invert section for the current item"]),
+                Row::new(vec!["V", "invert section for all items"]),
                 Row::new(vec!["enter, r, R", "accept selection"]),
                 Row::new(vec!["q, esc", "quit"]),
                 Row::new(vec!["?", "show help and keybindings"]).bottom_margin(1),

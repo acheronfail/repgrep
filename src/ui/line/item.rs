@@ -87,6 +87,12 @@ impl Item {
         }
     }
 
+    pub fn invert_selection(&mut self) {
+        for sub_item in &mut self.sub_items {
+            sub_item.should_replace = !sub_item.should_replace;
+        }
+    }
+
     pub fn is_selectable(&self) -> bool {
         matches!(self.kind, RgMessageKind::Begin | RgMessageKind::Match)
     }

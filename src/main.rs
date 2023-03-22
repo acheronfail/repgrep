@@ -119,7 +119,9 @@ fn main() {
         ($( $eprintln_arg:expr ),*) => {
             log::error!($( $eprintln_arg ),*);
             eprintln!($( $eprintln_arg ),*);
-            eprintln!("Logs available at: {}", log_dir.display());
+            if log::log_enabled!(log::Level::Error) {
+                eprintln!("Logs available at: {}", log_dir.display());
+            }
             process::exit(1);
         };
     }

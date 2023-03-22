@@ -1,7 +1,7 @@
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use encoding::{DecoderTrap, EncoderTrap};
 use tempfile::NamedTempFile;
 
@@ -109,7 +109,13 @@ fn perform_replacements_in_file(
         .map_err(|e| anyhow!("Failed to encode replaced string: {}", e))?;
 
     // Create a temporary file.
-    let mut temp_file = NamedTempFile::new()?;
+    let parent_dir = path_buf.parent().with_context(|| {
+        anyhow!(
+            "Failed to get parent directory for file: {}",
+            path_buf.display()
+        )
+    })?;
+    let mut temp_file = NamedTempFile::new_in(parent_dir)?;
     let temp_file_path = temp_file.path().display().to_string();
     log::debug!("Creating temporary file: {}", temp_file_path);
 

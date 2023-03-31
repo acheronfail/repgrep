@@ -1,5 +1,12 @@
 badge-crates := "[![crate](https://img.shields.io/crates/v/repgrep)](https://crates.io/crates/repgrep)"
 badge-docs := "[![documentation](https://docs.rs/repgrep/badge.svg)](https://docs.rs/repgrep)"
+bench-json := "benches/rg.json"
+
+setup-bench:
+    if [ ! -f "{{bench-json}}" ]; then rg --json --no-config . ./ > "{{bench-json}}"; fi
+
+bench: setup-bench
+    cargo bench
 
 readme:
 	printf "%s\n%s\n%s" "{{ badge-crates }}" "{{ badge-docs }}" "$(cargo readme)" > README.md

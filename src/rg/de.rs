@@ -161,7 +161,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use crate::rg::de::{ArbitraryData::*, RgMessage::*, *};
+    use super::{ArbitraryData::*, RgMessage::*, *};
 
     #[test]
     fn arbitrary_data() {
@@ -330,7 +330,7 @@ mod tests {
 #[cfg(test)]
 #[allow(dead_code)]
 pub mod test_utilities {
-    use crate::rg::de::*;
+    use super::*;
 
     pub const RG_JSON_BEGIN: &str =
         r#"{"type":"begin","data":{"path":{"text":"src/model/item.rs"}}}"#;

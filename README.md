@@ -58,6 +58,14 @@ See the [releases] page for pre-compiled binaries.
 cargo install repgrep
 ```
 
+#### From the AUR (Arch Linux)
+
+[`repgrep`](https://aur.archlinux.org/packages?O=0&K=repgrep) can be installed from the AUR using an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers). For example:
+
+```bash
+paru -S repgrep
+```
+
 #### From Source (via Cargo)
 
 **NOTE**: The minimum Rust version required is `1.64.0`.

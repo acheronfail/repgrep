@@ -71,15 +71,15 @@ jobs:
         build: [linux-gnu, linux-musl, linux-arm-gnueabihf, macos, win-msvc, win-gnu, win32-msvc]
         include:
         - build: linux-gnu
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
           target: x86_64-unknown-linux-gnu
         - build: linux-musl
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
           target: x86_64-unknown-linux-musl
         - build: linux-arm-gnueabihf
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
           target: arm-unknown-linux-gnueabihf
         - build: macos
@@ -107,7 +107,7 @@ jobs:
         submodules: recursive
 
     - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-18.04'
+      if: matrix.os == 'ubuntu-latest'
       run: |
         ci/install-packages-ubuntu.sh
 
@@ -212,7 +212,7 @@ jobs:
   publish-crate:
     name: publish-crate
     needs: ['build-release']
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -221,7 +221,7 @@ jobs:
         submodules: recursive
 
     - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-18.04'
+      if: matrix.os == 'ubuntu-latest'
       run: |
         ci/install-packages-ubuntu.sh
 

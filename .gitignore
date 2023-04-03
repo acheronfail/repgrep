@@ -2,3 +2,4 @@
 .vscode
 
 /target
+/benches/rg.json

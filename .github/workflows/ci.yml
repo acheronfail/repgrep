@@ -42,32 +42,32 @@ jobs:
         - win-gnu
         include:
         - build: pinned
-          os: ubuntu-18.04
+          os: ubuntu-latest
           # NOTE: clap v4 requires 1.64.0
           rust: 1.64.0
         - build: stable
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: stable
         - build: beta
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: beta
         - build: nightly
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
         - build: nightly-musl
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
           target: x86_64-unknown-linux-musl
         - build: nightly-32
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
           target: i686-unknown-linux-gnu
         - build: nightly-mips
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
           target: mips64-unknown-linux-gnuabi64
         - build: nightly-arm
-          os: ubuntu-18.04
+          os: ubuntu-latest
           rust: nightly
           # For stripping release binaries:
           # docker run --rm -v $PWD/target:/target:Z \
@@ -91,7 +91,7 @@ jobs:
         submodules: recursive
 
     - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-18.04'
+      if: matrix.os == 'ubuntu-latest'
       run: |
         ci/install-packages-ubuntu.sh
 
@@ -164,7 +164,7 @@ jobs:
 
   rustfmt:
     name: rustfmt
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3

@@ -60,6 +60,8 @@ cargo install repgrep
 
 #### From the AUR (Arch Linux)
 
+Maintained by [orhun](https://github.com/orhun).
+
 [`repgrep`](https://aur.archlinux.org/packages?O=0&K=repgrep) can be installed from the AUR using an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers). For example:
 
 ```bash

@@ -2,6 +2,10 @@ badge-crates := "[![crate](https://img.shields.io/crates/v/repgrep)](https://cra
 badge-docs := "[![documentation](https://docs.rs/repgrep/badge.svg)](https://docs.rs/repgrep)"
 bench-json := "benches/rg.json"
 
+setup:
+    cargo install cargo-bump
+    cargo install cargo-readme
+
 setup-bench:
     if [ ! -f "{{bench-json}}" ]; then rg --json --no-config . ./ > "{{bench-json}}"; fi
 

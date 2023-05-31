@@ -94,7 +94,7 @@ impl Printable for &str {
                         // Print common whitespace as symbols
                         '\x09' => s.push('→'), // HT (Horizontal Tab)
                         '\x0A' => s.push_str(if oneline { "¬" } else { "¬\n" }), // LF (Line feed)
-                        '\x0D' => s.push('¤'),  // CR (Carriage return)
+                        '\x0D' => s.push('¤'), // CR (Carriage return)
                         '\x20' => s.push('␣'), // SP (Space)
                         // Print other control characters with a replacement
                         '\x00' | '\x01' | '\x02' | '\x03' | '\x04' | '\x05' | '\x06' | '\x07'

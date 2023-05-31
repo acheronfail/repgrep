@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 
@@ -118,6 +119,13 @@ fn perform_replacements_in_file(
     let mut temp_file = NamedTempFile::new_in(parent_dir)?;
     let temp_file_path = temp_file.path().display().to_string();
     log::debug!("Creating temporary file: {}", temp_file_path);
+
+    // Adjust permissions of the file to match the target file's permissions
+    // Related: https://github.com/Stebalien/tempfile/issues/157
+    temp_file.as_file_mut().set_permissions({
+        let file = File::open(&path_buf)?;
+        file.metadata()?.permissions()
+    })?;
 
     // Write a BOM if one existed beforehand.
     if let Some(bom) = bom {
@@ -259,6 +267,32 @@ mod tests {
         assert_eq!(fs::read_to_string(p3).unwrap(), "NEW_VALUE bar baz");
         assert_eq!(fs::read_to_string(p4).unwrap(), text);
         assert_eq!(fs::read_to_string(p5).unwrap(), text);
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn it_performs_replacements_and_keeps_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        // create temporary item
+        let (item, path) = temp_item!(0, "foo bar baz", vec![SubMatch::new_text("foo", 0..3)]);
+
+        // get permissions of file
+        let perms = || fs::metadata(&path).unwrap().permissions();
+
+        // set permissions to 777
+        let mut p = perms();
+        p.set_mode(0o777);
+        fs::set_permissions(&path, p).unwrap();
+
+        // sanity check perms were set
+        assert_eq!(perms().mode(), 0o100777);
+
+        // perform replacement
+        perform_replacements(ReplacementCriteria::new("NEW_VALUE", vec![item])).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "NEW_VALUE bar baz");
+
+        // now check permissions are what we expect
+        assert_eq!(perms().mode(), 0o100777);
     }
 
     #[test]

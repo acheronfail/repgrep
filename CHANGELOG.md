@@ -1,3 +1,21 @@
+# 0.12.3
+
+- fae1b46 update justfile
+- 2d3cc3c Merge pull request #84 from acheronfail/fix-permissions
+- fae15d3 fix: ensure replaced files have the same permissions/mode
+- 3778c5b Merge pull request #81 from orhun/docs/update_readme
+- da21428 Update README.md
+- 3b6be87 Merge pull request #82 from acheronfail/wip/benchmark-json
+- fae1e61 fix: why now... I really dislike CIs
+- fae1a0b add: benchmarks for parsing json
+- d1d1f3f docs: update README.md about installing on Arch Linux
+- 9a6ea57 Merge pull request #79 from acheronfail/fix/incorrect-log-message
+
+# 0.12.2
+
+- 8cdce3d Merge pull request #78 from acheronfail/fix/atomic-replacements-across-filesystems
+- fae175c fix: only mention log dir if logs are enabled
+
 # 0.12.1
 
 - fae1d38 fix: create temp files next to original files

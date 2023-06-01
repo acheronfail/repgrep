@@ -51,9 +51,22 @@
 //! cargo install repgrep
 //! ```
 //!
+//! ### From the AUR (Arch Linux)
+//!
+//! Maintained by [orhun](https://github.com/orhun).
+//!
+//! [`repgrep`](https://aur.archlinux.org/packages?O=0&K=repgrep) can be installed
+//! from the AUR using an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers).
+//!
+//! For example:
+//!
+//! ```bash
+//! paru -S repgrep
+//! ```
+//!
 //! ### From Source (via Cargo)
 //!
-//! **NOTE**: The minimum Rust version required is `1.46.0`.
+//! **NOTE**: The minimum Rust version required is `1.64.0`.
 //!
 //! ```bash
 //! git clone https://github.com/acheronfail/repgrep/

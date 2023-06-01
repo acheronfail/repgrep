@@ -51,17 +51,15 @@
 //! cargo install repgrep
 //! ```
 //!
-//! ### From the AUR (Arch Linux)
+//! #### Via Pacman (Arch Linux)
 //!
 //! Maintained by [orhun](https://github.com/orhun).
 //!
-//! [`repgrep`](https://aur.archlinux.org/packages?O=0&K=repgrep) can be installed
-//! from the AUR using an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers).
-//!
-//! For example:
+//! [`repgrep`](https://archlinux.org/packages/extra/x86_64/repgrep/) can be installed
+//! from the official repositories using [Pacman](https://wiki.archlinux.org/title/Pacman).
 //!
 //! ```bash
-//! paru -S repgrep
+//! pacman -S repgrep
 //! ```
 //!
 //! ### From Source (via Cargo)

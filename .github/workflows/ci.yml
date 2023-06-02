@@ -178,3 +178,23 @@ jobs:
     - name: Check formatting
       run: |
         cargo fmt --all -- --check
+
+  readme:
+    name: readme
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        profile: minimal
+        components: rustfmt
+    - name: Check readme
+      run: |
+        cargo install just
+        just setup
+        just readme
+        just check-dirty

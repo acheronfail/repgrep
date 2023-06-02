@@ -51,7 +51,7 @@
 //! cargo install repgrep
 //! ```
 //!
-//! #### Via Pacman (Arch Linux)
+//! ### Via Pacman (Arch Linux)
 //!
 //! Maintained by [orhun](https://github.com/orhun).
 //!

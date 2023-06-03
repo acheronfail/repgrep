@@ -194,6 +194,7 @@ jobs:
         components: rustfmt
     - name: Check readme
       run: |
+        ci/install-packages-ubuntu.sh
         cargo install just
         just setup
         just readme

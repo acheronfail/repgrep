@@ -9,6 +9,7 @@ setup:
     cargo install cargo-bump
     cargo install cargo-readme
     if   command -v pacman  >/dev/null 2>&1 /dev/null; then sudo pacman -S --needed ripgrep; fi
+    if   command -v apt-get >/dev/null 2>&1 /dev/null; then sudo apt-get install ripgrep; fi
     if ! command -v rg      >/dev/null 2>&1 /dev/null; then echo "please install rg!"; exit 1; fi
 
 # run rgr locally with logging enabled - use `just devlogs` to view output

@@ -1,8 +1,20 @@
-# 0.12.4
+# 0.13.0
 
+- fae14d5 remove tag from just bump: we'll do it manually from now on
+- fae1fac one more assertion
+- fae1a88 remember cursor position when moving back from confirm
+- fae1b735 add tests for movable cursor
+- fae14b1 implement a movable cursor when inputting replacement text
+- 6c69f89 Merge pull request #87 from acheronfail/ci/check-readme
+- f2415cc Merge pull request #86 from orhun/docs/update_readme
+- 5d287f0 Update main.rs
+- fae14f9 install ripgrep in ci
+- fae1ab5 update release profile
+- fae1345 create new ci step to check readme generation
+- fae1691e update justfile
+- 2ae4989 docs: update README.md about official Arch Linux package
 
-
-# 0.12.3
+# 0.12.3 & 0.12.4
 
 - fae1b46 update justfile
 - 2d3cc3c Merge pull request #84 from acheronfail/fix-permissions

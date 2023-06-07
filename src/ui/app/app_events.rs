@@ -30,7 +30,7 @@ impl App {
                     let did_handle_key = match &self.ui_state {
                         AppUiState::SelectMatches
                         | AppUiState::InputReplacement(_, _)
-                        | AppUiState::ConfirmReplacement(_) => match key.code {
+                        | AppUiState::ConfirmReplacement(_, _) => match key.code {
                             // Page movements
                             KeyCode::Char('b') => {
                                 self.move_pos(
@@ -65,13 +65,10 @@ impl App {
                 }
 
                 match &self.ui_state {
-                    AppUiState::ConfirmReplacement(replacement) => match key.code {
+                    AppUiState::ConfirmReplacement(replacement, pos) => match key.code {
                         KeyCode::Esc | KeyCode::Char('q') => {
-                            // TODO: remember last pos?
-                            self.ui_state = AppUiState::InputReplacement(
-                                replacement.to_owned(),
-                                replacement.chars().count(),
-                            )
+                            self.ui_state =
+                                AppUiState::InputReplacement(replacement.to_owned(), *pos)
                         }
                         KeyCode::Enter => {
                             self.state = AppState::Complete(ReplacementCriteria::new(
@@ -132,7 +129,8 @@ impl App {
                         // input char, or detect changing to next mode
                         KeyCode::Char(ch) => {
                             if control_pressed && ch == 's' {
-                                self.ui_state = AppUiState::ConfirmReplacement(input.to_owned());
+                                self.ui_state =
+                                    AppUiState::ConfirmReplacement(input.to_owned(), *pos);
                             } else {
                                 let mut new_input = input.clone();
                                 new_input.insert(byte_pos_from_char_pos(input, *pos), ch);
@@ -971,11 +969,18 @@ mod tests {
         send_key!(app, key!(Char('s'), KeyModifiers::CONTROL));
         assert_eq!(
             app.ui_state,
-            AppUiState::ConfirmReplacement("repgrep".into())
+            AppUiState::ConfirmReplacement("repgrep".into(), 7)
         );
 
-        // move back
+        // move back and check pos
         send_key_assert!(app, key!(Esc), "repgrep", 7);
+        send_key_assert!(app, key!(Left), "repgrep", 6);
+        send_key!(app, key!(Char('s'), KeyModifiers::CONTROL));
+        assert_eq!(
+            app.ui_state,
+            AppUiState::ConfirmReplacement("repgrep".into(), 6)
+        );
+        send_key_assert!(app, key!(Esc), "repgrep", 6);
 
         // move back again
         send_key!(app, key!(Esc));

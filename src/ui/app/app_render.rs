@@ -96,7 +96,7 @@ impl App {
 
                 spans
             }
-            AppUiState::ConfirmReplacement(_) => vec![Span::from(
+            AppUiState::ConfirmReplacement(_, _) => vec![Span::from(
                 "Press <enter> to write changes, <esc> to cancel.",
             )],
         };

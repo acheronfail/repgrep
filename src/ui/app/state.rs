@@ -81,21 +81,22 @@ pub enum AppUiState {
     /// (ReplacementText, CharPosition)
     InputReplacement(String, usize),
     /// Ask the user to confirm the replacement.
-    ConfirmReplacement(String),
+    /// (ReplacementText, CharPosition)
+    ConfirmReplacement(String, usize),
 }
 
 impl AppUiState {
     pub fn is_replacing(&self) -> bool {
         matches!(
             self,
-            AppUiState::InputReplacement(_, _) | AppUiState::ConfirmReplacement(_)
+            AppUiState::InputReplacement(_, _) | AppUiState::ConfirmReplacement(_, _)
         )
     }
 
     pub fn get_replacement_text(&self) -> Option<&str> {
         match &self {
             AppUiState::InputReplacement(replacement, _)
-            | AppUiState::ConfirmReplacement(replacement) => Some(replacement.as_str()),
+            | AppUiState::ConfirmReplacement(replacement, _) => Some(replacement.as_str()),
             _ => None,
         }
     }
@@ -108,7 +109,7 @@ impl AppUiState {
             AppUiState::Help => Span::styled(" HELP ", style.bg(Color::Green)),
             AppUiState::SelectMatches => Span::styled(" SELECT ", style.bg(Color::Cyan)),
             AppUiState::InputReplacement(_, _) => Span::styled(" REPLACE ", style.bg(Color::White)),
-            AppUiState::ConfirmReplacement(_) => Span::styled(" CONFIRM ", style.bg(Color::Red)),
+            AppUiState::ConfirmReplacement(_, _) => Span::styled(" CONFIRM ", style.bg(Color::Red)),
         }
     }
 }

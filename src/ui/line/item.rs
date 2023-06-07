@@ -347,7 +347,7 @@ impl Item {
 
                     // Match text, also may contain any leading line numbers and text from before.
                     let confirm_replacement =
-                        matches!(ctx.app_ui_state, AppUiState::ConfirmReplacement(_));
+                        matches!(ctx.app_ui_state, AppUiState::ConfirmReplacement(_, _));
                     if !confirm_replacement || !sub_item.should_replace {
                         let sub_span_lines = sub_item.to_span_lines(ctx, is_selected);
                         let sub_span_lines_len = sub_span_lines.len();
@@ -655,7 +655,7 @@ mod tests {
     fn to_span_lines_with_text_confirm_replacement() {
         let replacement = "foobar";
         let app_list_state = new_app_list_state();
-        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
@@ -713,7 +713,7 @@ mod tests {
         app_list_state.set_selected_item(0);
         app_list_state.set_selected_submatch(0);
         let replacement = "foobar";
-        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         let mut item = new_item(RG_JSON_MATCH);
@@ -755,7 +755,7 @@ mod tests {
     fn to_span_lines_with_base64_lossy_confirm_replacement() {
         let replacement = "foobar";
         let app_list_state = new_app_list_state();
-        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx));
@@ -813,7 +813,7 @@ mod tests {
     fn to_span_lines_multiline_confirm_replacement_with_multiline_matches() {
         let replacement = "foobar\nbaz\nasdf";
         let app_list_state = new_app_list_state();
-        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_MATCH_MULTILINE).to_span_lines(&ctx));
@@ -850,7 +850,7 @@ mod tests {
         let mut app_list_state = new_app_list_state();
         app_list_state.set_selected_item(0);
         app_list_state.set_selected_submatch(0);
-        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_MATCH_LINE_WRAP).to_span_lines(&ctx));

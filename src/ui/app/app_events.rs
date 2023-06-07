@@ -68,7 +68,10 @@ impl App {
                     AppUiState::ConfirmReplacement(replacement) => match key.code {
                         KeyCode::Esc | KeyCode::Char('q') => {
                             // TODO: remember last pos?
-                            self.ui_state = AppUiState::InputReplacement(replacement.to_owned(), 0)
+                            self.ui_state = AppUiState::InputReplacement(
+                                replacement.to_owned(),
+                                replacement.chars().count(),
+                            )
                         }
                         KeyCode::Enter => {
                             self.state = AppState::Complete(ReplacementCriteria::new(
@@ -381,6 +384,7 @@ impl App {
 
 #[cfg(test)]
 mod tests {
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
     use pretty_assertions::assert_eq;
     use tui::layout::Rect;
 
@@ -868,5 +872,113 @@ mod tests {
         move_and_assert_list_state!(app, Movement::Backward(100), POS_1_BEGIN);
     }
 
-    // TODO: create tests for cursor position
+    // cursor position when inputting replacement text
+
+    use KeyCode::*;
+
+    macro_rules! key {
+        ($code:expr) => {
+            key!($code, KeyModifiers::empty())
+        };
+        ($code:expr, $modifiers:expr) => {
+            Event::Key(KeyEvent::new($code, $modifiers))
+        };
+    }
+
+    macro_rules! send_key {
+        ($app:expr, $key:expr) => {
+            $app.on_event(Rect::new(0, 0, 80, 24), $key).unwrap();
+        };
+    }
+
+    macro_rules! send_key_assert {
+        ($app:expr, $key:expr, $input:expr, $pos:expr) => {
+            send_key!($app, $key);
+            assert_eq!(
+                $app.ui_state,
+                AppUiState::InputReplacement($input.into(), $pos)
+            );
+        };
+    }
+
+    #[test]
+    fn input_replacement() {
+        let mut app = new_app();
+
+        send_key_assert!(app, key!(Enter), "", 0);
+
+        // check with no text
+        send_key_assert!(app, key!(Left), "", 0);
+        send_key_assert!(app, key!(Right), "", 0);
+
+        // insert text
+        send_key_assert!(app, key!(Char('e')), "e", 1);
+        send_key_assert!(app, key!(Right), "e", 1);
+        send_key_assert!(app, key!(Left), "e", 0);
+        send_key_assert!(app, key!(Left), "e", 0);
+        send_key_assert!(app, key!(Char('r')), "re", 1);
+        send_key_assert!(app, key!(Right), "re", 2);
+        send_key_assert!(app, key!(Char('p')), "rep", 3);
+
+        // insert emoji
+        send_key_assert!(app, key!(Char('🎉')), "rep🎉", 4);
+        send_key_assert!(app, key!(Left), "rep🎉", 3);
+        send_key_assert!(app, key!(Left), "rep🎉", 2);
+        send_key_assert!(app, key!(Left), "rep🎉", 1);
+        send_key_assert!(app, key!(Left), "rep🎉", 0);
+        send_key_assert!(app, key!(Char('🎉')), "🎉rep🎉", 1);
+        send_key_assert!(app, key!(Left), "🎉rep🎉", 0);
+        send_key_assert!(app, key!(Left), "🎉rep🎉", 0);
+        send_key_assert!(app, key!(Right), "🎉rep🎉", 1);
+        send_key_assert!(app, key!(Right), "🎉rep🎉", 2);
+        send_key_assert!(app, key!(Char('🎉')), "🎉r🎉ep🎉", 3);
+        send_key_assert!(app, key!(Right), "🎉r🎉ep🎉", 4);
+        send_key_assert!(app, key!(Right), "🎉r🎉ep🎉", 5);
+        send_key_assert!(app, key!(Right), "🎉r🎉ep🎉", 6);
+        send_key_assert!(app, key!(Right), "🎉r🎉ep🎉", 6);
+
+        // delete
+        send_key_assert!(app, key!(Delete), "🎉r🎉ep🎉", 6);
+        send_key_assert!(app, key!(Left), "🎉r🎉ep🎉", 5);
+        send_key_assert!(app, key!(Delete), "🎉r🎉ep", 5);
+        send_key_assert!(app, key!(Left), "🎉r🎉ep", 4);
+        send_key_assert!(app, key!(Left), "🎉r🎉ep", 3);
+        send_key_assert!(app, key!(Left), "🎉r🎉ep", 2);
+        send_key_assert!(app, key!(Left), "🎉r🎉ep", 1);
+        send_key_assert!(app, key!(Left), "🎉r🎉ep", 0);
+        send_key_assert!(app, key!(Delete), "r🎉ep", 0);
+        send_key_assert!(app, key!(Delete), "🎉ep", 0);
+        send_key_assert!(app, key!(Delete), "ep", 0);
+
+        // backspace
+        send_key_assert!(app, key!(Backspace), "ep", 0);
+        send_key_assert!(app, key!(Right), "ep", 1);
+        send_key_assert!(app, key!(Backspace), "p", 0);
+        send_key_assert!(app, key!(Right), "p", 1);
+        send_key_assert!(app, key!(Backspace), "", 0);
+        send_key_assert!(app, key!(Backspace), "", 0);
+
+        // fill up with text again
+        send_key_assert!(app, key!(Char('r')), "r", 1);
+        send_key_assert!(app, key!(Char('e')), "re", 2);
+        send_key_assert!(app, key!(Char('p')), "rep", 3);
+        send_key_assert!(app, key!(Char('g')), "repg", 4);
+        send_key_assert!(app, key!(Char('r')), "repgr", 5);
+        send_key_assert!(app, key!(Char('e')), "repgre", 6);
+        send_key_assert!(app, key!(Char('p')), "repgrep", 7);
+
+        // move to next mode
+        send_key!(app, key!(Char('s'), KeyModifiers::CONTROL));
+        assert_eq!(
+            app.ui_state,
+            AppUiState::ConfirmReplacement("repgrep".into())
+        );
+
+        // move back
+        send_key_assert!(app, key!(Esc), "repgrep", 7);
+
+        // move back again
+        send_key!(app, key!(Esc));
+        assert_eq!(app.ui_state, AppUiState::SelectMatches);
+    }
 }

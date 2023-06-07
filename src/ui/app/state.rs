@@ -78,7 +78,8 @@ pub enum AppUiState {
     /// The main matches list: select or deselect the found matches.
     SelectMatches,
     /// Prompt the user for the replacement text.
-    InputReplacement(String),
+    /// (ReplacementText, CharPosition)
+    InputReplacement(String, usize),
     /// Ask the user to confirm the replacement.
     ConfirmReplacement(String),
 }
@@ -87,13 +88,13 @@ impl AppUiState {
     pub fn is_replacing(&self) -> bool {
         matches!(
             self,
-            AppUiState::InputReplacement(_) | AppUiState::ConfirmReplacement(_)
+            AppUiState::InputReplacement(_, _) | AppUiState::ConfirmReplacement(_)
         )
     }
 
     pub fn get_replacement_text(&self) -> Option<&str> {
         match &self {
-            AppUiState::InputReplacement(replacement)
+            AppUiState::InputReplacement(replacement, _)
             | AppUiState::ConfirmReplacement(replacement) => Some(replacement.as_str()),
             _ => None,
         }
@@ -106,7 +107,7 @@ impl AppUiState {
         match self {
             AppUiState::Help => Span::styled(" HELP ", style.bg(Color::Green)),
             AppUiState::SelectMatches => Span::styled(" SELECT ", style.bg(Color::Cyan)),
-            AppUiState::InputReplacement(_) => Span::styled(" REPLACE ", style.bg(Color::White)),
+            AppUiState::InputReplacement(_, _) => Span::styled(" REPLACE ", style.bg(Color::White)),
             AppUiState::ConfirmReplacement(_) => Span::styled(" CONFIRM ", style.bg(Color::Red)),
         }
     }

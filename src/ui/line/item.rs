@@ -642,7 +642,7 @@ mod tests {
     fn to_span_lines_with_text_input_replacement() {
         let replacement = "foobar";
         let app_list_state = new_app_list_state();
-        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
@@ -698,7 +698,7 @@ mod tests {
         app_list_state.set_selected_item(0);
         app_list_state.set_selected_submatch(0);
         let replacement = "foobar";
-        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         let mut item = new_item(RG_JSON_MATCH);
@@ -741,7 +741,7 @@ mod tests {
     fn to_span_lines_with_base64_lossy_input_replacement() {
         let replacement = "foobar";
         let app_list_state = new_app_list_state();
-        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx));
@@ -784,7 +784,7 @@ mod tests {
     fn to_span_lines_with_multiline_replacement() {
         let replacement = "foobar\nbaz\nasdf";
         let app_list_state = new_app_list_state();
-        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
@@ -803,7 +803,7 @@ mod tests {
     fn to_span_lines_multiline_input_replacement_with_multiline_matches() {
         let replacement = "foobar\nbaz\nasdf";
         let app_list_state = new_app_list_state();
-        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_MATCH_MULTILINE).to_span_lines(&ctx));
@@ -837,7 +837,7 @@ mod tests {
         let mut app_list_state = new_app_list_state();
         app_list_state.set_selected_item(0);
         app_list_state.set_selected_submatch(0);
-        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_MATCH_LINE_WRAP).to_span_lines(&ctx));
@@ -961,7 +961,7 @@ mod tests {
         let mut app_list_state = new_app_list_state();
         app_list_state.set_selected_item(0);
         app_list_state.set_selected_submatch(0);
-        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         assert_debug_snapshot!(new_item(RG_JSON_MATCH_LINE_WRAP_MULTI).to_span_lines(&ctx));
@@ -971,7 +971,7 @@ mod tests {
     fn to_span_lines_input_replacement_trailing_line_feed() {
         let replacement = "foobar\n";
         let app_list_state = new_app_list_state();
-        let app_ui_state = AppUiState::InputReplacement(String::from(replacement));
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
 
         // Should add a line

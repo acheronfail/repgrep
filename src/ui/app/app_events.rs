@@ -7,7 +7,7 @@ use tui::layout::Rect;
 use crate::model::{Movement, ReplacementCriteria};
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppState, AppUiState};
-use crate::util::clamp;
+use crate::util::{byte_pos_from_char_pos, clamp};
 
 impl App {
     pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
@@ -29,7 +29,7 @@ impl App {
                 if control_pressed {
                     let did_handle_key = match &self.ui_state {
                         AppUiState::SelectMatches
-                        | AppUiState::InputReplacement(_)
+                        | AppUiState::InputReplacement(_, _)
                         | AppUiState::ConfirmReplacement(_) => match key.code {
                             // Page movements
                             KeyCode::Char('b') => {
@@ -67,7 +67,8 @@ impl App {
                 match &self.ui_state {
                     AppUiState::ConfirmReplacement(replacement) => match key.code {
                         KeyCode::Esc | KeyCode::Char('q') => {
-                            self.ui_state = AppUiState::InputReplacement(replacement.to_owned())
+                            // TODO: remember last pos?
+                            self.ui_state = AppUiState::InputReplacement(replacement.to_owned(), 0)
                         }
                         KeyCode::Enter => {
                             self.state = AppState::Complete(ReplacementCriteria::new(
@@ -119,40 +120,58 @@ impl App {
                             KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
                             KeyCode::Char('?') => self.ui_state = AppUiState::Help,
                             KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
-                                self.ui_state = AppUiState::InputReplacement(String::new())
+                                self.ui_state = AppUiState::InputReplacement(String::new(), 0)
                             }
                             _ => {}
                         }
                     }
-                    AppUiState::InputReplacement(ref input) => match key.code {
+                    AppUiState::InputReplacement(ref input, pos) => match key.code {
+                        // input char, or detect changing to next mode
                         KeyCode::Char(ch) => {
                             if control_pressed && ch == 's' {
                                 self.ui_state = AppUiState::ConfirmReplacement(input.to_owned());
                             } else {
-                                self.ui_state =
-                                    AppUiState::InputReplacement(format!("{}{}", input, ch));
+                                let mut new_input = input.clone();
+                                new_input.insert(byte_pos_from_char_pos(input, *pos), ch);
+                                self.ui_state = AppUiState::InputReplacement(new_input, pos + 1);
                             }
                         }
+                        // remove character behind cursor
                         KeyCode::Backspace => {
-                            if !input.is_empty() {
-                                // trim off the last character
-                                let input = input.chars().rev().skip(1).collect::<Vec<_>>();
-                                let input = input.iter().rev().collect::<String>();
-                                self.ui_state = AppUiState::InputReplacement(input);
+                            if !input.is_empty() && *pos > 0 {
+                                let mut new_input = input.clone();
+                                new_input.remove(byte_pos_from_char_pos(input, *pos - 1));
+                                self.ui_state = AppUiState::InputReplacement(new_input, pos - 1);
                             }
                         }
-                        KeyCode::Esc => self.ui_state = AppUiState::SelectMatches,
-                        KeyCode::Enter => {
-                            self.ui_state = AppUiState::InputReplacement(format!("{}\n", input));
+                        // remove character at cursor
+                        KeyCode::Delete => {
+                            if !input.is_empty() && *pos < input.chars().count() {
+                                let mut new_input = input.clone();
+                                new_input.remove(byte_pos_from_char_pos(input, *pos));
+                                self.ui_state = AppUiState::InputReplacement(new_input, *pos);
+                            }
                         }
-
-                        // TODO: use arrow keys to move "cursor" in text
-                        KeyCode::Up => {}
-                        KeyCode::Down => {}
-                        KeyCode::Left => {}
-                        KeyCode::Right => {}
-                        // TODO: use "delete" key to forward delete
-                        KeyCode::Delete => {}
+                        // leave mode
+                        KeyCode::Esc => self.ui_state = AppUiState::SelectMatches,
+                        // insert return character
+                        KeyCode::Enter => {
+                            let mut new_input = input.clone();
+                            new_input.insert(byte_pos_from_char_pos(input, *pos), '\n');
+                            self.ui_state = AppUiState::InputReplacement(new_input, pos + 1);
+                        }
+                        // move cursor back
+                        KeyCode::Left => {
+                            self.ui_state =
+                                AppUiState::InputReplacement(input.clone(), pos.saturating_sub(1))
+                        }
+                        // move cursor forward
+                        KeyCode::Right => {
+                            self.ui_state = AppUiState::InputReplacement(
+                                input.clone(),
+                                (pos + 1).clamp(0, input.chars().count()),
+                            )
+                        }
                         _ => {}
                     },
                 }
@@ -848,4 +867,6 @@ mod tests {
         move_and_assert_list_state!(app, Movement::Backward(100), POS_1_BEGIN);
         move_and_assert_list_state!(app, Movement::Backward(100), POS_1_BEGIN);
     }
+
+    // TODO: create tests for cursor position
 }

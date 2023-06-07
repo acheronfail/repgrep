@@ -12,6 +12,7 @@ use crate::model::Printable;
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppUiState};
 use crate::ui::render::UiItemContext;
+use crate::util::byte_pos_from_char_pos;
 
 const LIST_HIGHLIGHT_SYMBOL: &str = "-> ";
 const MINIMUM_WIDTH: u16 = 70;
@@ -79,15 +80,23 @@ impl App {
             AppUiState::SelectMatches => vec![Span::from(
                 "Select (or deselect) Matches with <space> then press <Enter>. Press <?> for help.",
             )],
-            AppUiState::InputReplacement(input) => vec![
-                Span::from(prefix),
+            AppUiState::InputReplacement(input, pos) => {
+                let mut spans = vec![Span::from(prefix)];
                 if input.is_empty() {
-                    Span::styled("<empty>", Style::default().fg(Color::DarkGray))
+                    spans.push(Span::styled(
+                        "<empty>",
+                        Style::default().fg(Color::DarkGray),
+                    ));
                 } else {
-                    Span::from(input.to_printable(self.printable_style.as_one_line()))
-                },
-            ],
-            AppUiState::ConfirmReplacement(_) => vec![Span::from(
+                    let (before, after) = input.split_at(byte_pos_from_char_pos(&input, *pos));
+                    let style = self.printable_style.as_one_line();
+                    spans.push(Span::from(before.to_printable(style)));
+                    spans.push(Span::from(after.to_printable(style)));
+                }
+
+                spans
+            }
+            AppUiState::ConfirmReplacement(_, _) => vec![Span::from(
                 "Press <enter> to write changes, <esc> to cancel.",
             )],
         };
@@ -95,12 +104,12 @@ impl App {
         let mut render_input = |spans| f.render_widget(Paragraph::new(Spans::from(spans)), r);
 
         // Draw input cursor after rendering input
-        if let AppUiState::InputReplacement(input) = &self.ui_state {
+        if let AppUiState::InputReplacement(input, _) = &self.ui_state {
             let x_start = r.x + (prefix.len() as u16);
             let x_pos = if input.is_empty() {
                 0
             } else {
-                spans.last().map(|span| span.width()).unwrap() as u16
+                (&spans[spans.len() - 2]).width() as u16
             };
 
             spans.push(Span::styled(

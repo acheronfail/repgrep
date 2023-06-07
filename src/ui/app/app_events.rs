@@ -173,6 +173,15 @@ impl App {
                                 (pos + 1).clamp(0, input.chars().count()),
                             )
                         }
+                        // move to start
+                        KeyCode::Home | KeyCode::PageUp => {
+                            self.ui_state = AppUiState::InputReplacement(input.clone(), 0)
+                        }
+                        // move to end
+                        KeyCode::End | KeyCode::PageDown => {
+                            self.ui_state =
+                                AppUiState::InputReplacement(input.clone(), input.chars().count())
+                        }
                         _ => {}
                     },
                 }
@@ -965,6 +974,12 @@ mod tests {
         send_key_assert!(app, key!(Char('r')), "repgr", 5);
         send_key_assert!(app, key!(Char('e')), "repgre", 6);
         send_key_assert!(app, key!(Char('p')), "repgrep", 7);
+
+        // check movement keys
+        send_key_assert!(app, key!(Home), "repgrep", 0);
+        send_key_assert!(app, key!(End), "repgrep", 7);
+        send_key_assert!(app, key!(PageUp), "repgrep", 0);
+        send_key_assert!(app, key!(PageDown), "repgrep", 7);
 
         // move to next mode
         send_key!(app, key!(Char('s'), KeyModifiers::CONTROL));

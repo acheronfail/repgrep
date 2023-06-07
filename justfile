@@ -58,4 +58,3 @@ bump +TYPE: check-dirty
 
     git add .
     git commit -v -m "$version"
-    git tag "$version"

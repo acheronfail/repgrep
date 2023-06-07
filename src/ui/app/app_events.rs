@@ -903,6 +903,7 @@ mod tests {
     fn input_replacement() {
         let mut app = new_app();
 
+        // enter insert mode
         send_key_assert!(app, key!(Enter), "", 0);
 
         // check with no text
@@ -985,5 +986,8 @@ mod tests {
         // move back again
         send_key!(app, key!(Esc));
         assert_eq!(app.ui_state, AppUiState::SelectMatches);
+
+        // and back to input
+        send_key_assert!(app, key!(Enter), "", 0);
     }
 }

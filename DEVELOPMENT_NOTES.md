@@ -27,3 +27,13 @@ just dev <rg args>
 The README in this repository is generated from the doc comments in `src/main.rs`.
 
 Once the doc comments have been updated, run `just readme` to apply the changes to the README.
+
+## Making a release
+
+Mostly so I don't forget if I come back to this project after a while.
+
+1. use `just bump` to bump the version
+2. create PR with version bump and merge
+3. if merge commit has a successful CI build, then `git tag <version>` on `master`
+4. CI will create a draft release and start uploading artifacts to it
+5. edit it, and publish it as a release

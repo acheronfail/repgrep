@@ -198,4 +198,6 @@ jobs:
         cargo install just
         just setup
         just readme
+        rustup install nightly
+        just fmt
         just check-dirty

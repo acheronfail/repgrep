@@ -1,5 +1,4 @@
-use std::fs::File;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 
 use anyhow::{anyhow, Context, Result};
@@ -503,6 +502,7 @@ mod tests {
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
         use std::path::PathBuf;
+
         use tempfile::tempdir;
 
         // Here, the values 0x66 and 0x6f correspond to 'f' and 'o'

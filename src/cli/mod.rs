@@ -4,9 +4,8 @@ use std::env;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
-use clap::{CommandFactory, Parser};
-
 use args::Args;
+use clap::{CommandFactory, Parser};
 
 pub const ENV_JSON_FILE: &str = "RGR_JSON_FILE";
 

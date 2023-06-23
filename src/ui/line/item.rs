@@ -553,9 +553,10 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn path_with_base64() {
-        use crate::rg::de::test_utilities::RgMessageBuilder;
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
+
+        use crate::rg::de::test_utilities::RgMessageBuilder;
 
         // Here, the values 0x66 and 0x6f correspond to 'f' and 'o'
         // respectively. The value 0x80 is a lone continuation byte, invalid

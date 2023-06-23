@@ -2,13 +2,14 @@ mod app_events;
 mod app_render;
 mod state;
 
-use crate::model::{PrintableStyle, ReplacementCriteria};
-use crate::rg::de::{RgMessage, Stats};
-use crate::ui::line::Item;
 use anyhow::{bail, Result};
 use regex::bytes::Regex;
 use state::HelpTextState;
 pub use state::{AppListState, AppState, AppUiState};
+
+use crate::model::{PrintableStyle, ReplacementCriteria};
+use crate::rg::de::{RgMessage, Stats};
+use crate::ui::line::Item;
 
 const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 

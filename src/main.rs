@@ -92,9 +92,8 @@ mod rg;
 mod ui;
 mod util;
 
-use std::env;
 use std::fs::File;
-use std::process;
+use std::{env, process};
 
 use anyhow::Result;
 use clap::crate_name;

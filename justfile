@@ -15,6 +15,10 @@ setup:
     if   command -v apt-get >/dev/null 2>&1 /dev/null; then sudo apt-get install ripgrep; fi
     if ! command -v rg      >/dev/null 2>&1 /dev/null; then echo "please install rg!"; exit 1; fi
 
+# runs rustfmt
+fmt:
+    rustup run nightly cargo fmt
+
 # tests rgr
 test *args:
     RUST_LOG=trace cargo test --all --all-features "$@"

@@ -161,7 +161,9 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use super::{ArbitraryData::*, RgMessage::*, *};
+    use super::ArbitraryData::*;
+    use super::RgMessage::*;
+    use super::*;
 
     #[test]
     fn arbitrary_data() {

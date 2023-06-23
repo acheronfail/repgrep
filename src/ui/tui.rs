@@ -8,10 +8,11 @@ use crossterm::event::{self, Event, KeyCode};
 use crossterm::execute;
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use regex::bytes::Regex;
+use tui::backend::CrosstermBackend;
 use tui::layout::Rect;
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Borders, Paragraph, Wrap};
-use tui::{backend::CrosstermBackend, Terminal};
+use tui::Terminal;
 
 use crate::model::ReplacementCriteria;
 use crate::rg::de::RgMessage;

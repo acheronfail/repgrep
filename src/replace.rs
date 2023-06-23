@@ -120,6 +120,11 @@ fn perform_replacements_in_file(
                 log::warn!("Matched bytes do not match bytes to replace!");
                 log::warn!("\tFile: \"{}\"", path_buf.display());
                 log::warn!("\tMatch: data=\"{}\", bytes={:?}", text, matched_bytes);
+                log::warn!(
+                    "\tBytes: data=\"{}\", bytes={:?}",
+                    str_to_remove,
+                    str_to_remove.as_bytes()
+                );
                 log::warn!("\tOffset: {}", offset + range.start);
                 did_skip_replacement = true;
             }
@@ -218,6 +223,7 @@ mod tests {
 
     use base64_simd::STANDARD as base64;
     use pretty_assertions::assert_eq;
+    use regex::bytes::Regex;
     use tempfile::NamedTempFile;
 
     use crate::model::*;
@@ -256,6 +262,48 @@ mod tests {
         ($content:expr) => {
             temp_file!(bytes, $content.as_bytes())
         };
+    }
+
+    macro_rules! re {
+        () => {
+            None
+        };
+        ($re:expr) => {
+            Some(Regex::new($re).unwrap())
+        };
+    }
+
+    #[test]
+    fn asdf() {
+        let file_text = "foo bar baz";
+        let s = |a, b| SubMatch::new_text(a, b);
+        let test_cases = vec![
+            // no capture groups
+            (s("foo", 0..3), r"foo", re!(), r"foo bar baz"),
+            (s("foo", 0..3), r"bar", re!(), r"bar bar baz"),
+            (s("foo", 0..3), r"A", re!(), r"A bar baz"),
+            (s("foo", 0..3), r"Rust", re!(), r"Rust bar baz"),
+            (s("foo", 0..3), r"🦀", re!(), r"🦀 bar baz"),
+            (s("foo", 0..3), r"¯\_(ツ)_/¯", re!(), r"¯\_(ツ)_/¯ bar baz"),
+            // capture groups
+            (s("foo", 0..3), r"$1", re!("(foo)"), r"foo bar baz"),
+            (s("foo", 0..3), r"$1 $1", re!("(foo)"), r"foo foo bar baz"),
+            (s("foo", 0..3), r"bar$1", re!("(f)oo"), r"barf bar baz"),
+            (s("foo", 0..3), r"$2🦀$2", re!("(f)(o+)"), r"oo🦀oo bar baz"),
+            (
+                s("foo bar baz", 0..11),
+                r"¯\_(ツ)_/¯$3$4$1 ${2}f",
+                re!("(f)((o)(o)).*"),
+                r"¯\_(ツ)_/¯oof oof",
+            ),
+        ];
+
+        for (submatch, replacement, capture_pattern, expected) in test_cases {
+            let (item1, p1) = temp_item!(0, file_text, vec![submatch]);
+            let criteria = ReplacementCriteria::new(capture_pattern, replacement, vec![item1]);
+            perform_replacements(criteria).unwrap();
+            assert_eq!(fs::read_to_string(p1).unwrap(), expected);
+        }
     }
 
     #[test]
@@ -526,7 +574,6 @@ mod tests {
 
     // The following are generated with:
     //   printf "<BOM>%s" $(printf "foo bar baz\n...\nbaz foo bar\n...\nbar baz foo" | iconv -f UTF8 -t <ENCODING> | xxd -p -c 128)
-    // printf "efbbbf%s" $(printf "RUST bar baz\n...\nbaz RUST bar\n...\nbar baz RUST" | iconv -f UTF8 -t UTF8 | xxd -p -c 128)
 
     const UTF8_FOO: &str =
         "666f6f206261722062617a0a2e2e2e0a62617a20666f6f206261720a2e2e2e0a6261722062617a20666f6f";
@@ -552,67 +599,95 @@ mod tests {
     const UTF16BE_A: &str = "feff00410020006200610072002000620061007a000a002e002e002e000a00620061007a002000410020006200610072000a002e002e002e000a006200610072002000620061007a00200041";
     const UTF16LE_A: &str = "fffe410020006200610072002000620061007a000a002e002e002e000a00620061007a002000410020006200610072000a002e002e002e000a006200610072002000620061007a0020004100";
 
-    simple_test!(
-        multiline_longer_utf8,
-        UTF8_FOO,
-        UTF8_RUST,
+    // The following are generated with:
+    //   printf "<BOM>%s" $(printf "🦀 bar baz\n...\nbaz 🦀 bar\n...\nbar baz 🦀" | iconv -f UTF8 -t <ENCODING> | xxd -p -c 128)
+
+    const UTF8_EMOJI: &str = "f09fa680206261722062617a0a2e2e2e0a62617a20f09fa680206261720a2e2e2e0a6261722062617a20f09fa680";
+    const UTF8BOM_EMOJI: &str = "efbbbff09fa680206261722062617a0a2e2e2e0a62617a20f09fa680206261720a2e2e2e0a6261722062617a20f09fa680";
+    const UTF16BE_EMOJI: &str = "feffd83edd800020006200610072002000620061007a000a002e002e002e000a00620061007a0020d83edd800020006200610072000a002e002e002e000a006200610072002000620061007a0020d83edd80";
+    const UTF16LE_EMOJI: &str = "fffe3ed880dd20006200610072002000620061007a000a002e002e002e000a00620061007a0020003ed880dd20006200610072000a002e002e002e000a006200610072002000620061007a0020003ed880dd";
+
+    // The following are generated with:
+    //   printf "%s" $(printf "¯\_(ツ)_/¯ bar baz\n...\nbaz ¯\_(ツ)_/¯ bar\n...\nbar baz ¯\_(ツ)_/¯" | iconv -f UTF8 -t <ENCODING> | xxd -p -c 128)
+
+    const UTF8_UNICODE: &str = "c2af5c5f28e38384295f2fc2af206261722062617a0a2e2e2e0a62617a20c2af5c5f28e38384295f2fc2af206261720a2e2e2e0a6261722062617a20c2af5c5f28e38384295f2fc2af";
+    const UTF8BOM_UNICODE: &str = "efbbbfc2af5c5f28e38384295f2fc2af206261722062617a0a2e2e2e0a62617a20c2af5c5f28e38384295f2fc2af206261720a2e2e2e0a6261722062617a20c2af5c5f28e38384295f2fc2af";
+    const UTF16BE_UNICODE: &str = "feff00af005c005f002830c40029005f002f00af0020006200610072002000620061007a000a002e002e002e000a00620061007a002000af005c005f002830c40029005f002f00af0020006200610072000a002e002e002e000a006200610072002000620061007a002000af005c005f002830c40029005f002f00af";
+    const UTF16LE_UNICODE: &str = "fffeaf005c005f002800c43029005f002f00af0020006200610072002000620061007a000a002e002e002e000a00620061007a002000af005c005f002800c43029005f002f00af0020006200610072000a002e002e002e000a006200610072002000620061007a002000af005c005f002800c43029005f002f00af00";
+
+    macro_rules! simple_test_batch {
+        ($name:ident, $left:ident, $right:ident, $info:expr, $submatches:expr) => {
+            simple_test_batch!(@ [UTF8, UTF8BOM, UTF16BE, UTF16LE], $name, $left, $right, $info, $submatches);
+        };
+
+        (@ [$($enc:ident$(,)?)+], $name:ident, $left:ident, $right:ident, $info:expr, $submatches:expr) => {
+            paste::paste! {
+                $(
+                    simple_test!(
+                        [<multiline_ $name _ $enc:lower>],
+                        [<$enc _ $left:upper>],
+                        [<$enc _ $right:upper>],
+                        $info,
+                        // account for 3 byte BOM
+                        if stringify!($enc) == "UTF8BOM" {
+                            $submatches
+                                .into_iter()
+                                .map(|(a, b)| (a, std::ops::Range { start: b.start + 3, end: b.end + 3 }))
+                                .collect::<Vec<_>>()
+                        } else {
+                            $submatches
+                        }
+                    );
+                )+
+            }
+        };
+    }
+
+    simple_test_batch!(
+        to_longer,
+        FOO,
+        RUST,
         ("foo", "RUST"),
-        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+        vec![(0, 0..3), (16, 4..7), (32, 8..11)]
     );
 
-    simple_test!(
-        multiline_longer_utf8_bom,
-        UTF8BOM_FOO,
-        UTF8BOM_RUST,
-        ("foo", "RUST"),
-        &[(0, 3..6), (19, 4..7), (35, 8..11)]
-    );
-
-    simple_test!(
-        multiline_longer_utf16be,
-        UTF16BE_FOO,
-        UTF16BE_RUST,
-        ("foo", "RUST"),
-        &[(0, 0..3), (16, 4..7), (32, 8..11)]
-    );
-
-    simple_test!(
-        multiline_longer_utf16le,
-        UTF16LE_FOO,
-        UTF16LE_RUST,
-        ("foo", "RUST"),
-        &[(0, 0..3), (16, 4..7), (32, 8..11)]
-    );
-
-    simple_test!(
-        multiline_shorter_utf8,
-        UTF8_FOO,
-        UTF8_A,
+    simple_test_batch!(
+        to_shorter,
+        FOO,
+        A,
         ("foo", "A"),
-        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+        vec![(0, 0..3), (16, 4..7), (32, 8..11)]
     );
 
-    simple_test!(
-        multiline_shorter_utf8_bom,
-        UTF8BOM_FOO,
-        UTF8BOM_A,
-        ("foo", "A"),
-        &[(0, 3..6), (19, 4..7), (35, 8..11)]
+    simple_test_batch!(
+        to_emoji,
+        FOO,
+        EMOJI,
+        ("foo", "🦀"),
+        vec![(0, 0..3), (16, 4..7), (32, 8..11)]
     );
 
-    simple_test!(
-        multiline_shorter_utf16be,
-        UTF16BE_FOO,
-        UTF16BE_A,
-        ("foo", "A"),
-        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    simple_test_batch!(
+        from_emoji,
+        EMOJI,
+        FOO,
+        ("🦀", "foo"),
+        vec![(0, 0..4), (16, 5..9), (32, 10..14)]
     );
 
-    simple_test!(
-        multiline_shorter_utf16le,
-        UTF16LE_FOO,
-        UTF16LE_A,
-        ("foo", "A"),
-        &[(0, 0..3), (16, 4..7), (32, 8..11)]
+    simple_test_batch!(
+        to_unicode,
+        FOO,
+        UNICODE,
+        ("foo", r"¯\_(ツ)_/¯"),
+        vec![(0, 0..3), (16, 4..7), (32, 8..11)]
+    );
+
+    simple_test_batch!(
+        from_unicode,
+        UNICODE,
+        FOO,
+        (r"¯\_(ツ)_/¯", "foo"),
+        vec![(0, 0..13), (16, 14..27), (32, 28..41)]
     );
 }

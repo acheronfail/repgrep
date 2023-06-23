@@ -1,21 +1,28 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
+use regex::bytes::Regex;
+
 use crate::rg::de::{ArbitraryData, RgMessageKind};
 use crate::ui::line::Item;
 
 #[derive(Debug)]
 pub struct ReplacementCriteria {
+    pub capture_pattern: Option<Regex>,
     pub items: Vec<Item>,
-    pub text: String,
+    pub user_replacement: Vec<u8>,
     pub encoding: Option<String>,
 }
 
 impl ReplacementCriteria {
-    pub fn new<S: AsRef<str>>(text: S, items: Vec<Item>) -> ReplacementCriteria {
-        let text = text.as_ref().to_owned();
+    pub fn new<S: AsRef<str>>(
+        capture_pattern: Option<Regex>,
+        user_replacement: S,
+        items: Vec<Item>,
+    ) -> ReplacementCriteria {
         ReplacementCriteria {
-            text,
+            capture_pattern,
+            user_replacement: user_replacement.as_ref().as_bytes().to_vec(),
             items,
             encoding: None,
         }

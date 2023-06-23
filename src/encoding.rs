@@ -34,7 +34,7 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
         .or_else(|| {
             let (encoding, confidence, _) = chardet::detect(bytes);
             log::debug!(
-                "Attempting to detect encoding - cncoding: {}, Confidence: {}",
+                "Attempting to detect encoding - encoding: {}, Confidence: {}",
                 encoding,
                 confidence
             );
@@ -45,7 +45,11 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
                 // encoding. However, this may be confusing as most users are more familiar with ASCII encodings and may
                 // be unaware that "windows-1252" is an ASCII compatible encoding.
                 if encoding == "ascii" {
-                    Some(encoding::all::ASCII)
+                    // And, instead of forcing ASCII encoding here, we default to UTF8 which is far more common and
+                    // is also backwards compatible with ASCII. This allows multi-code-point graphemes to work, as well
+                    // as emoji and such.
+                    log::debug!("Detected ASCII encoding, defaulting to UTF8");
+                    Some(encoding::all::UTF_8)
                 } else {
                     encoding_from_whatwg_label(charset2encoding(&encoding))
                 }

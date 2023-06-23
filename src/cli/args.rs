@@ -9,8 +9,7 @@ use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use clap::{crate_authors, crate_version};
-use clap::{ArgAction, Parser};
+use clap::{crate_authors, crate_version, ArgAction, Parser};
 
 // TODO: options to support in the future
 // -P/--pcre2

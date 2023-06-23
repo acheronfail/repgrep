@@ -1,10 +1,9 @@
-use clap::CommandFactory;
-use clap_complete::{generate_to, shells};
-use std::env;
-use std::fs;
-use std::io;
 use std::path::Path;
 use std::process::Command;
+use std::{env, fs, io};
+
+use clap::CommandFactory;
+use clap_complete::{generate_to, shells};
 
 #[allow(dead_code)]
 #[path = "src/cli/args.rs"]

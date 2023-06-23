@@ -11,6 +11,14 @@ This is an interactive command line tool to make find and replacement easy.
 It uses [`ripgrep`] to find, and then provides you with a simple interface to see
 the replacements in real-time and conditionally replace matches.
 
+Some features:
+
+* ⚡ Super fast search results
+* ✨ Interactive interface for selecting which matches should be replaced or not
+* 🕶️ Live preview of the replacements
+* 🧠 Replace using capturing groups (e.g., when using `/foo (\w+)/` replace with `bar $1`)
+* 🦀 and more!
+
 Supported file encodings:
 
 * ASCII

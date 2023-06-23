@@ -4,6 +4,14 @@
 //! It uses [`ripgrep`] to find, and then provides you with a simple interface to see
 //! the replacements in real-time and conditionally replace matches.
 //!
+//! Some features:
+//!
+//! * ⚡ Super fast search results
+//! * ✨ Interactive interface for selecting which matches should be replaced or not
+//! * 🕶️ Live preview of the replacements
+//! * 🧠 Replace using capturing groups (e.g., when using `/foo (\w+)/` replace with `bar $1`)
+//! * 🦀 and more!
+//!
 //! Supported file encodings:
 //!
 //! * ASCII
@@ -84,9 +92,8 @@ mod rg;
 mod ui;
 mod util;
 
-use std::env;
 use std::fs::File;
-use std::process;
+use std::{env, process};
 
 use anyhow::Result;
 use clap::crate_name;
@@ -180,7 +187,8 @@ fn main() {
                 .collect::<Vec<_>>()
                 .join(" ");
 
-            let result = Tui::new(rg_cmdline, rg_messages).start();
+            let patterns = args.rg_patterns();
+            let result = Tui::new().and_then(|tui| tui.start(rg_cmdline, rg_messages, patterns));
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {

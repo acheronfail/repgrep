@@ -1,3 +1,14 @@
+# 0.14.0 & 0.14.1
+
+- fae18c7 a little bling for the README
+- fae1a46 add documentation about capturing groups
+- fae1d7c snapshot tests for item rendering
+- fae1aed improve edge case of ascii encoding detection
+- fae1591 unit tests for replacements with capturing groups
+- fae1018 feat: add ability to user capturing groups in replacements
+- fae1488 dev: update justfile with default rule
+- fae1e2a update DEVELOPMENT_NOTES.md
+
 # 0.13.0
 
 - fae14d5 remove tag from just bump: we'll do it manually from now on

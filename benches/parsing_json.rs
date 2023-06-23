@@ -1,12 +1,10 @@
 #![allow(unused)]
 
-use std::{
-    fs::File,
-    io::{BufRead, BufReader, Read},
-    sync::Arc,
-    thread,
-    time::Duration,
-};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Read};
+use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use crossbeam_queue::ArrayQueue;

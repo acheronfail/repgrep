@@ -4,7 +4,7 @@ use crossterm::event::{Event, KeyCode, KeyModifiers};
 use either::Either;
 use tui::layout::Rect;
 
-use crate::model::{Movement, ReplacementCriteria};
+use crate::model::Movement;
 use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppState, AppUiState};
 use crate::util::{byte_pos_from_char_pos, clamp};
@@ -71,10 +71,8 @@ impl App {
                                 AppUiState::InputReplacement(replacement.to_owned(), *pos)
                         }
                         KeyCode::Enter => {
-                            self.state = AppState::Complete(ReplacementCriteria::new(
-                                replacement,
-                                self.list.clone(),
-                            ));
+                            self.state = AppState::Complete;
+                            return Ok(());
                         }
                         _ => {}
                     },
@@ -192,7 +190,7 @@ impl App {
         Ok(())
     }
 
-    fn move_horizonally(&mut self, movement: &Movement) -> bool {
+    fn move_horizontally(&mut self, movement: &Movement) -> bool {
         let selected_item = self.list_state.selected_item();
         let selected_match = self.list_state.selected_submatch();
 
@@ -316,7 +314,7 @@ impl App {
     }
 
     pub(crate) fn move_pos(&mut self, movement: Movement, term_size: Rect) {
-        if !self.move_horizonally(&movement) {
+        if !self.move_horizontally(&movement) {
             self.move_vertically(&movement);
         }
 
@@ -438,7 +436,7 @@ mod tests {
     }
 
     fn new_app() -> App {
-        App::new("TESTS".to_string(), rg_messages())
+        App::new(None, "TESTS".to_string(), rg_messages())
     }
 
     fn new_app_multiple_files() -> App {
@@ -454,7 +452,7 @@ mod tests {
         messages_multiple_files.extend(messages_multiple_files.clone());
         messages_multiple_files.push(RgMessage::from_str(RG_JSON_SUMMARY));
 
-        App::new("TESTS".to_string(), messages_multiple_files)
+        App::new(None, "TESTS".to_string(), messages_multiple_files)
     }
 
     type PosTriple = (usize, usize, usize);
@@ -488,7 +486,7 @@ mod tests {
             RgMessage::from_str(RG_JSON_SUMMARY),
         ];
 
-        App::new("TESTS".to_string(), messages)
+        App::new(None, "TESTS".to_string(), messages)
     }
 
     // Valid positions for the app returned by `new_app_line_wrapping`.

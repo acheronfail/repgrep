@@ -21,6 +21,14 @@ The JSON output is then parsed, and you are presented with a terminal interface 
 Note since we use the *--json* flag, a number of *rg*'s flags are unavailable.
 See *rgr --help* for a list of supported flags that will be sent through to *ripgrep*.
 
+**Capturing Groups**
+
+You may use capturing groups when using *rgr*, for example *rgr "foo (\w+)"*.
+When using these, the matches can be used when replacing by referring to them as either their name *$name* or index *$1*.
+This syntax is inherited from the regex crate, see: https://docs.rs/regex/1.8.4/regex/struct.Captures.html#method.expand
+
+Only one pattern may be passed at a time when capturing groups are used (i.e., multiple *-e <pat>* flags are not allowed).
+
 **Reading results from a file**
 
 This tool also supports reading results from a JSON file, with the following use case in mind:

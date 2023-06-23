@@ -282,7 +282,17 @@ impl Item {
 
                 // Read the lines as bytes since we split it at the byte ranges that ripgrep gives us in each of the submatches.
                 let lines_bytes = lines.to_vec();
-                let replacement_spans = ctx.replacement_text.map(|text| {
+                let replacement_spans = ctx.replacement_text.map(|user| {
+                    let user = user.as_bytes().to_vec();
+                    let text = match ctx.capture_pattern.and_then(|re| re.captures(&lines_bytes)) {
+                        Some(captures) => {
+                            let mut s = Vec::new();
+                            captures.expand(&user, &mut s);
+                            s
+                        }
+                        None => user,
+                    };
+
                     let replacement_style = base_style.fg(Color::Green);
                     let mut spans = text
                         .to_printable(ctx.printable_style)
@@ -292,7 +302,7 @@ impl Item {
 
                     // NOTE: since `"foo\n".lines().collect()` == `vec!["foo"]` we need to make sure the
                     // last newline isn't trimmed.
-                    if !ctx.printable_style.is_one_line() && text.ends_with('\n') {
+                    if !ctx.printable_style.is_one_line() && text.ends_with(&[/* \n */ 10]) {
                         spans.push(Span::from(""));
                     }
 
@@ -303,18 +313,16 @@ impl Item {
                 let mut spans = vec![]; // filled and emptied for each line
 
                 macro_rules! push_utf8_slice {
-                    ($range:ident) => {
-                        {
-                            let mut content = String::from_utf8_lossy(&lines_bytes[$range]).to_printable(ctx.printable_style);
-                            // remove trailing new line if one exists since lines are already handled
-                            if content.ends_with("\n") {
-                                content.pop();
-                            }
-                            // NOTE: don't handle multiple lines in the match because AFAICT ripgrep doesn't return multiline
-                            // text in between submatches in a "match" item.
-                            spans.push(Span::styled(content, base_style));
+                    ($range:ident) => {{
+                        let mut content = String::from_utf8_lossy(&lines_bytes[$range]).to_printable(ctx.printable_style);
+                        // remove trailing new line if one exists since lines are already handled
+                        if content.ends_with("\n") {
+                            content.pop();
                         }
-                    }
+                        // NOTE: don't handle multiple lines in the match because AFAICT ripgrep doesn't return multiline
+                        // text in between submatches in a "match" item.
+                        spans.push(Span::styled(content, base_style));
+                    }}
                 }
 
                 // Don't create a new Spans for the last line in the lines returned from the submatches or the replacement
@@ -458,6 +466,7 @@ mod tests {
     use base64_simd::STANDARD as base64;
     use insta::assert_debug_snapshot;
     use pretty_assertions::assert_eq;
+    use regex::bytes::Regex;
     use tui::layout::Rect;
 
     use crate::model::*;
@@ -544,9 +553,10 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn path_with_base64() {
-        use crate::rg::de::test_utilities::RgMessageBuilder;
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
+
+        use crate::rg::de::test_utilities::RgMessageBuilder;
 
         // Here, the values 0x66 and 0x6f correspond to 'f' and 'o'
         // respectively. The value 0x80 is a lone continuation byte, invalid
@@ -610,6 +620,7 @@ mod tests {
         }
 
         UiItemContext {
+            capture_pattern: None,
             printable_style: PrintableStyle::Hidden,
             replacement_text,
             app_list_state,
@@ -657,6 +668,36 @@ mod tests {
         let app_list_state = new_app_list_state();
         let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_CONTEXT).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_END).to_span_lines(&ctx));
+    }
+
+    #[test]
+    fn to_span_lines_with_text_input_replacement_and_capture_pattern() {
+        let replacement = "${2}($1)";
+        let app_list_state = new_app_list_state();
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
+        let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+        let re = Regex::new(r"(new)\((rg_msg)\)").unwrap();
+        ctx.capture_pattern = Some(&re);
+
+        assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_CONTEXT).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_END).to_span_lines(&ctx));
+    }
+
+    #[test]
+    fn to_span_lines_with_text_confirm_replacement_and_capture_pattern() {
+        let replacement = "${2}($1)";
+        let app_list_state = new_app_list_state();
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
+        let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+        let re = Regex::new(r"(new)\((rg_msg)\)").unwrap();
+        ctx.capture_pattern = Some(&re);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
         assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));

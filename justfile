@@ -4,6 +4,9 @@ badge-crates := "[![crate](https://img.shields.io/crates/v/repgrep)](https://cra
 badge-docs := "[![documentation](https://docs.rs/repgrep/badge.svg)](https://docs.rs/repgrep)"
 bench-json := "benches/rg.json"
 
+_default:
+    just -l
+
 # run this once after you pull down the repository
 setup:
     cargo install cargo-bump
@@ -11,6 +14,14 @@ setup:
     if   command -v pacman  >/dev/null 2>&1 /dev/null; then sudo pacman -S --needed ripgrep; fi
     if   command -v apt-get >/dev/null 2>&1 /dev/null; then sudo apt-get install ripgrep; fi
     if ! command -v rg      >/dev/null 2>&1 /dev/null; then echo "please install rg!"; exit 1; fi
+
+# runs rustfmt
+fmt:
+    rustup run nightly cargo fmt
+
+# tests rgr
+test *args:
+    RUST_LOG=trace cargo test --all --all-features "$@"
 
 # run rgr locally with logging enabled - use `just devlogs` to view output
 dev *args:

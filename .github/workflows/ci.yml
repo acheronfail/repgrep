@@ -188,7 +188,7 @@ jobs:
     - name: Install Rust
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: stable
+        toolchain: nightly
         override: true
         profile: minimal
         components: rustfmt
@@ -198,4 +198,6 @@ jobs:
         cargo install just
         just setup
         just readme
+        rustup install nightly
+        just fmt
         just check-dirty

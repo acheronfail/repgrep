@@ -132,6 +132,7 @@ impl Tui {
                 (one[0].captures_len() > 1).then_some(one.pop().unwrap())
             }
             // many patterns passed, and one had a capturing group
+            // all regex's have at least one capturing group, see: https://docs.rs/regex/1.8.4/regex/struct.Captures.html#method.len
             Ok(many) if many.iter().any(|re| re.captures_len() > 1) => {
                 self.draw_message_box(
                     "Unsupported Arguments!",

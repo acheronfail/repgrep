@@ -1,4 +1,4 @@
-# 0.14.0
+# 0.14.0 & 0.14.1
 
 - fae18c7 a little bling for the README
 - fae1a46 add documentation about capturing groups

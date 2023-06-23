@@ -466,6 +466,7 @@ mod tests {
     use base64_simd::STANDARD as base64;
     use insta::assert_debug_snapshot;
     use pretty_assertions::assert_eq;
+    use regex::bytes::Regex;
     use tui::layout::Rect;
 
     use crate::model::*;
@@ -666,6 +667,36 @@ mod tests {
         let app_list_state = new_app_list_state();
         let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_CONTEXT).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_END).to_span_lines(&ctx));
+    }
+
+    #[test]
+    fn to_span_lines_with_text_input_replacement_and_capture_pattern() {
+        let replacement = "${2}($1)";
+        let app_list_state = new_app_list_state();
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
+        let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+        let re = Regex::new(r"(new)\((rg_msg)\)").unwrap();
+        ctx.capture_pattern = Some(&re);
+
+        assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_CONTEXT).to_span_lines(&ctx));
+        assert_debug_snapshot!(new_item(RG_JSON_END).to_span_lines(&ctx));
+    }
+
+    #[test]
+    fn to_span_lines_with_text_confirm_replacement_and_capture_pattern() {
+        let replacement = "${2}($1)";
+        let app_list_state = new_app_list_state();
+        let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
+        let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+        let re = Regex::new(r"(new)\((rg_msg)\)").unwrap();
+        ctx.capture_pattern = Some(&re);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
         assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));

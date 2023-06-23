@@ -4,6 +4,9 @@ badge-crates := "[![crate](https://img.shields.io/crates/v/repgrep)](https://cra
 badge-docs := "[![documentation](https://docs.rs/repgrep/badge.svg)](https://docs.rs/repgrep)"
 bench-json := "benches/rg.json"
 
+_default:
+    just -l
+
 # run this once after you pull down the repository
 setup:
     cargo install cargo-bump

@@ -42,6 +42,17 @@ pub fn parse_arguments() -> Result<Args> {
     validate_arguments(Args::parse())
 }
 
+impl Args {
+    /// Returns the patterns used by `rg` in the search.
+    pub fn rg_patterns(&self) -> Vec<&str> {
+        if let Some(pattern) = &self.pattern {
+            vec![pattern]
+        } else {
+            self.patterns.iter().map(|p| p.as_ref()).collect()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ffi::OsString;
@@ -60,15 +71,6 @@ mod tests {
         T: Into<OsString> + Clone,
     {
         validate_arguments(Args::parse_from(itr))
-    }
-
-    /// Returns the patterns used by `rg` in the search.
-    fn rg_patterns(args: &Args) -> Vec<&str> {
-        if let Some(pattern) = &args.pattern {
-            vec![pattern]
-        } else {
-            args.patterns.iter().map(|p| p.as_ref()).collect()
-        }
     }
 
     #[test]
@@ -101,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn returns_rg_patterns() {
+    fn returns_rg_patterns_flags() {
         let args = parse_arguments_from(&[
             "rgr",
             "-e",
@@ -113,8 +115,14 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            rg_patterns(&args),
+            args.rg_patterns(),
             vec!["pattern-flag", "pattern-flag-long"]
         );
+    }
+
+    #[test]
+    fn returns_rg_patterns_positional() {
+        let args = parse_arguments_from(&["rgr", "positional"]).unwrap();
+        assert_eq!(args.rg_patterns(), vec!["positional"]);
     }
 }

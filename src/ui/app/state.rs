@@ -2,8 +2,6 @@ use tui::style::{Color, Style};
 use tui::text::Span;
 use tui::widgets::ListState;
 
-use crate::model::ReplacementCriteria;
-
 #[derive(Debug)]
 pub struct AppListState {
     /// The selected "item" in the list of items received from rg
@@ -67,7 +65,7 @@ impl AppListState {
 pub enum AppState {
     Running,
     Cancelled,
-    Complete(ReplacementCriteria),
+    Complete,
 }
 
 /// Describes the various states that `App` can be in.
@@ -93,7 +91,7 @@ impl AppUiState {
         )
     }
 
-    pub fn get_replacement_text(&self) -> Option<&str> {
+    pub fn user_replacement_text(&self) -> Option<&str> {
         match &self {
             AppUiState::InputReplacement(replacement, _)
             | AppUiState::ConfirmReplacement(replacement, _) => Some(replacement.as_str()),

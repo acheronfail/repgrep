@@ -269,7 +269,8 @@ impl App {
         let window_end = window_start + window_height;
 
         let ctx = &UiItemContext {
-            replacement_text: self.ui_state.get_replacement_text(),
+            capture_pattern: self.capture_pattern.as_ref(),
+            replacement_text: self.ui_state.user_replacement_text(),
             printable_style: self.printable_style,
             app_list_state: &self.list_state,
             app_ui_state: &self.ui_state,

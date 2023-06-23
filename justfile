@@ -15,6 +15,10 @@ setup:
     if   command -v apt-get >/dev/null 2>&1 /dev/null; then sudo apt-get install ripgrep; fi
     if ! command -v rg      >/dev/null 2>&1 /dev/null; then echo "please install rg!"; exit 1; fi
 
+# tests rgr
+test:
+    cargo test --all --all-features
+
 # run rgr locally with logging enabled - use `just devlogs` to view output
 dev *args:
     RUST_LOG=trace cargo run -- "$@"

@@ -179,6 +179,12 @@ impl Printable for ArbitraryData {
     }
 }
 
+impl Printable for Vec<u8> {
+    fn to_printable(&self, style: PrintableStyle) -> String {
+        String::from_utf8_lossy(self).to_printable(style)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::model::{Printable, PrintableStyle};

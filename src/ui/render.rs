@@ -1,3 +1,4 @@
+use regex::bytes::Regex;
 use tui::layout::Rect;
 
 use crate::model::PrintableStyle;
@@ -5,6 +6,9 @@ use crate::ui::app::{AppListState, AppUiState};
 
 /// Used when building the UI from the App's state.
 pub struct UiItemContext<'a> {
+    /// Regex to use for capturing groups. If it's not provided, the user didn't
+    /// pass any capturing groups.
+    pub capture_pattern: Option<&'a Regex>,
     /// The replacement text the user has entered.
     pub replacement_text: Option<&'a str>,
     /// The current state of the matches list.

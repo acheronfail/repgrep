@@ -180,7 +180,8 @@ fn main() {
                 .collect::<Vec<_>>()
                 .join(" ");
 
-            let result = Tui::new(rg_cmdline, rg_messages).start();
+            let patterns = args.rg_patterns();
+            let result = Tui::new().and_then(|tui| tui.start(rg_cmdline, rg_messages, patterns));
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {

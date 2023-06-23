@@ -68,6 +68,8 @@ fn perform_replacements_in_file(
         let offset = item.offset().unwrap();
         log::debug!("Item[{}] offset: {}", i, offset);
 
+        let mut byte_buf = Vec::new();
+
         // Iterate backwards so the offset doesn't change as we make replacements.
         for (i, sub_item) in item
             .sub_items()
@@ -84,14 +86,35 @@ fn perform_replacements_in_file(
             let matched_bytes = text.to_vec();
 
             if str_to_remove.as_bytes() == matched_bytes.as_slice() {
+                // compute replacement
+                let replacement = match criteria
+                    .capture_pattern
+                    .as_ref()
+                    .and_then(|re| re.captures(&matched_bytes))
+                {
+                    // user passed a capturing group
+                    Some(captures) => {
+                        // empty buf without changing capacity
+                        byte_buf.clear();
+                        captures.expand(&criteria.user_replacement, &mut byte_buf);
+                        byte_buf.as_slice()
+                    }
+                    // just use raw replacement
+                    None => criteria.user_replacement.as_slice(),
+                };
+
+                // have to save this because it will be invalid after the replacement
                 let removed_str = str_to_remove.to_string();
-                file_as_str.replace_range(normalised_range, &criteria.text);
+                // must convert to strings since due to encoding support we perform replacements as strings
+                let replacement = std::str::from_utf8(&replacement)?;
+                // performance replacement
+                file_as_str.replace_range(normalised_range, replacement);
 
                 log::debug!(
                     "Replacement - reported line: {:?}, removed: \"{}\", added: \"{}\"",
                     item.line_number(),
                     removed_str,
-                    criteria.text
+                    replacement
                 );
             } else {
                 log::warn!("Matched bytes do not match bytes to replace!");
@@ -151,13 +174,18 @@ fn perform_replacements_in_file(
 
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
     log::trace!("--- PERFORM REPLACEMENTS ---");
-    log::debug!("Replacement text: \"{}\"", criteria.text);
+    log::debug!(
+        "Replacement text: \"{}\"",
+        String::from_utf8_lossy(&criteria.user_replacement)
+    );
 
     let rg_encoding = RgEncoding::from(&criteria.encoding);
     log::debug!("User passed encoding: {:?}", rg_encoding);
 
     // Group items by their file so we only open each file once.
     let mut did_skip_replacement = false;
+
+    // TODO: consider concurrent replacements here - make it configurable - we don't want to read in multiple large files at once
     for meta in criteria.as_map() {
         match perform_replacements_in_file(&criteria, &rg_encoding, meta) {
             Ok(did_skip) => {
@@ -261,7 +289,7 @@ mod tests {
             build_item(RgMessageKind::Summary, &p5),
         ];
 
-        perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
+        perform_replacements(ReplacementCriteria::new(None, "NEW_VALUE", items)).unwrap();
         assert_eq!(fs::read_to_string(p1).unwrap(), text);
         assert_eq!(fs::read_to_string(p2).unwrap(), text);
         assert_eq!(fs::read_to_string(p3).unwrap(), "NEW_VALUE bar baz");
@@ -288,7 +316,7 @@ mod tests {
         assert_eq!(perms().mode(), 0o100777);
 
         // perform replacement
-        perform_replacements(ReplacementCriteria::new("NEW_VALUE", vec![item])).unwrap();
+        perform_replacements(ReplacementCriteria::new(None, "NEW_VALUE", vec![item])).unwrap();
         assert_eq!(fs::read_to_string(&path).unwrap(), "NEW_VALUE bar baz");
 
         // now check permissions are what we expect
@@ -302,7 +330,7 @@ mod tests {
         let (item3, p3) = temp_item!(0, "bar baz foo", vec![SubMatch::new_text("foo", 8..11)]);
 
         let items = vec![item1, item2, item3];
-        perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
+        perform_replacements(ReplacementCriteria::new(None, "NEW_VALUE", items)).unwrap();
         assert_eq!(fs::read_to_string(p1).unwrap(), "NEW_VALUE bar baz");
         assert_eq!(fs::read_to_string(p2).unwrap(), "baz NEW_VALUE bar");
         assert_eq!(fs::read_to_string(p3).unwrap(), "bar baz NEW_VALUE");
@@ -320,7 +348,7 @@ mod tests {
         items[1].set_should_replace(0, true);
         items[2].set_should_replace(0, false);
 
-        perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
+        perform_replacements(ReplacementCriteria::new(None, "NEW_VALUE", items)).unwrap();
         assert_eq!(fs::read_to_string(p1).unwrap(), "foo bar baz");
         assert_eq!(fs::read_to_string(p2).unwrap(), "baz NEW_VALUE bar");
         assert_eq!(fs::read_to_string(p3).unwrap(), "bar baz foo");
@@ -338,7 +366,7 @@ mod tests {
             ]
         );
 
-        perform_replacements(ReplacementCriteria::new("NEW_VALUE", vec![item])).unwrap();
+        perform_replacements(ReplacementCriteria::new(None, "NEW_VALUE", vec![item])).unwrap();
         assert_eq!(
             fs::read_to_string(p).unwrap(),
             "NEW_VALUE NEW_VALUE NEW_VALUE"
@@ -380,7 +408,7 @@ mod tests {
             ),
         ];
 
-        perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
+        perform_replacements(ReplacementCriteria::new(None, "NEW_VALUE", items)).unwrap();
         assert_eq!(
             fs::read_to_string(p).unwrap(),
             "NEW_VALUE bar baz\n...\nbaz NEW_VALUE bar\n...\nbar baz NEW_VALUE"
@@ -413,7 +441,7 @@ mod tests {
             ),
         ];
 
-        perform_replacements(ReplacementCriteria::new("NEW_VALUE", items)).unwrap();
+        perform_replacements(ReplacementCriteria::new(None, "NEW_VALUE", items)).unwrap();
         assert_eq!(
             fs::read_to_string(p).unwrap(),
             "foo bar baz\n...\nbaz NEW_VALUE bar\n...\nbar NEW_VALUE foo"
@@ -450,7 +478,7 @@ mod tests {
                 .build(),
         );
 
-        perform_replacements(ReplacementCriteria::new(" on", vec![item])).unwrap();
+        perform_replacements(ReplacementCriteria::new(None, " on", vec![item])).unwrap();
         assert_eq!(fs::read_to_string(p).unwrap(), "hell on earth");
     }
 
@@ -479,7 +507,7 @@ mod tests {
                     })
                     .collect();
 
-                perform_replacements(ReplacementCriteria::new($replace, items)).unwrap();
+                perform_replacements(ReplacementCriteria::new(None, $replace, items)).unwrap();
 
                 // Read file bytes.
                 let mut file_bytes = vec![];

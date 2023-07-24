@@ -58,7 +58,7 @@ bump +TYPE: check-dirty
     last_tag=$(git describe --tags | grep -oEm 1 '([0-9]+\.[0-9]+\.[0-9]+)')
     commits=$(git log --no-decorate --oneline "$last_tag"..HEAD | sed 's/^/- /')
 
-    cargo fmt
+    just fmt
     cargo bump {{ TYPE }}
     cargo check
 

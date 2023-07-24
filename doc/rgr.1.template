@@ -89,7 +89,7 @@ _During replacement_ encoding is handled in the following manner:
 * If a BOM (Byte Order Mark) is found, then that encoding is used, otherwise
 * If an encoding was passed to ripgrep, then that encoding is used, otherwise
 * The *chardet* (https://github.com/thuleqaid/rust-chardet) library is used to detect the encoding
-* If that fails, then ASCII is assumed
+* If that fails, then UTF8 is assumed
 
 Note that *rgr* _will never replace_ a match that it doesn't expect.
 If when replacing a match the bytes to replace do not match those matched by ripgrep, then the tool will bail out and the file will not be written. (Errors will be reported to STDERR.)

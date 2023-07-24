@@ -70,33 +70,34 @@ jobs:
       matrix:
         build: [linux-gnu, linux-musl, linux-arm-gnueabihf, macos, win-msvc, win-gnu, win32-msvc]
         include:
+        # NOTE: we pin to a specific version since sometimes things fail to compile on the latest nightly builds
         - build: linux-gnu
           os: ubuntu-latest
-          rust: nightly
+          rust: nightly-2023-04-16
           target: x86_64-unknown-linux-gnu
         - build: linux-musl
           os: ubuntu-latest
-          rust: nightly
+          rust: nightly-2023-04-16
           target: x86_64-unknown-linux-musl
         - build: linux-arm-gnueabihf
           os: ubuntu-latest
-          rust: nightly
+          rust: nightly-2023-04-16
           target: arm-unknown-linux-gnueabihf
         - build: macos
           os: macos-latest
-          rust: nightly
+          rust: nightly-2023-04-16
           target: x86_64-apple-darwin
         - build: win-msvc
           os: windows-2019
-          rust: nightly
+          rust: nightly-2023-04-16
           target: x86_64-pc-windows-msvc
         - build: win-gnu
           os: windows-2019
-          rust: nightly-x86_64-gnu
+          rust: nightly-2023-04-16-x86_64-gnu
           target: x86_64-pc-windows-gnu
         - build: win32-msvc
           os: windows-2019
-          rust: nightly
+          rust: nightly-2023-04-16
           target: i686-pc-windows-msvc
 
     steps:

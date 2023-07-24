@@ -1,6 +1,6 @@
 /// Event handling for `App`.
 use anyhow::Result;
-use crossterm::event::{Event, KeyCode, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
 use either::Either;
 use tui::layout::Rect;
 
@@ -26,7 +26,7 @@ impl App {
             Event::Key(key) => {
                 // We only care about `Press` events. Other events such as `Release` and `Repeat` aren't
                 // fired on every terminal, and we don't need them anyway.
-                if !matches!(key.kind, crossterm::event::KeyEventKind::Press) {
+                if !matches!(key.kind, KeyEventKind::Press) {
                     return Ok(());
                 }
 
@@ -395,7 +395,7 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
     use pretty_assertions::assert_eq;
     use tui::layout::Rect;
 
@@ -413,8 +413,6 @@ mod tests {
     fn app_list_to_match_replace(app: &App) -> Vec<bool> {
         app.list
             .iter()
-            // .skip(1)
-            // .take_while(|i| !matches!(i.kind, RgMessageKind::End))
             .filter(|i| matches!(i.kind, RgMessageKind::Match))
             .map(|i| i.get_should_replace_all())
             .collect::<Vec<bool>>()
@@ -886,6 +884,7 @@ mod tests {
     // cursor position when inputting replacement text
 
     use KeyCode::*;
+    use KeyEventKind::*;
 
     macro_rules! key {
         ($code:expr) => {
@@ -893,6 +892,13 @@ mod tests {
         };
         ($code:expr, $modifiers:expr) => {
             Event::Key(KeyEvent::new($code, $modifiers))
+        };
+        ($code:expr, kind: $kind:expr) => {
+            Event::Key({
+                let mut key = KeyEvent::new($code, KeyModifiers::empty());
+                key.kind = $kind;
+                key
+            })
         };
     }
 
@@ -910,6 +916,21 @@ mod tests {
                 AppUiState::InputReplacement($input.into(), $pos)
             );
         };
+    }
+
+    #[test]
+    fn works_with_other_key_event_kinds() {
+        let mut app = new_app();
+
+        // enter insert mode
+        send_key_assert!(app, key!(Enter, kind: Press), "", 0);
+        send_key_assert!(app, key!(Enter, kind: Repeat), "", 0);
+        send_key_assert!(app, key!(Enter, kind: Release), "", 0);
+
+        // insert text
+        send_key_assert!(app, key!(Char('a'), kind: Press), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind: Repeat), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind: Release), "a", 1);
     }
 
     #[test]

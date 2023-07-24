@@ -1,3 +1,10 @@
+# 0.14.2
+
+- fae129b fix some platforms inputting multiple characters
+- fae1d19 fix incorrect fallback encoding in man page
+- 32378e0 Merge pull request #90 from acheronfail/next
+- 9d97af6 Merge pull request #88 from acheronfail/feat-movable-input-cursor
+
 # 0.14.0 & 0.14.1
 
 - fae18c7 a little bling for the README

@@ -24,6 +24,12 @@ impl App {
                 return Ok(());
             }
             Event::Key(key) => {
+                // We only care about `Press` events. Other events such as `Release` and `Repeat` aren't
+                // fired on every terminal, and we don't need them anyway.
+                if !matches!(key.kind, crossterm::event::KeyEventKind::Press) {
+                    return Ok(());
+                }
+
                 // Common Ctrl+Key scroll keybindings that apply to multiple modes.
                 let control_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
                 if control_pressed {

@@ -3,8 +3,8 @@ source: src/ui/line/item.rs
 expression: new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx)
 ---
 [
-    Spans(
-        [
+    Line {
+        spans: [
             Span {
                 content: "198:",
                 style: Style {
@@ -12,8 +12,9 @@ expression: new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx)
                         DarkGray,
                     ),
                     bg: None,
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
             Span {
@@ -21,10 +22,12 @@ expression: new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx)
                 style: Style {
                     fg: None,
                     bg: None,
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
         ],
-    ),
+        alignment: None,
+    },
 ]

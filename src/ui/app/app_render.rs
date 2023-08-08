@@ -1,12 +1,12 @@
 /// Rendering for `App`.
 use clap::crate_name;
 use const_format::formatcp;
-use tui::backend::Backend;
-use tui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Modifier, Style};
-use tui::text::{Span, Spans, Text};
-use tui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
-use tui::Frame;
+use ratatui::backend::Backend;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span, Text};
+use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
+use ratatui::Frame;
 
 use crate::model::Printable;
 use crate::rg::de::RgMessageKind;
@@ -61,7 +61,7 @@ impl App {
             .constraints([Constraint::Length(1), Constraint::Length(1)].as_ref())
             .split(root_split[1]);
 
-        (root_split, stats_and_input_split)
+        (root_split.to_vec(), stats_and_input_split.to_vec())
     }
 
     pub(crate) fn is_frame_too_small(&self, frame: Rect) -> bool {
@@ -101,7 +101,7 @@ impl App {
             )],
         };
 
-        let mut render_input = |spans| f.render_widget(Paragraph::new(Spans::from(spans)), r);
+        let mut render_input = |spans| f.render_widget(Paragraph::new(Line::from(spans)), r);
 
         // Draw input cursor after rendering input
         if let AppUiState::InputReplacement(input, _) = &self.ui_state {
@@ -144,8 +144,8 @@ impl App {
             .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
             .split(r);
 
-        let left_side_items = vec![Spans::from(self.ui_state.to_span())];
-        let right_side_items = vec![Spans::from(vec![
+        let left_side_items = vec![Line::from(self.ui_state.to_span())];
+        let right_side_items = vec![Line::from(vec![
             Span::styled(
                 format!(" {} ", self.rg_cmdline),
                 Style::default().bg(Color::Blue).fg(Color::Black),
@@ -235,7 +235,7 @@ impl App {
 
         let help_title = Span::styled(format!("{} help", crate_name!()), title_style);
         let help_text = self.help_text_state.text(hsplit[0].height as usize);
-        let help_text = Text::from(help_text.as_ref());
+        let help_text = Text::from(help_text.as_str());
         let help_paragraph = Paragraph::new(help_text)
             .wrap(Wrap { trim: false })
             .block(Block::default().borders(Borders::ALL).title(help_title));

@@ -2,7 +2,7 @@
 use anyhow::Result;
 use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
 use either::Either;
-use tui::layout::Rect;
+use ratatui::layout::Rect;
 
 use crate::model::Movement;
 use crate::rg::de::RgMessageKind;
@@ -280,7 +280,7 @@ impl App {
 
     /// Update the UI's indicator position to point to the start of the selected item, and in the case of
     /// a match which spans multiple lines and has multiple submatches, the start of the selected submatch.
-    /// Note that this is also the mechanism which scrolls tui-rs' list interface.
+    /// Note that this is also the mechanism which scrolls ratatui's list interface.
     fn update_indicator(&mut self, term_size: Rect) {
         let item_idx = self.list_state.selected_item();
         let match_idx = self.list_state.selected_submatch();
@@ -397,7 +397,7 @@ impl App {
 mod tests {
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
     use pretty_assertions::assert_eq;
-    use tui::layout::Rect;
+    use ratatui::layout::Rect;
 
     use crate::model::Movement;
     use crate::rg::de::test_utilities::*;

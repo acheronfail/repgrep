@@ -36,7 +36,7 @@ serde = { version = "1.0.118", features = ["derive"] }
 serde_derive = "1.0.118"
 serde_json = "1.0.61"
 tempfile = "3.1.0"
-tui = { version = "0.19.0", default-features = false, features = ["crossterm"] }
+ratatui = { version = "0.22.0", default-features = false, features = ["crossterm"] }
 unicode-width = "0.1.8"
 
 [build-dependencies]

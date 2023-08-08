@@ -887,12 +887,12 @@ mod tests {
 
     macro_rules! key {
         ($code:expr) => {
-            key!($code, KeyModifiers::empty())
+            key!($code, modifiers = KeyModifiers::empty())
         };
-        ($code:expr, $modifiers:expr) => {
+        ($code:expr, modifiers = $modifiers:expr) => {
             Event::Key(KeyEvent::new($code, $modifiers))
         };
-        ($code:expr, kind: $kind:expr) => {
+        ($code:expr, kind = $kind:expr) => {
             Event::Key({
                 let mut key = KeyEvent::new($code, KeyModifiers::empty());
                 key.kind = $kind;
@@ -922,14 +922,14 @@ mod tests {
         let mut app = new_app();
 
         // enter insert mode
-        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Press), "", 0);
-        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Repeat), "", 0);
-        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Release), "", 0);
+        send_key_assert!(app, key!(Enter, kind = KeyEventKind::Press), "", 0);
+        send_key_assert!(app, key!(Enter, kind = KeyEventKind::Repeat), "", 0);
+        send_key_assert!(app, key!(Enter, kind = KeyEventKind::Release), "", 0);
 
         // insert text
-        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Press), "a", 1);
-        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Repeat), "a", 1);
-        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Release), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind = KeyEventKind::Press), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind = KeyEventKind::Repeat), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind = KeyEventKind::Release), "a", 1);
     }
 
     #[test]
@@ -1006,7 +1006,7 @@ mod tests {
         send_key_assert!(app, key!(PageDown), "repgrep", 7);
 
         // move to next mode
-        send_key!(app, key!(Char('s'), KeyModifiers::CONTROL));
+        send_key!(app, key!(Char('s'), modifiers = KeyModifiers::CONTROL));
         assert_eq!(
             app.ui_state,
             AppUiState::ConfirmReplacement("repgrep".into(), 7)
@@ -1015,7 +1015,7 @@ mod tests {
         // move back and check pos
         send_key_assert!(app, key!(Esc), "repgrep", 7);
         send_key_assert!(app, key!(Left), "repgrep", 6);
-        send_key!(app, key!(Char('s'), KeyModifiers::CONTROL));
+        send_key!(app, key!(Char('s'), modifiers = KeyModifiers::CONTROL));
         assert_eq!(
             app.ui_state,
             AppUiState::ConfirmReplacement("repgrep".into(), 6)

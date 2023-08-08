@@ -28,6 +28,14 @@ The README in this repository is generated from the doc comments in `src/main.rs
 
 Once the doc comments have been updated, run `just readme` to apply the changes to the README.
 
+## Submitting a Pull Request
+
+Some guidelines:
+
+* All development is done on the `next` branch, so please target that for any Pull Request.
+* Make sure to run `just fmt` on each commit so formatting is consistent
+* Make sure to also use `just test` to ensure each commit passes the tests
+
 ## Making a release
 
 Mostly so I don't forget if I come back to this project after a while.

@@ -79,7 +79,7 @@ pacman -S repgrep
 
 #### From Source (via Cargo)
 
-**NOTE**: The minimum Rust version required is `1.64.0`.
+**NOTE**: The minimum Rust version required is `1.65.0`.
 
 ```bash
 git clone https://github.com/acheronfail/repgrep/

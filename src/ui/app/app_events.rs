@@ -884,7 +884,6 @@ mod tests {
     // cursor position when inputting replacement text
 
     use KeyCode::*;
-    use KeyEventKind::*;
 
     macro_rules! key {
         ($code:expr) => {
@@ -923,14 +922,14 @@ mod tests {
         let mut app = new_app();
 
         // enter insert mode
-        send_key_assert!(app, key!(Enter, kind: Press), "", 0);
-        send_key_assert!(app, key!(Enter, kind: Repeat), "", 0);
-        send_key_assert!(app, key!(Enter, kind: Release), "", 0);
+        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Press), "", 0);
+        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Repeat), "", 0);
+        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Release), "", 0);
 
         // insert text
-        send_key_assert!(app, key!(Char('a'), kind: Press), "a", 1);
-        send_key_assert!(app, key!(Char('a'), kind: Repeat), "a", 1);
-        send_key_assert!(app, key!(Char('a'), kind: Release), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Press), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Repeat), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Release), "a", 1);
     }
 
     #[test]

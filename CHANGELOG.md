@@ -1,3 +1,13 @@
+# 0.14.3
+
+- 2b2e896 Merge pull request #93 from a-kenji/chore/move-to-ratatui
+- fae1250 update to 1.65.0 for ratatui
+- fae1e45 use long path for type to avoid nightly errors
+- fae15f4 update DEVELOPMENT_NOTES.md
+- fae1791 change : to = to work around type ascription issue
+- 3829e96 chore: move from unmaintained tui -> ratatui
+- fae1d54 add test for different KeyEventKind variants
+
 # 0.14.2
 
 - fae129b fix some platforms inputting multiple characters

@@ -1,8 +1,8 @@
 use std::ops::Range;
 use std::path::PathBuf;
 
-use tui::style::{Color, Style};
-use tui::text::{Span, Spans};
+use ratatui::style::{Color, Style};
+use ratatui::text::{Line, Span};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::format_line_number;
@@ -222,7 +222,7 @@ impl Item {
         count
     }
 
-    pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Spans> {
+    pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Line> {
         let is_replacing = ctx.app_ui_state.is_replacing();
         let is_selected = ctx.app_list_state.selected_item() == self.index;
 
@@ -325,7 +325,7 @@ impl Item {
                     }}
                 }
 
-                // Don't create a new Spans for the last line in the lines returned from the submatches or the replacement
+                // Don't create a new Line for the last line in the lines returned from the submatches or the replacement
                 // text, since there may be text appended afterwards to the lines later on (in the case of submatches, the
                 // replacement text, and for replacement text any remaining non-match text from the line).
                 macro_rules! new_line_if_needed {
@@ -413,7 +413,7 @@ impl Item {
         Self::wrap_span_lines(span_lines, max_width)
     }
 
-    fn wrap_span_lines(span_lines: Vec<Vec<Span>>, max_width: usize) -> Vec<Spans> {
+    fn wrap_span_lines(span_lines: Vec<Vec<Span>>, max_width: usize) -> Vec<Line> {
         span_lines
             .into_iter()
             .flat_map(|spans| {
@@ -435,7 +435,7 @@ impl Item {
                                     chars.drain(..).collect::<String>(),
                                     span.style,
                                 ));
-                                wrapped_spans.push(Spans::from(tmp.drain(..).collect::<Vec<_>>()));
+                                wrapped_spans.push(Line::from(tmp.drain(..).collect::<Vec<_>>()));
                                 len = 0;
                             }
 
@@ -452,7 +452,7 @@ impl Item {
                     }
                 }
 
-                wrapped_spans.push(Spans::from(tmp.drain(..).collect::<Vec<_>>()));
+                wrapped_spans.push(Line::from(tmp.drain(..).collect::<Vec<_>>()));
                 wrapped_spans
             })
             .collect()
@@ -466,8 +466,8 @@ mod tests {
     use base64_simd::STANDARD as base64;
     use insta::assert_debug_snapshot;
     use pretty_assertions::assert_eq;
+    use ratatui::layout::Rect;
     use regex::bytes::Regex;
-    use tui::layout::Rect;
 
     use crate::model::*;
     use crate::rg::de::test_utilities::*;

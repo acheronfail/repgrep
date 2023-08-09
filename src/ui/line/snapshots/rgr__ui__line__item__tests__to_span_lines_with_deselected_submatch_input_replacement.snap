@@ -3,8 +3,8 @@ source: src/ui/line/item.rs
 expression: item.to_span_lines(&ctx)
 ---
 [
-    Spans(
-        [
+    Line {
+        spans: [
             Span {
                 content: "197:",
                 style: Style {
@@ -12,8 +12,9 @@ expression: item.to_span_lines(&ctx)
                         DarkGray,
                     ),
                     bg: None,
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
             Span {
@@ -21,8 +22,9 @@ expression: item.to_span_lines(&ctx)
                 style: Style {
                     fg: None,
                     bg: None,
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
             Span {
@@ -30,8 +32,9 @@ expression: item.to_span_lines(&ctx)
                 style: Style {
                     fg: None,
                     bg: None,
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
             Span {
@@ -39,8 +42,9 @@ expression: item.to_span_lines(&ctx)
                 style: Style {
                     fg: None,
                     bg: None,
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
             Span {
@@ -50,8 +54,9 @@ expression: item.to_span_lines(&ctx)
                         Red,
                     ),
                     bg: None,
+                    underline_color: None,
                     add_modifier: CROSSED_OUT,
-                    sub_modifier: (empty),
+                    sub_modifier: NONE,
                 },
             },
             Span {
@@ -61,8 +66,9 @@ expression: item.to_span_lines(&ctx)
                         Green,
                     ),
                     bg: None,
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
             Span {
@@ -70,10 +76,12 @@ expression: item.to_span_lines(&ctx)
                 style: Style {
                     fg: None,
                     bg: None,
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
         ],
-    ),
+        alignment: None,
+    },
 ]

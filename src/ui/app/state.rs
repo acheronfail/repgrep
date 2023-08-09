@@ -1,6 +1,6 @@
-use tui::style::{Color, Style};
-use tui::text::Span;
-use tui::widgets::ListState;
+use ratatui::style::{Color, Style};
+use ratatui::text::Span;
+use ratatui::widgets::ListState;
 
 #[derive(Debug)]
 pub struct AppListState {

@@ -7,12 +7,12 @@ use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode};
 use crossterm::execute;
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
+use ratatui::backend::CrosstermBackend;
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::Terminal;
 use regex::bytes::Regex;
-use tui::backend::CrosstermBackend;
-use tui::layout::Rect;
-use tui::style::{Color, Style};
-use tui::widgets::{Block, Borders, Paragraph, Wrap};
-use tui::Terminal;
 
 use crate::model::ReplacementCriteria;
 use crate::rg::de::RgMessage;

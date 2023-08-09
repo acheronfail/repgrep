@@ -43,8 +43,8 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-latest
-          # NOTE: clap v4 requires 1.64.0
-          rust: 1.64.0
+          # NOTE: ratatui requires 1.65.0
+          rust: 1.65.0
         - build: stable
           os: ubuntu-latest
           rust: stable

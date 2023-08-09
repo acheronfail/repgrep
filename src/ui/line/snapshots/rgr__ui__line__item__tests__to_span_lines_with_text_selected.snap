@@ -3,8 +3,8 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_BEGIN).to_span_lines(&ctx)
 ---
 [
-    Spans(
-        [
+    Line {
+        spans: [
             Span {
                 content: "src/model/item.rs",
                 style: Style {
@@ -14,10 +14,12 @@ expression: new_item(RG_JSON_BEGIN).to_span_lines(&ctx)
                     bg: Some(
                         Yellow,
                     ),
-                    add_modifier: (empty),
-                    sub_modifier: (empty),
+                    underline_color: None,
+                    add_modifier: NONE,
+                    sub_modifier: NONE,
                 },
             },
         ],
-    ),
+        alignment: None,
+    },
 ]

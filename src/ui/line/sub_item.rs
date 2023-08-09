@@ -1,5 +1,5 @@
-use tui::style::{Color, Modifier, Style};
-use tui::text::Span;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::Span;
 
 use crate::model::Printable;
 use crate::rg::de::SubMatch;

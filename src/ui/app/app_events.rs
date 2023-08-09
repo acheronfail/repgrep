@@ -2,7 +2,7 @@
 use anyhow::Result;
 use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
 use either::Either;
-use tui::layout::Rect;
+use ratatui::layout::Rect;
 
 use crate::model::Movement;
 use crate::rg::de::RgMessageKind;
@@ -280,7 +280,7 @@ impl App {
 
     /// Update the UI's indicator position to point to the start of the selected item, and in the case of
     /// a match which spans multiple lines and has multiple submatches, the start of the selected submatch.
-    /// Note that this is also the mechanism which scrolls tui-rs' list interface.
+    /// Note that this is also the mechanism which scrolls ratatui's list interface.
     fn update_indicator(&mut self, term_size: Rect) {
         let item_idx = self.list_state.selected_item();
         let match_idx = self.list_state.selected_submatch();
@@ -397,7 +397,7 @@ impl App {
 mod tests {
     use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
     use pretty_assertions::assert_eq;
-    use tui::layout::Rect;
+    use ratatui::layout::Rect;
 
     use crate::model::Movement;
     use crate::rg::de::test_utilities::*;
@@ -887,12 +887,12 @@ mod tests {
 
     macro_rules! key {
         ($code:expr) => {
-            key!($code, KeyModifiers::empty())
+            key!($code, modifiers = KeyModifiers::empty())
         };
-        ($code:expr, $modifiers:expr) => {
+        ($code:expr, modifiers = $modifiers:expr) => {
             Event::Key(KeyEvent::new($code, $modifiers))
         };
-        ($code:expr, kind: $kind:expr) => {
+        ($code:expr, kind = $kind:expr) => {
             Event::Key({
                 let mut key = KeyEvent::new($code, KeyModifiers::empty());
                 key.kind = $kind;
@@ -922,14 +922,14 @@ mod tests {
         let mut app = new_app();
 
         // enter insert mode
-        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Press), "", 0);
-        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Repeat), "", 0);
-        send_key_assert!(app, key!(Enter, kind: KeyEventKind::Release), "", 0);
+        send_key_assert!(app, key!(Enter, kind = KeyEventKind::Press), "", 0);
+        send_key_assert!(app, key!(Enter, kind = KeyEventKind::Repeat), "", 0);
+        send_key_assert!(app, key!(Enter, kind = KeyEventKind::Release), "", 0);
 
         // insert text
-        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Press), "a", 1);
-        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Repeat), "a", 1);
-        send_key_assert!(app, key!(Char('a'), kind: KeyEventKind::Release), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind = KeyEventKind::Press), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind = KeyEventKind::Repeat), "a", 1);
+        send_key_assert!(app, key!(Char('a'), kind = KeyEventKind::Release), "a", 1);
     }
 
     #[test]
@@ -1006,7 +1006,7 @@ mod tests {
         send_key_assert!(app, key!(PageDown), "repgrep", 7);
 
         // move to next mode
-        send_key!(app, key!(Char('s'), KeyModifiers::CONTROL));
+        send_key!(app, key!(Char('s'), modifiers = KeyModifiers::CONTROL));
         assert_eq!(
             app.ui_state,
             AppUiState::ConfirmReplacement("repgrep".into(), 7)
@@ -1015,7 +1015,7 @@ mod tests {
         // move back and check pos
         send_key_assert!(app, key!(Esc), "repgrep", 7);
         send_key_assert!(app, key!(Left), "repgrep", 6);
-        send_key!(app, key!(Char('s'), KeyModifiers::CONTROL));
+        send_key!(app, key!(Char('s'), modifiers = KeyModifiers::CONTROL));
         assert_eq!(
             app.ui_state,
             AppUiState::ConfirmReplacement("repgrep".into(), 6)

@@ -7,7 +7,48 @@ on:
     branches:
     - master
 jobs:
+  rustfmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        profile: minimal
+        components: rustfmt
+    - name: Check formatting
+      run: |
+        cargo fmt --all -- --check
+
+  readme:
+    name: readme
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        override: true
+        profile: minimal
+        components: rustfmt
+    - name: Check readme
+      run: |
+        ci/install-packages-ubuntu.sh
+        cargo install just
+        just setup
+        just readme
+        rustup install nightly
+        just fmt
+        just check-dirty
+
   test:
+    needs: ['rustfmt', 'readme']
     name: test
     env:
       # For some builds, we use cross to test on 32-bit and big-endian
@@ -164,43 +205,3 @@ jobs:
           # We could use file -E here, but it isn't supported on macOS.
           ls "$outdir/$f" && file "$outdir/$f"
         done
-
-  rustfmt:
-    name: rustfmt
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-        profile: minimal
-        components: rustfmt
-    - name: Check formatting
-      run: |
-        cargo fmt --all -- --check
-
-  readme:
-    name: readme
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
-        profile: minimal
-        components: rustfmt
-    - name: Check readme
-      run: |
-        ci/install-packages-ubuntu.sh
-        cargo install just
-        just setup
-        just readme
-        rustup install nightly
-        just fmt
-        just check-dirty

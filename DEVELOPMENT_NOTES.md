@@ -33,6 +33,7 @@ Once the doc comments have been updated, run `just readme` to apply the changes 
 Some guidelines:
 
 * All development is done on the `next` branch, so please target that for any Pull Request.
+  * (Exceptions can be made for PRs that only update the README or don't change any code)
 * Make sure to run `just fmt` on each commit so formatting is consistent
 * Make sure to also use `just test` to ensure each commit passes the tests
 

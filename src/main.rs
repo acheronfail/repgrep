@@ -70,6 +70,16 @@
 //! pacman -S repgrep
 //! ```
 //!
+//! ### Via MacPorts (macOS)
+//!
+//! `repgrep` can also be installed on macOS using [MacPorts](https://www.macports.org):
+//!
+//! ```bash
+//! sudo port install repgrep
+//! ```
+//!
+//! More info [here](https://ports.macports.org/port/repgrep/).
+//!
 //! ### From Source (via Cargo)
 //!
 //! **NOTE**: The minimum Rust version required is `1.65.0`.

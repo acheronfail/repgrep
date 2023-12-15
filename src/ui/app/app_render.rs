@@ -1,5 +1,4 @@
 /// Rendering for `App`.
-use clap::crate_name;
 use const_format::formatcp;
 use ratatui::backend::Backend;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
@@ -233,7 +232,7 @@ impl App {
 
         f.render_widget(help_table, hsplit[1]);
 
-        let help_title = Span::styled(format!("{} help", crate_name!()), title_style);
+        let help_title = Span::styled(format!("{} help", env!("CARGO_PKG_NAME")), title_style);
         let help_text = self.help_text_state.text(hsplit[0].height as usize);
         let help_text = Text::from(help_text.as_str());
         let help_paragraph = Paragraph::new(help_text)

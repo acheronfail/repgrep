@@ -104,7 +104,6 @@ use std::fs::File;
 use std::{env, process};
 
 use anyhow::Result;
-use clap::crate_name;
 use flexi_logger::{opt_format, FileSpec, Logger};
 use rg::exec::run_ripgrep;
 use ui::tui::Tui;
@@ -112,7 +111,7 @@ use ui::tui::Tui;
 use crate::rg::read::read_messages;
 
 fn init_logging() -> Result<::std::path::PathBuf> {
-    let log_dir = env::temp_dir().join(format!(".{}", crate_name!()));
+    let log_dir = env::temp_dir().join(format!(".{}", env!("CARGO_PKG_NAME")));
     let log_spec = if cfg!(debug_assertions) {
         FileSpec::default()
             .directory(env::current_dir().unwrap())
@@ -152,7 +151,7 @@ fn main() {
         };
     }
 
-    let args = match cli::parse_arguments() {
+    let args = match cli::Args::parse() {
         Ok(args) => args,
         Err(e) => {
             cli::print_help();
@@ -160,14 +159,7 @@ fn main() {
         }
     };
 
-    macro_rules! run_ripgrep {
-        () => {{
-            let display_args = args.rg_args().into_iter().collect::<Vec<_>>();
-            log::debug!("User args for rg: {:?}", display_args);
-            run_ripgrep(args.rg_args())
-        }};
-    }
-
+    let rg_args = args.rg_args();
     let rg_json = match env::var(cli::ENV_JSON_FILE) {
         Ok(path) => {
             log::debug!(
@@ -180,23 +172,19 @@ fn main() {
                 Err(e) => {
                     log::warn!("Failed to open file: {}", e);
                     log::warn!("Falling back to running rg");
-                    run_ripgrep!()
+                    run_ripgrep(&rg_args)
                 }
             }
         }
-        Err(_) => run_ripgrep!(),
+        Err(_) => run_ripgrep(&rg_args),
     };
 
     match rg_json {
         Ok(rg_messages) => {
-            let rg_cmdline: String = args
-                .rg_args()
-                .map(|s| s.to_string_lossy().into_owned())
-                .collect::<Vec<_>>()
-                .join(" ");
-
-            let patterns = args.rg_patterns();
-            let result = Tui::new().and_then(|tui| tui.start(rg_cmdline, rg_messages, patterns));
+            let rg_args_ref = rg_args.iter().map(String::as_str).collect::<Vec<_>>();
+            let rg_cmdline = rg_args_ref.join(" ");
+            let result =
+                Tui::new().and_then(|tui| tui.start(rg_cmdline, rg_messages, &rg_args_ref));
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {

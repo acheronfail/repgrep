@@ -208,9 +208,14 @@ fn main() {
             // Handle application result.
             match result {
                 Ok(Some(mut replacement_criteria)) => {
-                    // If we detected an encoding passed to `rg`, then use that.
+                    // use an encoding if one was passed to `rg`
                     if let Some(encoding) = args.encoding {
                         replacement_criteria.set_encoding(encoding);
+                    }
+
+                    // if we're running in fixed strings mode, then we shouldn't treat the patterns as regexes
+                    if args.fixed_strings {
+                        replacement_criteria.capture_pattern = None;
                     }
 
                     match replace::perform_replacements(replacement_criteria) {

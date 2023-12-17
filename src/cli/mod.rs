@@ -6,7 +6,7 @@ use lexopt::Parser;
 pub const ENV_JSON_FILE: &str = "RGR_JSON_FILE";
 
 pub fn print_help() {
-    eprintln!(
+    println!(
         r#"{crate_name} {crate_version}
 {crate_authors}
 
@@ -102,8 +102,17 @@ impl Args {
                 }
 
                 // capture help to display our help
-                Long("help") => {
+                // also important to capture these since they make `rg` not output JSON!
+                Short('h') | Long("help") => {
                     print_help();
+                    process::exit(0);
+                }
+                Short('v') | Long("version") => {
+                    println!(
+                        "{crate_name} {crate_version}",
+                        crate_name = env!("CARGO_PKG_NAME"),
+                        crate_version = env!("CARGO_PKG_VERSION")
+                    );
                     process::exit(0);
                 }
 

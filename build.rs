@@ -1,13 +1,6 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::{env, fs, io};
-
-// use clap::CommandFactory;
-// use clap_complete::{generate_to, shells};
-
-// #[allow(dead_code)]
-// #[path = "src/cli/args.rs"]
-// mod cli;
 
 fn generate_manpage<P: AsRef<Path>>(outdir: P) -> io::Result<()> {
     // If asciidoctor isn't installed, don't do anything.
@@ -43,12 +36,11 @@ fn generate_manpage<P: AsRef<Path>>(outdir: P) -> io::Result<()> {
 fn main() {
     // https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script
     let outdir = env::var_os("OUT_DIR").expect("failed to find OUT_DIR");
+    let outdir = PathBuf::from(outdir);
     fs::create_dir_all(&outdir).expect("failed to create dirs for OUT_DIR");
 
     // Create a stamp file. (This is used by CI to help find the OUT_DIR.)
     fs::write(Path::new(&outdir).join("repgrep-stamp"), "").unwrap();
-
-    // FIXME: generate completions now? (can we re-use ripgrep's ?)
 
     // Generate manpage.
     generate_manpage(&outdir).unwrap();

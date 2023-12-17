@@ -183,8 +183,9 @@ fn main() {
         Ok(rg_messages) => {
             let rg_args_ref = rg_args.iter().map(String::as_str).collect::<Vec<_>>();
             let rg_cmdline = rg_args_ref.join(" ");
+            let rg_patterns = args.patterns;
             let result =
-                Tui::new().and_then(|tui| tui.start(rg_cmdline, rg_messages, &rg_args_ref));
+                Tui::new().and_then(|tui| tui.start(rg_cmdline, rg_messages, &rg_patterns));
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {

@@ -1,3 +1,18 @@
+# 0.15.0
+
+- fae13fc don't treat patterns as regexes if --fixed-strings is passed
+- fae1e2b refactor argument parsing and remove (broken) stdin things
+- fae1696 fix an issue with capturing not working as expected
+- fae11c0 ensure we capture -h, -v and --version
+- fae1ed5 update how completions are generated since we no longer use clap
+- fae1341 support reading RIPGREP_CONFIG_FILE for arguments
+- fae1567 update README.md
+- fae1d8f update DEVELOPMENT_NOTES.md
+- fae1b324 update ci to run fmt and readme checks before tests
+- 946b8f5 Merge pull request #95 from herbygillot/docs-macports-install
+- fae1b328 update docs with macports instructions
+- 1741e0d docs: add MacPorts install instructions
+
 # 0.14.3
 
 - 2b2e896 Merge pull request #93 from a-kenji/chore/move-to-ratatui

@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use std::{env, fs, io};
 
@@ -36,7 +36,6 @@ fn generate_manpage<P: AsRef<Path>>(outdir: P) -> io::Result<()> {
 fn main() {
     // https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script
     let outdir = env::var_os("OUT_DIR").expect("failed to find OUT_DIR");
-    let outdir = PathBuf::from(outdir);
     fs::create_dir_all(&outdir).expect("failed to create dirs for OUT_DIR");
 
     // Create a stamp file. (This is used by CI to help find the OUT_DIR.)

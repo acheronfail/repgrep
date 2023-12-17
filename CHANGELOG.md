@@ -1,3 +1,14 @@
+# 0.15.0
+
+- fae1a02 update how completions are generated since we no longer use clap
+- fae135c support reading RIPGREP_CONFIG_FILE for arguments
+- fae1a10 update README.md
+- fae148f update DEVELOPMENT_NOTES.md
+- fae12ce update ci to run fmt and readme checks before tests
+- 946b8f5 Merge pull request #95 from herbygillot/docs-macports-install
+- fae1b32 update docs with macports instructions
+- 1741e0d docs: add MacPorts install instructions
+
 # 0.14.3
 
 - 2b2e896 Merge pull request #93 from a-kenji/chore/move-to-ratatui

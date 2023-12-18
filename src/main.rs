@@ -151,41 +151,50 @@ fn main() {
         };
     }
 
-    let args = match cli::Args::parse() {
-        Ok(args) => args,
-        Err(e) => {
-            cli::print_help();
-            exit_with_error!("\nFailed to parse arguments, error: {}", e);
-        }
-    };
+    let (args, rg_json) = {
+        match env::var_os(cli::ENV_JSON_FILE) {
+            // check if JSON is being passed as an environment file
+            Some(path) => {
+                log::debug!(
+                    "{} set to {}; Reading messages from file",
+                    cli::ENV_JSON_FILE,
+                    path.to_string_lossy()
+                );
+                match File::open(&path) {
+                    Ok(json_file) => {
+                        let args = match cli::RgArgs::parse_pattern() {
+                            Ok(args) => args,
+                            Err(e) => {
+                                exit_with_error!("Failed to parse arguments: {}", e);
+                            }
+                        };
 
-    let rg_args = args.rg_args();
-    let rg_json = match env::var(cli::ENV_JSON_FILE) {
-        Ok(path) => {
-            log::debug!(
-                "Found {}={}, reading messages from file",
-                cli::ENV_JSON_FILE,
-                &path
-            );
-            match File::open(path) {
-                Ok(json_file) => read_messages(json_file),
-                Err(e) => {
-                    log::warn!("Failed to open file: {}", e);
-                    log::warn!("Falling back to running rg");
-                    run_ripgrep(&rg_args)
+                        (args, read_messages(json_file))
+                    }
+                    Err(e) => {
+                        exit_with_error!("Failed to open {}: {}", path.to_string_lossy(), e);
+                    }
                 }
             }
+            // normal execution, parse rg arguments and call it ourselves
+            None => {
+                let args = match cli::RgArgs::parse_rg_args() {
+                    Ok(args) => args,
+                    Err(e) => {
+                        exit_with_error!("Failed to parse arguments: {}", e);
+                    }
+                };
+
+                let rg_args = args.rg_args();
+                (args, run_ripgrep(rg_args))
+            }
         }
-        Err(_) => run_ripgrep(&rg_args),
     };
 
     match rg_json {
         Ok(rg_messages) => {
-            let rg_args_ref = rg_args.iter().map(String::as_str).collect::<Vec<_>>();
-            let rg_cmdline = rg_args_ref.join(" ");
-            let rg_patterns = args.patterns;
-            let result =
-                Tui::new().and_then(|tui| tui.start(rg_cmdline, rg_messages, &rg_patterns));
+            let result = Tui::new()
+                .and_then(|tui| tui.start(args.rg_cmdline(), rg_messages, &args.patterns));
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {

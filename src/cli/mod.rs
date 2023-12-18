@@ -80,7 +80,6 @@ pub struct RgArgs {
     pub encoding: Option<String>,
     /// Whether fixed strings was enabled - means we only need to substring search rather than
     /// regular expression searching.
-    /// TODO: this is currently unused, we need to update `replace.rs` to use it
     pub fixed_strings: bool,
     /// All other args that were passed will be forwarded to ripgrep.
     pub other_args: Vec<String>,

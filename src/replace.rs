@@ -217,13 +217,13 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use std::fs::{self, OpenOptions};
-    use std::io::{Read, Write};
+    use std::io::Read;
     use std::path::PathBuf;
 
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     use base64_simd::STANDARD as base64;
     use pretty_assertions::assert_eq;
     use regex::bytes::Regex;
-    use tempfile::NamedTempFile;
 
     use crate::model::*;
     use crate::replace::perform_replacements;
@@ -250,9 +250,11 @@ mod tests {
 
     // NOTE: due to permission issues on Windows platforms, we need to first "keep" the temporary files otherwise
     // we cannot atomically replace them. See https://github.com/Stebalien/tempfile/issues/131
+    #[macro_export]
     macro_rules! temp_file {
         (bytes, $content:expr) => {{
-            let mut file = NamedTempFile::new().unwrap();
+            let mut file = tempfile::NamedTempFile::new().unwrap();
+            use std::io::Write;
             file.write_all($content).unwrap();
             // NOTE: we *must* drop the file here, otherwise Windows will fail with permissions errors
             let (_, p) = file.keep().unwrap();

@@ -17,11 +17,12 @@ where
     S: AsRef<OsStr>,
 {
     let mut child = match Command::new("rg")
+        .args(args)
         // We use the JSON output
         .arg("--json")
-        // We don't (yet?) support reading `rg`'s config files
-        .arg("--no-config")
-        .args(args)
+        // disable binary output (it could mess up our TUI)
+        .arg("--no-binary")
+        .arg("--no-text")
         .stdout(Stdio::piped())
         .spawn()
     {

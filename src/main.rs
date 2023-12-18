@@ -53,15 +53,13 @@
 //!
 //! ### Via Cargo
 //!
-//! **NOTE**: The minimum Rust version required is `1.46.0`.
+//! **NOTE**: The minimum Rust version required is `1.72.0`.
 //!
 //! ```bash
 //! cargo install repgrep
 //! ```
 //!
 //! ### Via Pacman (Arch Linux)
-//!
-//! Maintained by [orhun](https://github.com/orhun).
 //!
 //! [`repgrep`](https://archlinux.org/packages/extra/x86_64/repgrep/) can be installed
 //! from the official repositories using [Pacman](https://wiki.archlinux.org/title/Pacman).
@@ -80,9 +78,9 @@
 //!
 //! More info [here](https://ports.macports.org/port/repgrep/).
 //!
-//! ### From Source (via Cargo)
+//! ### From Source
 //!
-//! **NOTE**: The minimum Rust version required is `1.65.0`.
+//! **NOTE**: The minimum Rust version required is `1.72.0`.
 //!
 //! ```bash
 //! git clone https://github.com/acheronfail/repgrep/
@@ -106,7 +104,6 @@ use std::fs::File;
 use std::{env, process};
 
 use anyhow::Result;
-use clap::crate_name;
 use flexi_logger::{opt_format, FileSpec, Logger};
 use rg::exec::run_ripgrep;
 use ui::tui::Tui;
@@ -114,7 +111,7 @@ use ui::tui::Tui;
 use crate::rg::read::read_messages;
 
 fn init_logging() -> Result<::std::path::PathBuf> {
-    let log_dir = env::temp_dir().join(format!(".{}", crate_name!()));
+    let log_dir = env::temp_dir().join(format!(".{}", env!("CARGO_PKG_NAME")));
     let log_spec = if cfg!(debug_assertions) {
         FileSpec::default()
             .directory(env::current_dir().unwrap())
@@ -154,51 +151,50 @@ fn main() {
         };
     }
 
-    let args = match cli::parse_arguments() {
-        Ok(args) => args,
-        Err(e) => {
-            cli::print_help();
-            exit_with_error!("\nFailed to parse arguments, error: {}", e);
-        }
-    };
+    let (args, rg_json) = {
+        match env::var_os(cli::ENV_JSON_FILE) {
+            // check if JSON is being passed as an environment file
+            Some(path) => {
+                log::debug!(
+                    "{} set to {}; Reading messages from file",
+                    cli::ENV_JSON_FILE,
+                    path.to_string_lossy()
+                );
+                match File::open(&path) {
+                    Ok(json_file) => {
+                        let args = match cli::RgArgs::parse_pattern() {
+                            Ok(args) => args,
+                            Err(e) => {
+                                exit_with_error!("Failed to parse arguments: {}", e);
+                            }
+                        };
 
-    macro_rules! run_ripgrep {
-        () => {{
-            let display_args = args.rg_args().into_iter().collect::<Vec<_>>();
-            log::debug!("User args for rg: {:?}", display_args);
-            run_ripgrep(args.rg_args())
-        }};
-    }
-
-    let rg_json = match env::var(cli::ENV_JSON_FILE) {
-        Ok(path) => {
-            log::debug!(
-                "Found {}={}, reading messages from file",
-                cli::ENV_JSON_FILE,
-                &path
-            );
-            match File::open(path) {
-                Ok(json_file) => read_messages(json_file),
-                Err(e) => {
-                    log::warn!("Failed to open file: {}", e);
-                    log::warn!("Falling back to running rg");
-                    run_ripgrep!()
+                        (args, read_messages(json_file))
+                    }
+                    Err(e) => {
+                        exit_with_error!("Failed to open {}: {}", path.to_string_lossy(), e);
+                    }
                 }
             }
+            // normal execution, parse rg arguments and call it ourselves
+            None => {
+                let args = match cli::RgArgs::parse_rg_args() {
+                    Ok(args) => args,
+                    Err(e) => {
+                        exit_with_error!("Failed to parse arguments: {}", e);
+                    }
+                };
+
+                let rg_args = args.rg_args();
+                (args, run_ripgrep(rg_args))
+            }
         }
-        Err(_) => run_ripgrep!(),
     };
 
     match rg_json {
         Ok(rg_messages) => {
-            let rg_cmdline: String = args
-                .rg_args()
-                .map(|s| s.to_string_lossy().into_owned())
-                .collect::<Vec<_>>()
-                .join(" ");
-
-            let patterns = args.rg_patterns();
-            let result = Tui::new().and_then(|tui| tui.start(rg_cmdline, rg_messages, patterns));
+            let result = Tui::new()
+                .and_then(|tui| tui.start(args.rg_cmdline(), rg_messages, &args.patterns));
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {
@@ -212,9 +208,14 @@ fn main() {
             // Handle application result.
             match result {
                 Ok(Some(mut replacement_criteria)) => {
-                    // If we detected an encoding passed to `rg`, then use that.
+                    // use an encoding if one was passed to `rg`
                     if let Some(encoding) = args.encoding {
                         replacement_criteria.set_encoding(encoding);
+                    }
+
+                    // if we're running in fixed strings mode, then we shouldn't treat the patterns as regexes
+                    if args.fixed_strings {
+                        replacement_criteria.capture_pattern = None;
                     }
 
                     match replace::perform_replacements(replacement_criteria) {

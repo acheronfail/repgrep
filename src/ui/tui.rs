@@ -117,7 +117,7 @@ impl Tui {
         mut self,
         rg_cmdline: String,
         rg_messages: Vec<RgMessage>,
-        patterns: Vec<&str>,
+        patterns: &[String],
     ) -> Result<Option<ReplacementCriteria>> {
         // Parse patterns into `Regex` structs
         let patterns = patterns

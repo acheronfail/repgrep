@@ -60,15 +60,13 @@ See the [releases] page for pre-compiled binaries.
 
 #### Via Cargo
 
-**NOTE**: The minimum Rust version required is `1.46.0`.
+**NOTE**: The minimum Rust version required is `1.72.0`.
 
 ```bash
 cargo install repgrep
 ```
 
 #### Via Pacman (Arch Linux)
-
-Maintained by [orhun](https://github.com/orhun).
 
 [`repgrep`](https://archlinux.org/packages/extra/x86_64/repgrep/) can be installed
 from the official repositories using [Pacman](https://wiki.archlinux.org/title/Pacman).
@@ -87,9 +85,9 @@ sudo port install repgrep
 
 More info [here](https://ports.macports.org/port/repgrep/).
 
-#### From Source (via Cargo)
+#### From Source
 
-**NOTE**: The minimum Rust version required is `1.65.0`.
+**NOTE**: The minimum Rust version required is `1.72.0`.
 
 ```bash
 git clone https://github.com/acheronfail/repgrep/

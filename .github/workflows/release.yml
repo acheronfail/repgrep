@@ -73,31 +73,31 @@ jobs:
         # NOTE: we pin to a specific version since sometimes things fail to compile on the latest nightly builds
         - build: linux-gnu
           os: ubuntu-latest
-          rust: nightly-2025-02-01
+          rust: nightly
           target: x86_64-unknown-linux-gnu
         - build: linux-musl
           os: ubuntu-latest
-          rust: nightly-2025-02-01
+          rust: nightly
           target: x86_64-unknown-linux-musl
         - build: linux-arm-gnueabihf
           os: ubuntu-latest
-          rust: nightly-2025-02-01
+          rust: nightly
           target: arm-unknown-linux-gnueabihf
         - build: macos
           os: macos-latest
-          rust: nightly-2025-02-01
+          rust: nightly
           target: x86_64-apple-darwin
         - build: win-msvc
-          os: windows-2019
-          rust: nightly-2025-02-01
+          os: windows-2022
+          rust: nightly
           target: x86_64-pc-windows-msvc
         - build: win-gnu
-          os: windows-2019
-          rust: nightly-2025-02-01-x86_64-gnu
+          os: windows-2022
+          rust: nightly-x86_64-gnu
           target: x86_64-pc-windows-gnu
         - build: win32-msvc
-          os: windows-2019
-          rust: nightly-2025-02-01
+          os: windows-2022
+          rust: nightly
           target: i686-pc-windows-msvc
 
     steps:

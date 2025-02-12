@@ -1,3 +1,15 @@
+# 0.16.0
+
+- fae1075 update help prompt with updated keybindings
+- fae1d70 ignore *.log files
+- fae1fb24 Now when entering a replacement, pressing enter advances the app
+- fae1ffb C-c now cancels application
+- fae1d4d C-u should delete input when typing
+- 7378ee6 Merge pull request #102 from acheronfail/dep/tempfile
+- fae1196 cargo update
+- fae155e update due to Stebalien/tempfile#157 being closed
+- fae1ef5 remove obsolete comment
+
 # 0.15.0
 
 - fae13fc don't treat patterns as regexes if --fixed-strings is passed

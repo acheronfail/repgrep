@@ -197,7 +197,7 @@ jobs:
       shell: bash
       run: |
         outdir="$(ci/cargo-out-dir.sh "${{ env.TARGET_DIR }}")"
-        if [ "${{ matrix.os }}" != "windows-2019" ]; then
+        if [ "${{ matrix.os }}" != "windows-2022" ]; then
           asciidoctor --doctype manpage --backend manpage --destination-dir "$outdir" doc/rgr.1.template
         fi
         staging="repgrep-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
@@ -211,7 +211,7 @@ jobs:
         cp {LICENSE-*,CHANGELOG.md,README.md} "$staging/doc/"
         cp "$outdir"/{_rgr,rgr.bash,rgr.fish,_rgr.ps1} "$staging/complete/"
 
-        if [ "${{ matrix.os }}" = "windows-2019" ]; then
+        if [ "${{ matrix.os }}" = "windows-2022" ]; then
           cp "target/release/rgr.exe" "$staging/"
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV

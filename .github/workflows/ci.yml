@@ -94,8 +94,8 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-latest
-          # NOTE: ripgrep requires 1.72.0
-          rust: 1.72.0
+          # NOTE: home requires 1.81.0
+          rust: 1.81.0
         - build: stable
           os: ubuntu-latest
           rust: stable

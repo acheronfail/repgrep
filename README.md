@@ -60,7 +60,7 @@ See the [releases] page for pre-compiled binaries.
 
 #### Via Cargo
 
-**NOTE**: The minimum Rust version required is `1.72.0`.
+**NOTE**: The minimum Rust version required is `1.81.0`.
 
 ```bash
 cargo install repgrep
@@ -87,7 +87,7 @@ More info [here](https://ports.macports.org/port/repgrep/).
 
 #### From Source
 
-**NOTE**: The minimum Rust version required is `1.72.0`.
+**NOTE**: The minimum Rust version required is `1.81.0`.
 
 ```bash
 git clone https://github.com/acheronfail/repgrep/

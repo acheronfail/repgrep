@@ -74,6 +74,7 @@ jobs:
       RUST_BACKTRACE: 1
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         build:
         # We test repgrep on a pinned version of Rust, along with the moving
@@ -94,8 +95,8 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-latest
-          # NOTE: ripgrep requires 1.72.0
-          rust: 1.72.0
+          # NOTE: home requires 1.81.0
+          rust: 1.81.0
         - build: stable
           os: ubuntu-latest
           rust: stable
@@ -104,21 +105,20 @@ jobs:
           rust: beta
 
           # nightly builds
-          # NOTE: we pin to a specific version since sometimes things fail to compile on the latest nightly builds
         - build: nightly
           os: ubuntu-latest
-          rust: nightly-2023-12-04
+          rust: nightly
         - build: nightly-musl
           os: ubuntu-latest
-          rust: nightly-2023-12-04
+          rust: nightly
           target: x86_64-unknown-linux-musl
         - build: nightly-32
           os: ubuntu-latest
-          rust: nightly-2023-12-04
+          rust: nightly
           target: i686-unknown-linux-gnu
         - build: nightly-arm
           os: ubuntu-latest
-          rust: nightly-2023-12-04
+          rust: nightly
           # For stripping release binaries:
           # docker run --rm -v $PWD/target:/target:Z \
           #   rustembedded/cross:arm-unknown-linux-gnueabihf \
@@ -127,13 +127,13 @@ jobs:
           target: arm-unknown-linux-gnueabihf
         - build: macos
           os: macos-latest
-          rust: nightly-2023-12-04
+          rust: nightly
         - build: win-msvc
-          os: windows-2019
-          rust: nightly-2023-12-04
+          os: windows-2022
+          rust: nightly
         - build: win-gnu
-          os: windows-2019
-          rust: nightly-2023-12-04-x86_64-gnu
+          os: windows-2022
+          rust: nightly-x86_64-gnu
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3

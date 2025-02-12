@@ -143,12 +143,12 @@ fn perform_replacements_in_file(
             path_buf.display()
         )
     })?;
+
     let mut temp_file = NamedTempFile::new_in(parent_dir)?;
     let temp_file_path = temp_file.path().display().to_string();
     log::debug!("Creating temporary file: {}", temp_file_path);
 
     // Adjust permissions of the file to match the target file's permissions
-    // Related: https://github.com/Stebalien/tempfile/issues/157
     temp_file.as_file_mut().set_permissions({
         let file = File::open(&path_buf)?;
         file.metadata()?.permissions()

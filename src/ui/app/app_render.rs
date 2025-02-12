@@ -112,7 +112,7 @@ impl App {
             };
 
             spans.push(Span::styled(
-                "    (press <control+s> to accept replacement)",
+                "    (press <enter> or <C-s> to accept replacement)",
                 Style::default().fg(Color::DarkGray),
             ));
 

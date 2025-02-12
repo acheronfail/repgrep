@@ -30,43 +30,48 @@ impl App {
                     return Ok(());
                 }
 
-                // Common Ctrl+Key scroll keybindings that apply to multiple modes.
                 let control_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
                 if control_pressed {
-                    let did_handle_key = match &self.ui_state {
+                    // Clear input on Ctrl+U
+                    if let AppUiState::InputReplacement(_, _) = &self.ui_state {
+                        if key.code == KeyCode::Char('u') {
+                            self.ui_state = AppUiState::InputReplacement(String::new(), 0);
+                            return Ok(());
+                        }
+                    }
+
+                    // Common Ctrl+Key scroll keybindings that apply to multiple modes.
+                    if matches!(
+                        &self.ui_state,
                         AppUiState::SelectMatches
-                        | AppUiState::InputReplacement(_, _)
-                        | AppUiState::ConfirmReplacement(_, _) => match key.code {
+                            | AppUiState::InputReplacement(_, _)
+                            | AppUiState::ConfirmReplacement(_, _)
+                    ) {
+                        match key.code {
                             // Page movements
                             KeyCode::Char('b') => {
                                 self.move_pos(
                                     Movement::Backward(self.main_view_list_rect(term_size).height),
                                     term_size,
                                 );
-                                true
+                                return Ok(());
                             }
                             KeyCode::Char('f') => {
                                 self.move_pos(
                                     Movement::Forward(self.main_view_list_rect(term_size).height),
                                     term_size,
                                 );
-                                true
+                                return Ok(());
                             }
 
                             // Toggle whitespace style
                             KeyCode::Char('v') => {
                                 self.printable_style = self.printable_style.cycle();
                                 self.update_indicator(term_size);
-                                true
+                                return Ok(());
                             }
-                            _ => false,
-                        },
-                        _ => false,
-                    };
-
-                    // If a key was handled then stop processing any other events.
-                    if did_handle_key {
-                        return Ok(());
+                            _ => {}
+                        }
                     }
                 }
 

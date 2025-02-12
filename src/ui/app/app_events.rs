@@ -170,11 +170,16 @@ impl App {
                         }
                         // leave mode
                         KeyCode::Esc => self.ui_state = AppUiState::SelectMatches,
-                        // insert return character
                         KeyCode::Enter => {
-                            let mut new_input = input.clone();
-                            new_input.insert(byte_pos_from_char_pos(input, *pos), '\n');
-                            self.ui_state = AppUiState::InputReplacement(new_input, pos + 1);
+                            // if no modifiers are set: move to next state, otherwise insert a "return" character
+                            if key.modifiers.is_empty() {
+                                self.ui_state =
+                                    AppUiState::ConfirmReplacement(input.to_owned(), *pos);
+                            } else {
+                                let mut new_input = input.clone();
+                                new_input.insert(byte_pos_from_char_pos(input, *pos), '\n');
+                                self.ui_state = AppUiState::InputReplacement(new_input, pos + 1);
+                            }
                         }
                         // move cursor back
                         KeyCode::Left => {

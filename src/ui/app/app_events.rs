@@ -32,6 +32,12 @@ impl App {
 
                 let control_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
                 if control_pressed {
+                    // Exit on Ctrl+C
+                    if key.code == KeyCode::Char('c') {
+                        self.state = AppState::Cancelled;
+                        return Ok(());
+                    }
+
                     // Clear input on Ctrl+U
                     if let AppUiState::InputReplacement(_, _) = &self.ui_state {
                         if key.code == KeyCode::Char('u') {

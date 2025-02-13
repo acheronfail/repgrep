@@ -71,6 +71,7 @@ enum ExecStyle {
     Json,
 }
 
+#[derive(Debug)]
 pub struct RgArgs {
     /// All the regular expressions that were passed. We need these since we perform matching
     /// ourselves in certain situations when rendering the TUI.
@@ -81,6 +82,8 @@ pub struct RgArgs {
     /// Whether fixed strings was enabled - means we only need to substring search rather than
     /// regular expression searching.
     pub fixed_strings: bool,
+    /// Whether an argument for ripgrep's "replace" was passed
+    pub replacement: Option<String>,
     /// All other args that were passed will be forwarded to ripgrep.
     pub other_args: Vec<String>,
 
@@ -103,6 +106,9 @@ impl RgArgs {
         if let Some(encoding) = &self.encoding {
             args.push(format!("--encoding={}", encoding));
         }
+        if let Some(replacement) = &self.replacement {
+            args.push(format!("--replace={}", replacement));
+        }
         for pattern in &self.patterns {
             args.push(format!("--regexp={}", pattern));
         }
@@ -111,7 +117,9 @@ impl RgArgs {
     }
 
     pub fn parse_pattern() -> Result<RgArgs> {
-        RgArgs::parse_pattern_impl(Parser::from_env())
+        let args = RgArgs::parse_pattern_impl(Parser::from_env());
+        log::trace!("pattern args: {:?}", args);
+        args
     }
 
     fn parse_pattern_impl(mut parser: Parser) -> Result<RgArgs> {
@@ -131,6 +139,7 @@ impl RgArgs {
         Ok(RgArgs {
             patterns,
             encoding: None,
+            replacement: None,
             fixed_strings: false,
             other_args: vec![],
             exec_style: ExecStyle::Json,
@@ -138,7 +147,9 @@ impl RgArgs {
     }
 
     pub fn parse_rg_args() -> Result<RgArgs> {
-        RgArgs::parse_rg_args_impl(Parser::from_env())
+        let args = RgArgs::parse_rg_args_impl(Parser::from_env());
+        log::trace!("rg_args: {:?}", args);
+        args
     }
 
     // TODO: this implementation assumes UTF-8 (via `String`) for all arguments, but in reality it
@@ -150,6 +161,7 @@ impl RgArgs {
         let mut pattern_positional: Option<String> = None;
         let mut patterns: Vec<String> = vec![];
         let mut encoding: Option<String> = None;
+        let mut replacement: Option<String> = None;
         let mut fixed_strings = false;
         let mut other_args: Vec<String> = vec![];
 
@@ -187,6 +199,9 @@ impl RgArgs {
                 }
                 Short('F') | Long("fixed-strings") => {
                     fixed_strings = true;
+                }
+                Short('r') | Long("replace") => {
+                    replacement = Some(parser.value()?.string()?);
                 }
                 Long("no-fixed-strings") => {
                     fixed_strings = false;
@@ -250,6 +265,7 @@ impl RgArgs {
             patterns,
             fixed_strings,
             encoding,
+            replacement,
             other_args,
             exec_style: ExecStyle::Normal,
         })

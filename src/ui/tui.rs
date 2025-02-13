@@ -118,6 +118,7 @@ impl Tui {
         rg_cmdline: String,
         rg_messages: Vec<RgMessage>,
         patterns: &[String],
+        replacement: Option<&String>,
     ) -> Result<Option<ReplacementCriteria>> {
         // Parse patterns into `Regex` structs
         let patterns = patterns
@@ -170,7 +171,7 @@ impl Tui {
         };
 
         // main app event loop
-        let mut app = App::new(capture_pattern, rg_cmdline, rg_messages);
+        let mut app = App::new(capture_pattern, rg_cmdline, rg_messages, replacement);
         let mut term = self.term;
         loop {
             let before_draw = Instant::now();

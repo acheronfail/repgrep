@@ -16,6 +16,10 @@ const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 pub struct App {
     pub state: AppState,
 
+    /// If the user passed the -r/--replace flag for ripgrep, save that and pre-populate their
+    /// replacement text
+    replacement: Option<String>,
+
     /// If the user passed a regular expression with a capturing group, then this will be set to
     /// indicate that we should use the capturing group when performing replacements.
     capture_pattern: Option<Regex>,
@@ -42,6 +46,7 @@ impl App {
         capture_pattern: Option<Regex>,
         rg_cmdline: String,
         rg_messages: Vec<RgMessage>,
+        replacement: Option<&String>,
     ) -> App {
         let mut list = vec![];
         let mut maybe_stats = None;
@@ -59,7 +64,7 @@ impl App {
 
         App {
             state: AppState::Running,
-
+            replacement: replacement.cloned(),
             capture_pattern,
             rg_cmdline,
             stats: maybe_stats.expect("failed to find RgMessage::Summary from rg!"),

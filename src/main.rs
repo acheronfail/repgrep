@@ -193,8 +193,14 @@ fn main() {
 
     match rg_json {
         Ok(rg_messages) => {
-            let result = Tui::new()
-                .and_then(|tui| tui.start(args.rg_cmdline(), rg_messages, &args.patterns));
+            let result = Tui::new().and_then(|tui| {
+                tui.start(
+                    args.rg_cmdline(),
+                    rg_messages,
+                    &args.patterns,
+                    args.replacement.as_ref(),
+                )
+            });
 
             // Restore terminal.
             if let Err(err) = Tui::restore_terminal() {

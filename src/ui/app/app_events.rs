@@ -135,7 +135,12 @@ impl App {
                             KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
                             KeyCode::Char('?') => self.ui_state = AppUiState::Help,
                             KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
-                                self.ui_state = AppUiState::InputReplacement(String::new(), 0)
+                                self.ui_state = match &self.replacement {
+                                    Some(s) => {
+                                        AppUiState::InputReplacement(s.clone(), s.chars().count())
+                                    }
+                                    None => AppUiState::InputReplacement(String::new(), 0),
+                                }
                             }
                             _ => {}
                         }
@@ -456,7 +461,7 @@ mod tests {
     }
 
     fn new_app() -> App {
-        App::new(None, "TESTS".to_string(), rg_messages())
+        App::new(None, "TESTS".to_string(), rg_messages(), None)
     }
 
     fn new_app_multiple_files() -> App {
@@ -472,7 +477,7 @@ mod tests {
         messages_multiple_files.extend(messages_multiple_files.clone());
         messages_multiple_files.push(RgMessage::from_str(RG_JSON_SUMMARY));
 
-        App::new(None, "TESTS".to_string(), messages_multiple_files)
+        App::new(None, "TESTS".to_string(), messages_multiple_files, None)
     }
 
     type PosTriple = (usize, usize, usize);
@@ -506,7 +511,7 @@ mod tests {
             RgMessage::from_str(RG_JSON_SUMMARY),
         ];
 
-        App::new(None, "TESTS".to_string(), messages)
+        App::new(None, "TESTS".to_string(), messages, None)
     }
 
     // Valid positions for the app returned by `new_app_line_wrapping`.

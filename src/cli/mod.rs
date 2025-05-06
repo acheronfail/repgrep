@@ -141,6 +141,43 @@ impl RgArgs {
         RgArgs::parse_rg_args_impl(Parser::from_env())
     }
 
+    fn parse_rg_unknown_arg(
+        parser: &mut Parser,
+        name: impl AsRef<str>,
+        short: bool,
+    ) -> Result<String> {
+        use lexopt::prelude::*;
+
+        let name = name.as_ref();
+        let next_is_flag = parser
+            .try_raw_args()
+            .map(|raw_args| {
+                raw_args
+                    .peek()
+                    .and_then(|next| next.to_str())
+                    // if there's no next value, this must be a flag
+                    // if there is a next value, see if it looks like a flag
+                    .map_or(true, |s| s.starts_with('-'))
+            })
+            // if `try_raw_args` failed, then we're passing something with an optional
+            // value, so that's not a flag
+            .unwrap_or(false);
+
+        let dash = if short { "-" } else { "--" };
+        let equals = if short { "" } else { "=" };
+        Ok(if next_is_flag {
+            format!("{dash}{flag}", dash = dash, flag = name)
+        } else {
+            format!(
+                "{dash}{flag}{equals}{value}",
+                dash = dash,
+                flag = name,
+                equals = equals,
+                value = parser.value()?.string()?
+            )
+        })
+    }
+
     // TODO: this implementation assumes UTF-8 (via `String`) for all arguments, but in reality it
     // should use `OsString` instead to remove the UTF-8 requirement.
     fn parse_rg_args_impl(mut parser: Parser) -> Result<RgArgs> {
@@ -208,31 +245,14 @@ impl RgArgs {
                 }
 
                 // ripgrep: all other arguments and flags
-                Short(ch) => other_args.push(format!("-{}", ch)),
+                Short(ch) => other_args.push(RgArgs::parse_rg_unknown_arg(
+                    &mut parser,
+                    String::from(ch),
+                    true,
+                )?),
                 Long(name) => {
-                    // at this point we don't know if the argument we're passing is a `--flag` or an
-                    // `--option=something`. So, peek at the next argument (if any) and see if it
-                    // starts with `-`.
-                    let name = name.to_string();
-                    let next_is_flag = parser
-                        .try_raw_args()
-                        .map(|raw_args| {
-                            raw_args
-                                .peek()
-                                .and_then(|next| next.to_str())
-                                // if there's no next value, this must be a flag
-                                // if there is a next value, see if it looks like a flag
-                                .map_or(true, |s| s.starts_with('-'))
-                        })
-                        // if `try_raw_args` failed, then we're passing something with an optional
-                        // value, so that's not a flag
-                        .unwrap_or(false);
-
-                    if next_is_flag {
-                        other_args.push(format!("--{}", name));
-                    } else {
-                        other_args.push(format!("--{}={}", name, parser.value()?.string()?));
-                    }
+                    let name = name.to_owned();
+                    other_args.push(RgArgs::parse_rg_unknown_arg(&mut parser, name, false)?);
                 }
                 Value(other) => other_args.push(other.string()?),
             }
@@ -423,6 +443,18 @@ mod tests {
                 "--regexp=pos1"
             ]
         );
+    }
+
+    #[test]
+    fn rg_other_args_short_single() {
+        let args = parse_rg!["-C2"];
+        assert_eq!(args.rg_args(), ["-C2"]);
+
+        let args = parse_rg!["-C=2"];
+        assert_eq!(args.rg_args(), ["-C2"]);
+
+        let args = parse_rg!["-C", "2"];
+        assert_eq!(args.rg_args(), ["-C2"]);
     }
 
     #[test]

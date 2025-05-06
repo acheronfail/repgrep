@@ -1,3 +1,7 @@
+# 0.16.1
+
+- fae15dc fix cli argument parsing issue with single character flags
+
 # 0.16.0
 
 - fae1075 update help prompt with updated keybindings

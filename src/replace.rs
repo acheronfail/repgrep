@@ -5,7 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use encoding::{DecoderTrap, EncoderTrap};
 use tempfile::NamedTempFile;
 
-use crate::encoding::{get_encoder, Bom};
+use crate::encoding::get_encoder;
 use crate::model::ReplacementCriteria;
 use crate::rg::de::{ArbitraryData, SubMatch};
 use crate::rg::RgEncoding;
@@ -29,21 +29,12 @@ fn perform_replacements_in_file(
 
         // Search for a BOM and attempt to detect file encoding.
         let (bom, encoder) = get_encoder(&file_contents, rg_encoding);
-        log::debug!("BOM: {:?}", bom);
+        log::debug!("BOM: {:?} ({:?})", bom, bom.map(|b| b.bytes()));
         log::debug!("Encoder: {}", encoder.name());
 
         // Strip the BOM before we decode.
-        match bom {
-            // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either
-            // See: https://github.com/BurntSushi/ripgrep/issues/1638
-            None | Some(Bom::Utf8) => {}
-            Some(_) => {
-                file_contents = file_contents
-                    .iter()
-                    .skip(bom.unwrap().len())
-                    .copied()
-                    .collect();
-            }
+        if let Some(bom) = bom {
+            file_contents = file_contents.iter().skip(bom.len()).copied().collect();
         }
 
         log::trace!("Decoding file");
@@ -156,13 +147,9 @@ fn perform_replacements_in_file(
 
     // Write a BOM if one existed beforehand.
     if let Some(bom) = bom {
-        // NOTE: we don't strip a UTF8 BOM, because ripgrep doesn't either therefore no need to re-write one
-        // See: https://github.com/BurntSushi/ripgrep/issues/1638
-        if !matches!(bom, Bom::Utf8) {
-            let bom_bytes = bom.bytes();
-            log::debug!("Writing BOM: {:?}", bom_bytes);
-            temp_file.write_all(bom_bytes)?;
-        }
+        let bom_bytes = bom.bytes();
+        log::debug!("Writing BOM: {:?}", bom_bytes);
+        temp_file.write_all(bom_bytes)?;
     }
 
     // Write the replaced contents.
@@ -630,15 +617,7 @@ mod tests {
                         [<$enc _ $left:upper>],
                         [<$enc _ $right:upper>],
                         $info,
-                        // account for 3 byte BOM
-                        if stringify!($enc) == "UTF8BOM" {
-                            $submatches
-                                .into_iter()
-                                .map(|(a, b)| (a, std::ops::Range { start: b.start + 3, end: b.end + 3 }))
-                                .collect::<Vec<_>>()
-                        } else {
-                            $submatches
-                        }
+                        $submatches
                     );
                 )+
             }

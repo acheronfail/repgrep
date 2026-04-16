@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux-gnu, linux-musl, linux-arm-gnueabihf, macos, win-msvc, win-gnu, win32-msvc]
+        build: [linux-gnu, linux-musl, linux-arm-gnueabihf, macos, macos-aarch64, win-msvc, win-gnu, win32-msvc]
         include:
         # NOTE: we pin to a specific version since sometimes things fail to compile on the latest nightly builds
         - build: linux-gnu
@@ -88,6 +88,10 @@ jobs:
           os: macos-latest
           rust: nightly
           target: x86_64-apple-darwin
+        - build: macos-aarch64
+          os: macos-latest
+          rust: nightly
+          target: aarch64-apple-darwin
         - build: win-msvc
           os: windows-2022
           rust: nightly

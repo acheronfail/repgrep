@@ -8,6 +8,9 @@ on:
     # - test-release
     tags:
     - '[0-9]+.[0-9]+.[0-9]+'
+    # Test tags exercise the complete draft-release pipeline without publishing
+    # the crate. Delete the draft with `gh release delete --cleanup-tag`.
+    - 'release-test-*'
 permissions:
   contents: read
 jobs:
@@ -42,6 +45,7 @@ jobs:
           gh release create "$CRATE_VERSION" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$CRATE_VERSION" \
+            --verify-tag \
             --draft
 
   # This job runs _after_ the `create-release` job and uploads its archives to that release.
@@ -54,13 +58,14 @@ jobs:
     env:
       # For some builds, we use cross to test on 32-bit and big-endian
       # systems.
-      CARGO: cargo
-      # When CARGO is set to CROSS, this is set to `--target matrix.target`.
-      TARGET_FLAGS:
-      # When CARGO is set to CROSS, TARGET_DIR includes matrix.target.
-      TARGET_DIR: ./target
+      CARGO: ${{ matrix.os == 'windows-2022' && 'cargo' || 'cross' }}
+      TARGET_FLAGS: --target ${{ matrix.target }}
+      TARGET_DIR: ./target/${{ matrix.target }}
       # Emit backtraces on panics.
       RUST_BACKTRACE: 1
+      # Have rustc strip symbols while linking so this works consistently for
+      # native and cross-compiled ELF, Mach-O, and PE binaries.
+      CARGO_PROFILE_RELEASE_STRIP: symbols
       RELEASE_VERSION: ${{ needs.create-release.outputs.version }}
     strategy:
       fail-fast: false
@@ -154,12 +159,9 @@ jobs:
     - name: Install ripgrep
       run: cargo install ripgrep
 
-    - name: Use Cross
-      run: |
-        cargo install cross
-        echo "CARGO=cross" >> $GITHUB_ENV
-        echo "TARGET_FLAGS=--target ${{ matrix.target }}" >> $GITHUB_ENV
-        echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+    - name: Install Cross
+      if: matrix.os != 'windows-2022'
+      run: cargo install cross
 
     - name: Show command used for Cargo
       run: |
@@ -171,24 +173,8 @@ jobs:
       run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
       timeout-minutes: 10
 
-    - name: Strip release binary (linux and macos)
-      if: matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'x86_64-apple-darwin' || matrix.target == 'aarch64-apple-darwin'
-      run: strip "target/${{ matrix.target }}/release/rgr"
-
-    - name: Strip release binary (cross)
-      if: matrix.target == 'x86_64-unknown-linux-musl' || matrix.target == 'arm-unknown-linux-gnueabihf' || matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'aarch64-unknown-linux-musl'
-      run: |
-        case "${{ matrix.target }}" in
-          x86_64-unknown-linux-musl) STRIP="x86_64-linux-musl-strip" ; IMAGE="ghcr.io/cross-rs/x86_64-unknown-linux-musl:main" ;;
-          arm-unknown-linux-gnueabihf) STRIP="arm-unknown-linux-gnueabihf-strip" ; IMAGE="ghcr.io/cross-rs/arm-unknown-linux-gnueabihf:main" ;;
-          aarch64-unknown-linux-gnu) STRIP="aarch64-linux-gnu-strip" ; IMAGE="ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main" ;;
-          aarch64-unknown-linux-musl) STRIP="aarch64-linux-musl-strip" ; IMAGE="ghcr.io/cross-rs/aarch64-unknown-linux-musl:main" ;;
-        esac
-        docker run --rm -v "$PWD/target:/target:Z" "$IMAGE" "$STRIP" "/target/${{ matrix.target }}/release/rgr"
-
     # FIXME: for some reasons the manpage isn't generated in CI from the build.rs script.
     # So we build it (again?) here too.
-    # NOTE: the windows builds don't create a target-triple directory under "target/"
     - name: Build archive
       shell: bash
       run: |
@@ -208,7 +194,7 @@ jobs:
         cp "$outdir"/{_rgr,rgr.bash,rgr.fish,_rgr.ps1} "$staging/complete/"
 
         if [ "${{ matrix.os }}" = "windows-2022" ]; then
-          cp "target/release/rgr.exe" "$staging/"
+          cp "target/${{ matrix.target }}/release/rgr.exe" "$staging/"
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
         else
@@ -231,6 +217,7 @@ jobs:
   publish-crate:
     name: publish-crate
     needs: ['build-release']
+    if: ${{ !startsWith(github.ref_name, 'release-test-') }}
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository

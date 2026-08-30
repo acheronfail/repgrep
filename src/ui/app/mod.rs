@@ -2,23 +2,26 @@ mod app_events;
 mod app_render;
 mod state;
 
-use anyhow::{bail, Result};
-use regex::bytes::Regex;
+use anyhow::{Result, bail};
 use state::HelpTextState;
 pub use state::{AppListState, AppState, AppUiState};
 
-use crate::model::{PrintableStyle, ReplacementCriteria};
+use crate::model::{CaptureMatcher, PrintableStyle, ReplacementCriteria, replacement_items};
 use crate::rg::de::{RgMessage, Stats};
 use crate::ui::line::Item;
+use crate::ui::theme::Theme;
 
 const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 
 pub struct App {
     pub state: AppState,
 
-    /// If the user passed a regular expression with a capturing group, then this will be set to
-    /// indicate that we should use the capturing group when performing replacements.
-    capture_pattern: Option<Regex>,
+    /// Replacement text carried between the match-selection and replacement-input modes.
+    replacement_draft: String,
+
+    /// If the user passed a single regular expression, then this will be set so capture groups can
+    /// be expanded when performing replacements. Capture group 0 contains the full match.
+    capture_pattern: Option<CaptureMatcher>,
 
     /// Raw args passed to `ripgrep`.
     rg_cmdline: String,
@@ -35,30 +38,23 @@ pub struct App {
 
     /// The current printable style used to render text.
     printable_style: PrintableStyle,
+    /// Styles used to render the UI.
+    theme: Theme,
 }
 
 impl App {
     pub fn new(
-        capture_pattern: Option<Regex>,
+        capture_pattern: Option<CaptureMatcher>,
         rg_cmdline: String,
         rg_messages: Vec<RgMessage>,
+        replacement: Option<String>,
     ) -> App {
-        let mut list = vec![];
-        let mut maybe_stats = None;
-
-        for (i, rg_message) in rg_messages.into_iter().enumerate() {
-            match rg_message {
-                RgMessage::Summary { stats, .. } => {
-                    maybe_stats = Some(stats);
-                    // NOTE: there should only be one RgMessage::Summary, and it should be the last item.
-                    break;
-                }
-                other => list.push(Item::new(i, other)),
-            }
-        }
+        let (list, maybe_stats) = replacement_items(rg_messages);
 
         App {
             state: AppState::Running,
+
+            replacement_draft: replacement.unwrap_or_default(),
 
             capture_pattern,
             rg_cmdline,
@@ -68,6 +64,7 @@ impl App {
             ui_state: AppUiState::SelectMatches,
             help_text_state: HelpTextState::new(HELP_TEXT),
             printable_style: PrintableStyle::default(),
+            theme: Theme::default(),
         }
     }
 

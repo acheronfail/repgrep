@@ -1,4 +1,3 @@
-use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 
 use crate::model::Printable;
@@ -25,23 +24,24 @@ impl SubItem {
 impl SubItem {
     /// A SubItem contains the "match". A match _may_ be over multiple lines, but there will only ever
     /// be a single span on each line. So this returns a list of "lines": one span for each line.
-    pub fn to_span_lines(&self, ctx: &UiItemContext, is_item_selected: bool) -> Vec<Span> {
-        let mut s = Style::default();
-        if ctx.app_ui_state.is_replacing() {
+    pub fn to_span_lines(&self, ctx: &UiItemContext, is_item_selected: bool) -> Vec<Span<'_>> {
+        let s = if ctx.app_ui_state.is_replacing() {
             if self.should_replace {
-                s = s.fg(Color::Red).add_modifier(Modifier::CROSSED_OUT);
+                ctx.theme.removed
+            } else {
+                ctx.theme.normal
             }
         } else if is_item_selected && ctx.app_list_state.selected_submatch() == self.index {
             if self.should_replace {
-                s = s.fg(Color::Black).bg(Color::Yellow);
+                ctx.theme.matched_selected
             } else {
-                s = s.fg(Color::Yellow).bg(Color::DarkGray);
+                ctx.theme.matched_disabled_selected
             }
         } else if self.should_replace {
-            s = s.fg(Color::Black).bg(Color::Red);
+            ctx.theme.matched
         } else {
-            s = s.fg(Color::Red).bg(Color::DarkGray);
-        }
+            ctx.theme.matched_disabled
+        };
 
         self.sub_match
             .text

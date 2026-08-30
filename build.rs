@@ -21,14 +21,14 @@ fn generate_manpage<P: AsRef<Path>>(outdir: P) -> io::Result<()> {
         .arg("--backend")
         .arg("manpage")
         .arg("--destination-dir")
-        .arg(&outdir)
+        .arg(outdir)
         .arg(&template_path)
         .spawn()?
         .wait()?;
 
     if !result.success() {
         let msg = format!("'asciidoctor' failed with exit code {:?}", result.code());
-        return Err(io::Error::new(io::ErrorKind::Other, msg));
+        return Err(io::Error::other(msg));
     }
     Ok(())
 }

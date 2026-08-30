@@ -1,12 +1,11 @@
 use std::ops::Range;
 use std::path::PathBuf;
 
-use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::format_line_number;
-use crate::model::{Printable, PrintableStyle};
+use crate::model::{Printable, PrintableStyle, expand_replacement};
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind};
 use crate::ui::app::AppUiState;
 use crate::ui::line::SubItem;
@@ -183,10 +182,10 @@ impl Item {
     }
 
     pub fn line_count(&mut self, list_width: u16, style: PrintableStyle) -> usize {
-        if let Some(cache) = &self.cached_line_count {
-            if cache.list_width == list_width {
-                return cache.value;
-            }
+        if let Some(cache) = &self.cached_line_count
+            && cache.list_width == list_width
+        {
+            return cache.value;
         }
 
         let count = match &self.rg_message {
@@ -222,13 +221,13 @@ impl Item {
         count
     }
 
-    pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Line> {
+    pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Line<'_>> {
         let is_replacing = ctx.app_ui_state.is_replacing();
         let is_selected = ctx.app_list_state.selected_item() == self.index;
 
-        let mut base_style = Style::default();
+        let mut base_style = ctx.theme.normal;
         if !is_replacing && is_selected {
-            base_style = base_style.fg(Color::Yellow);
+            base_style = ctx.theme.selected;
         }
 
         // pushes a span to `spans` which contains the given line number content
@@ -236,7 +235,7 @@ impl Item {
             ($spans:expr, $content:expr) => {{
                 let mut line_number_style = base_style;
                 if !is_selected || is_replacing {
-                    line_number_style = line_number_style.fg(Color::DarkGray);
+                    line_number_style = ctx.theme.muted;
                 }
 
                 $spans.push(Span::styled(
@@ -250,9 +249,9 @@ impl Item {
             RgMessage::Begin { .. } => vec![vec![Span::styled(
                 format!("{}", self.path_buf().unwrap().display()).to_printable(ctx.printable_style),
                 if !is_replacing && is_selected {
-                    base_style.fg(Color::Black).bg(Color::Yellow)
+                    ctx.theme.file_selected
                 } else {
-                    base_style.fg(Color::Magenta)
+                    ctx.theme.file
                 },
             )]],
 
@@ -262,10 +261,10 @@ impl Item {
                 let mut span_lines = vec![];
                 for (i, line) in lines.to_printable(ctx.printable_style).lines().enumerate() {
                     let mut spans = vec![];
-                    if i == 0 {
-                        if let Some(n) = line_number {
-                            push_line_number_span!(spans, n);
-                        }
+                    if i == 0
+                        && let Some(n) = line_number
+                    {
+                        push_line_number_span!(spans, n);
                     }
 
                     spans.push(Span::styled(line.to_string(), base_style));
@@ -282,18 +281,21 @@ impl Item {
 
                 // Read the lines as bytes since we split it at the byte ranges that ripgrep gives us in each of the submatches.
                 let lines_bytes = lines.to_vec();
-                let replacement_spans = ctx.replacement_text.map(|user| {
-                    let user = user.as_bytes().to_vec();
-                    let text = match ctx.capture_pattern.and_then(|re| re.captures(&lines_bytes)) {
-                        Some(captures) => {
-                            let mut s = Vec::new();
-                            captures.expand(&user, &mut s);
-                            s
-                        }
-                        None => user,
-                    };
+                let replacement_spans = |matched_range: Range<usize>| {
+                    let user = ctx.replacement_text?;
+                    let mut text = Vec::new();
+                    if let Err(error) = expand_replacement(
+                        ctx.capture_pattern,
+                        &lines_bytes,
+                        matched_range,
+                        user.as_bytes(),
+                        &mut text,
+                    ) {
+                        log::warn!("failed to expand replacement preview: {error}");
+                        return None;
+                    }
 
-                    let replacement_style = base_style.fg(Color::Green);
+                    let replacement_style = ctx.theme.inserted;
                     let mut spans = text
                         .to_printable(ctx.printable_style)
                         .lines()
@@ -306,8 +308,8 @@ impl Item {
                         spans.push(Span::from(""));
                     }
 
-                    spans
-                });
+                    Some(spans)
+                };
 
                 let mut span_lines = vec![];
                 let mut spans = vec![]; // filled and emptied for each line
@@ -340,10 +342,10 @@ impl Item {
                 for (idx, sub_item) in self.sub_items.iter().enumerate() {
                     let Range { start, end } = sub_item.sub_match.range;
 
-                    if idx == 0 {
-                        if let Some(n) = line_number {
-                            push_line_number_span!(spans, n);
-                        }
+                    if idx == 0
+                        && let Some(n) = line_number
+                    {
+                        push_line_number_span!(spans, n);
                     }
 
                     // Text in between start (or last SubMatch) and this SubMatch.
@@ -375,19 +377,19 @@ impl Item {
                     }
 
                     // Replacement text.
-                    if sub_item.should_replace {
-                        if let Some(replacement_span_lines) = replacement_spans.as_ref() {
-                            for (i, span) in replacement_span_lines.iter().enumerate() {
-                                if i == 0 {
-                                    // reset the line number
-                                    line_number = self.line_number().cloned();
-                                } else {
-                                    push_line_number_span!(spans, "+");
-                                }
-
-                                spans.push(span.clone());
-                                new_line_if_needed!(replacement_span_lines.len(), i);
+                    if sub_item.should_replace
+                        && let Some(replacement_span_lines) = replacement_spans(start..end)
+                    {
+                        for (i, span) in replacement_span_lines.iter().enumerate() {
+                            if i == 0 {
+                                // reset the line number
+                                line_number = self.line_number().cloned();
+                            } else {
+                                push_line_number_span!(spans, "+");
                             }
+
+                            spans.push(span.clone());
+                            new_line_if_needed!(replacement_span_lines.len(), i);
                         }
                     }
 
@@ -435,7 +437,7 @@ impl Item {
                                     chars.drain(..).collect::<String>(),
                                     span.style,
                                 ));
-                                wrapped_spans.push(Line::from(tmp.drain(..).collect::<Vec<_>>()));
+                                wrapped_spans.push(Line::from(std::mem::take(&mut tmp)));
                                 len = 0;
                             }
 
@@ -452,7 +454,7 @@ impl Item {
                     }
                 }
 
-                wrapped_spans.push(Line::from(tmp.drain(..).collect::<Vec<_>>()));
+                wrapped_spans.push(Line::from(std::mem::take(&mut tmp)));
                 wrapped_spans
             })
             .collect()
@@ -467,7 +469,6 @@ mod tests {
     use insta::assert_debug_snapshot;
     use pretty_assertions::assert_eq;
     use ratatui::layout::Rect;
-    use regex::bytes::Regex;
 
     use crate::model::*;
     use crate::rg::de::test_utilities::*;
@@ -569,7 +570,7 @@ mod tests {
             Item::new(
                 0,
                 RgMessageBuilder::new(kind)
-                    .with_path_base64(base64.encode_to_string(&invalid_utf8_name_bytes))
+                    .with_path_base64(base64.encode_to_string(invalid_utf8_name_bytes))
                     .with_lines_text("foo bar baz")
                     .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
                     .with_stats(Stats::new())
@@ -625,6 +626,7 @@ mod tests {
             replacement_text,
             app_list_state,
             app_ui_state,
+            theme: crate::ui::theme::Theme::default(),
             list_rect: Rect::new(0, 0, 80, 24),
         }
     }
@@ -681,7 +683,8 @@ mod tests {
         let app_list_state = new_app_list_state();
         let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
-        let re = Regex::new(r"(new)\((rg_msg)\)").unwrap();
+        let re =
+            CaptureMatcher::new(r"(?:(Item)|(rg_msg))", &RegexConfig::default(), false).unwrap();
         ctx.capture_pattern = Some(&re);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
@@ -691,12 +694,23 @@ mod tests {
     }
 
     #[test]
+    fn to_span_lines_with_full_match_replacement() {
+        let replacement = "<$0>";
+        let app_list_state = new_app_list_state();
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
+        let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
+    }
+
+    #[test]
     fn to_span_lines_with_text_confirm_replacement_and_capture_pattern() {
         let replacement = "${2}($1)";
         let app_list_state = new_app_list_state();
         let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
-        let re = Regex::new(r"(new)\((rg_msg)\)").unwrap();
+        let re =
+            CaptureMatcher::new(r"(?:(Item)|(rg_msg))", &RegexConfig::default(), false).unwrap();
         ctx.capture_pattern = Some(&re);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));

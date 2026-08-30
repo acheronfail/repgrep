@@ -1,6 +1,6 @@
 use chardet::charset2encoding;
-use encoding::label::encoding_from_whatwg_label;
 use encoding::EncodingRef;
+use encoding::label::encoding_from_whatwg_label;
 
 use crate::rg::RgEncoding;
 
@@ -19,16 +19,16 @@ pub fn get_encoder(bytes: &[u8], rg_encoding: &RgEncoding) -> (Option<Bom>, Enco
         })
         // otherwise if the user passed an encoding use that
         .or_else(|| {
-            let encoder = rg_encoding.encoder();
-            if encoder.is_some() {
+            if let Some(encoder) = rg_encoding.encoder() {
                 log::debug!(
                     "Found user encoding: {:?}, using encoder: {}",
                     rg_encoding,
-                    encoder.unwrap().name()
+                    encoder.name()
                 );
+                Some(encoder)
+            } else {
+                None
             }
-
-            encoder
         })
         // nothing so far, try detecting the encoding
         .or_else(|| {
@@ -125,7 +125,7 @@ impl Bom {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use crate::encoding::{get_encoder, Bom, RgEncoding};
+    use crate::encoding::{Bom, RgEncoding, get_encoder};
 
     #[test]
     fn test_bom_handles_empty_slices() {

@@ -3,215 +3,30 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_MATCH).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "197:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "    ",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "Item",
-                style: Style {
-                    fg: Some(
-                        Red,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: CROSSED_OUT,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "foobar",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "+:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "baz",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "+:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "asdf",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "::new(",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "rg_msg",
-                style: Style {
-                    fg: Some(
-                        Red,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: CROSSED_OUT,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "foobar",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "+:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "baz",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "+:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "asdf",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: ")",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from_iter([
+        Span::from("197:").dim(),
+        Span::from("    "),
+        Span::from("Item").red().crossed_out(),
+        Span::from("foobar").green(),
+    ]),
+    Line::from_iter([
+        Span::from("+:").dim(),
+        Span::from("baz").green(),
+    ]),
+    Line::from_iter([
+        Span::from("+:").dim(),
+        Span::from("asdf").green(),
+        Span::from("::new("),
+        Span::from("rg_msg").red().crossed_out(),
+        Span::from("foobar").green(),
+    ]),
+    Line::from_iter([
+        Span::from("+:").dim(),
+        Span::from("baz").green(),
+    ]),
+    Line::from_iter([
+        Span::from("+:").dim(),
+        Span::from("asdf").green(),
+        Span::from(")"),
+    ]),
 ]

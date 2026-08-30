@@ -3,273 +3,38 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_MATCH_MULTILINE).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "3:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "baz ",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "1",
-                style: Style {
-                    fg: Some(
-                        Red,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: CROSSED_OUT,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "-:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "22",
-                style: Style {
-                    fg: Some(
-                        Red,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: CROSSED_OUT,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "-:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "333",
-                style: Style {
-                    fg: Some(
-                        Red,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: CROSSED_OUT,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "foobar",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "+:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "baz",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "+:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "asdf",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: " bar ",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "4444",
-                style: Style {
-                    fg: Some(
-                        Red,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: CROSSED_OUT,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "foobar",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "+:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "baz",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "+:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "asdf",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from_iter([
+        Span::from("3:").dim(),
+        Span::from("baz "),
+        Span::from("1").red().crossed_out(),
+    ]),
+    Line::from_iter([
+        Span::from("-:").dim(),
+        Span::from("22").red().crossed_out(),
+    ]),
+    Line::from_iter([
+        Span::from("-:").dim(),
+        Span::from("333").red().crossed_out(),
+        Span::from("foobar").green(),
+    ]),
+    Line::from_iter([
+        Span::from("+:").dim(),
+        Span::from("baz").green(),
+    ]),
+    Line::from_iter([
+        Span::from("+:").dim(),
+        Span::from("asdf").green(),
+        Span::from(" bar "),
+        Span::from("4444").red().crossed_out(),
+        Span::from("foobar").green(),
+    ]),
+    Line::from_iter([
+        Span::from("+:").dim(),
+        Span::from("baz").green(),
+    ]),
+    Line::from_iter([
+        Span::from("+:").dim(),
+        Span::from("asdf").green(),
+        Span::default(),
+    ]),
 ]

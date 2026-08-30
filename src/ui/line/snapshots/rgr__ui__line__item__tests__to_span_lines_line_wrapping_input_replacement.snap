@@ -3,80 +3,14 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_MATCH_LINE_WRAP).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "3:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "9*123456789(123456789_",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "one_hundred",
-                style: Style {
-                    fg: Some(
-                        Red,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: CROSSED_OUT,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "foobar",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "_characters_wowzers",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from_iter([
+        Span::from("3:").dim(),
+        Span::from("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678"),
+    ]),
+    Line::from_iter([
+        Span::from("9*123456789(123456789_"),
+        Span::from("one_hundred").red().crossed_out(),
+        Span::from("foobar").green(),
+        Span::from("_characters_wowzers"),
+    ]),
 ]

@@ -95,8 +95,7 @@ jobs:
         include:
         - build: pinned
           os: ubuntu-latest
-          # NOTE: home requires 1.81.0
-          rust: 1.81.0
+          rust: 1.96.0
         - build: stable
           os: ubuntu-latest
           rust: stable

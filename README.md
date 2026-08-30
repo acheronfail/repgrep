@@ -33,6 +33,20 @@ See [this issue](https://github.com/acheronfail/repgrep/issues/12) for more info
 
 After installing, just use `rgr` (think: `rg` + `replace`).
 
+Pass ripgrep's `-r`/`--replace` option to prefill the replacement text while retaining the
+interactive match-selection and confirmation steps:
+
+```sh
+rgr 'old_name' -r 'new_name'
+```
+
+Use rgr's `-y`/`--autoreplace` option with `-r`/`--replace` to replace every match without
+opening the interactive interface:
+
+```sh
+rgr -y 'old_name' -r 'new_name'
+```
+
 The arguments are:
 
 ```bash
@@ -60,7 +74,7 @@ See the [releases] page for pre-compiled binaries.
 
 #### Via Cargo
 
-**NOTE**: The minimum Rust version required is `1.81.0`.
+**NOTE**: The minimum Rust version required is `1.96.0`.
 
 ```bash
 cargo install repgrep
@@ -87,7 +101,7 @@ More info [here](https://ports.macports.org/port/repgrep/).
 
 #### From Source
 
-**NOTE**: The minimum Rust version required is `1.81.0`.
+**NOTE**: The minimum Rust version required is `1.96.0`.
 
 ```bash
 git clone https://github.com/acheronfail/repgrep/

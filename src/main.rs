@@ -26,6 +26,20 @@
 //!
 //! After installing, just use `rgr` (think: `rg` + `replace`).
 //!
+//! Pass ripgrep's `-r`/`--replace` option to prefill the replacement text while retaining the
+//! interactive match-selection and confirmation steps:
+//!
+//! ```sh
+//! rgr 'old_name' -r 'new_name'
+//! ```
+//!
+//! Use rgr's `-y`/`--autoreplace` option with `-r`/`--replace` to replace every match without
+//! opening the interactive interface:
+//!
+//! ```sh
+//! rgr -y 'old_name' -r 'new_name'
+//! ```
+//!
 //! The arguments are:
 //!
 //! ```bash
@@ -53,7 +67,7 @@
 //!
 //! ### Via Cargo
 //!
-//! **NOTE**: The minimum Rust version required is `1.81.0`.
+//! **NOTE**: The minimum Rust version required is `1.96.0`.
 //!
 //! ```bash
 //! cargo install repgrep
@@ -80,7 +94,7 @@
 //!
 //! ### From Source
 //!
-//! **NOTE**: The minimum Rust version required is `1.81.0`.
+//! **NOTE**: The minimum Rust version required is `1.96.0`.
 //!
 //! ```bash
 //! git clone https://github.com/acheronfail/repgrep/
@@ -104,10 +118,11 @@ use std::fs::File;
 use std::{env, process};
 
 use anyhow::Result;
-use flexi_logger::{opt_format, FileSpec, Logger};
+use flexi_logger::{FileSpec, Logger, opt_format};
 use rg::exec::run_ripgrep;
 use ui::tui::Tui;
 
+use crate::model::{ReplacementCriteria, capture_pattern, replacement_items};
 use crate::rg::read::read_messages;
 
 fn init_logging() -> Result<::std::path::PathBuf> {
@@ -193,23 +208,50 @@ fn main() {
 
     match rg_json {
         Ok(rg_messages) => {
-            let result = Tui::new()
-                .and_then(|tui| tui.start(args.rg_cmdline(), rg_messages, &args.patterns));
+            let result = if args.autoreplace {
+                capture_pattern(&args.patterns, &args.regex_config, args.fixed_strings).map(
+                    |capture_pattern| {
+                        let (items, _) = replacement_items(rg_messages);
+                        Some(ReplacementCriteria::new(
+                            capture_pattern,
+                            // This is guaranteed by RgArgs::validate().
+                            args.replacement.as_deref().unwrap(),
+                            items,
+                        ))
+                    },
+                )
+            } else {
+                let result = Tui::new().and_then(|tui| {
+                    tui.start(
+                        args.rg_cmdline(),
+                        rg_messages,
+                        &args.patterns,
+                        &args.regex_config,
+                        args.fixed_strings,
+                        args.replacement.clone(),
+                    )
+                });
 
-            // Restore terminal.
-            if let Err(err) = Tui::restore_terminal() {
-                log::warn!("Failed to restore terminal state: {}", err);
-                eprintln!(
-                    "Failed to restore terminal state, consider running the `reset` command. Error: {}",
-                    err
-                );
+                // Restore terminal.
+                if let Err(err) = Tui::restore_terminal() {
+                    log::warn!("Failed to restore terminal state: {}", err);
+                    eprintln!(
+                        "Failed to restore terminal state, consider running the `reset` command. Error: {}",
+                        err
+                    );
+                }
+                result
+            };
+
+            if args.autoreplace {
+                log::debug!("Running in autoreplace mode");
             }
 
             // Handle application result.
             match result {
                 Ok(Some(mut replacement_criteria)) => {
                     // use an encoding if one was passed to `rg`
-                    if let Some(encoding) = args.encoding {
+                    if let Some(encoding) = &args.encoding {
                         replacement_criteria.set_encoding(encoding);
                     }
 
@@ -227,7 +269,11 @@ fn main() {
                 }
                 Ok(None) => eprintln!("Cancelled"),
                 Err(err) => {
-                    exit_with_error!("An app error occurred: {}", err);
+                    if args.autoreplace {
+                        exit_with_error!("Failed to prepare autoreplacements: {}", err);
+                    } else {
+                        exit_with_error!("An app error occurred: {}", err);
+                    }
                 }
             }
         }

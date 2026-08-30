@@ -3,23 +3,5 @@ source: src/ui/line/item.rs
 expression: new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "./a/fo�o",
-                style: Style {
-                    fg: Some(
-                        Black,
-                    ),
-                    bg: Some(
-                        Yellow,
-                    ),
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from(Span::from("./a/fo�o").reversed()),
 ]

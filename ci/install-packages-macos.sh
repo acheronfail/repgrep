@@ -1,3 +1,3 @@
 #!/bin/sh
 
-brew install asciidoctor
+brew install asciidoctor ripgrep

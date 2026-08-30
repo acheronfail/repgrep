@@ -39,11 +39,11 @@ impl App {
                     }
 
                     // Clear input on Ctrl+U
-                    if let AppUiState::InputReplacement(_, _) = &self.ui_state {
-                        if key.code == KeyCode::Char('u') {
-                            self.ui_state = AppUiState::InputReplacement(String::new(), 0);
-                            return Ok(());
-                        }
+                    if let AppUiState::InputReplacement(_, _) = &self.ui_state
+                        && key.code == KeyCode::Char('u')
+                    {
+                        self.ui_state = AppUiState::InputReplacement(String::new(), 0);
+                        return Ok(());
                     }
 
                     // Common Ctrl+Key scroll keybindings that apply to multiple modes.
@@ -135,12 +135,15 @@ impl App {
                             KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
                             KeyCode::Char('?') => self.ui_state = AppUiState::Help,
                             KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
-                                self.ui_state = AppUiState::InputReplacement(String::new(), 0)
+                                self.ui_state = AppUiState::InputReplacement(
+                                    self.replacement_draft.clone(),
+                                    self.replacement_draft.chars().count(),
+                                )
                             }
                             _ => {}
                         }
                     }
-                    AppUiState::InputReplacement(ref input, pos) => match key.code {
+                    AppUiState::InputReplacement(input, pos) => match key.code {
                         // input char, or detect changing to next mode
                         KeyCode::Char(ch) => {
                             if control_pressed && ch == 's' {
@@ -169,7 +172,10 @@ impl App {
                             }
                         }
                         // leave mode
-                        KeyCode::Esc => self.ui_state = AppUiState::SelectMatches,
+                        KeyCode::Esc => {
+                            self.replacement_draft = input.clone();
+                            self.ui_state = AppUiState::SelectMatches;
+                        }
                         KeyCode::Enter => {
                             // if no modifiers are set: move to next state, otherwise insert a "return" character
                             if key.modifiers.is_empty() {
@@ -456,7 +462,7 @@ mod tests {
     }
 
     fn new_app() -> App {
-        App::new(None, "TESTS".to_string(), rg_messages())
+        App::new(None, "TESTS".to_string(), rg_messages(), None)
     }
 
     fn new_app_multiple_files() -> App {
@@ -472,7 +478,7 @@ mod tests {
         messages_multiple_files.extend(messages_multiple_files.clone());
         messages_multiple_files.push(RgMessage::from_str(RG_JSON_SUMMARY));
 
-        App::new(None, "TESTS".to_string(), messages_multiple_files)
+        App::new(None, "TESTS".to_string(), messages_multiple_files, None)
     }
 
     type PosTriple = (usize, usize, usize);
@@ -506,7 +512,7 @@ mod tests {
             RgMessage::from_str(RG_JSON_SUMMARY),
         ];
 
-        App::new(None, "TESTS".to_string(), messages)
+        App::new(None, "TESTS".to_string(), messages, None)
     }
 
     // Valid positions for the app returned by `new_app_line_wrapping`.
@@ -1042,7 +1048,24 @@ mod tests {
         send_key!(app, key!(Esc));
         assert_eq!(app.ui_state, AppUiState::SelectMatches);
 
-        // and back to input
-        send_key_assert!(app, key!(Enter), "", 0);
+        // and back to input, retaining the edited draft
+        send_key_assert!(app, key!(Enter), "repgrep", 7);
+    }
+
+    #[test]
+    fn cli_replacement_prefills_input_and_retains_edits() {
+        let mut app = App::new(
+            None,
+            "TESTS".to_string(),
+            rg_messages(),
+            Some("réplace 🎉".to_string()),
+        );
+
+        assert_eq!(app.ui_state, AppUiState::SelectMatches);
+        send_key_assert!(app, key!(Enter), "réplace 🎉", 9);
+        send_key_assert!(app, key!(Char('!')), "réplace 🎉!", 10);
+        send_key!(app, key!(Esc));
+        assert_eq!(app.ui_state, AppUiState::SelectMatches);
+        send_key_assert!(app, key!(Enter), "réplace 🎉!", 10);
     }
 }

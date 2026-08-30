@@ -1,14 +1,14 @@
 use ratatui::layout::Rect;
-use regex::bytes::Regex;
 
-use crate::model::PrintableStyle;
+use crate::model::{CaptureMatcher, PrintableStyle};
 use crate::ui::app::{AppListState, AppUiState};
+use crate::ui::theme::Theme;
 
 /// Used when building the UI from the App's state.
 pub struct UiItemContext<'a> {
-    /// Regex to use for capturing groups. If it's not provided, the user didn't
-    /// pass any capturing groups.
-    pub capture_pattern: Option<&'a Regex>,
+    /// Regex to use for capture expansion. If it isn't provided, only capture
+    /// group 0 is available from the matched text.
+    pub capture_pattern: Option<&'a CaptureMatcher>,
     /// The replacement text the user has entered.
     pub replacement_text: Option<&'a str>,
     /// The current state of the matches list.
@@ -17,6 +17,8 @@ pub struct UiItemContext<'a> {
     pub app_ui_state: &'a AppUiState,
     /// The `PrintableStyle` with which the UI should be built.
     pub printable_style: PrintableStyle,
+    /// The theme with which the UI should be built.
+    pub theme: Theme,
     /// The `Rect` that the items will be rendered into.
     pub list_rect: Rect,
 }

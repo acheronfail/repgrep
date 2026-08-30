@@ -1,11 +1,9 @@
 /// Rendering for `App`.
 use const_format::formatcp;
-use ratatui::backend::Backend;
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
-use ratatui::Frame;
 
 use crate::model::Printable;
 use crate::rg::de::RgMessageKind;
@@ -33,8 +31,8 @@ impl App {
     // | status line (rg command line, matches, replacements, etc)
     // | command line (user input for replacement text, etc)
     // _
-    pub fn draw<B: Backend>(&mut self, f: &mut Frame<B>) {
-        let frame = f.size();
+    pub fn draw(&mut self, f: &mut Frame) {
+        let frame = f.area();
         if self.is_frame_too_small(frame) {
             return self.draw_too_small_view(f, frame);
         }
@@ -67,12 +65,12 @@ impl App {
         frame.width < MINIMUM_WIDTH || frame.height < MINIMUM_HEIGHT
     }
 
-    fn draw_too_small_view<B: Backend>(&self, f: &mut Frame<B>, r: Rect) {
+    fn draw_too_small_view(&self, f: &mut Frame, r: Rect) {
         let p = Paragraph::new(Text::from(TOO_SMALL_MESSAGE)).wrap(Wrap { trim: false });
         f.render_widget(p, r);
     }
 
-    fn draw_input_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
+    fn draw_input_line(&mut self, f: &mut Frame, r: Rect) {
         let prefix = "Replacement: ";
         let mut spans = match &self.ui_state {
             AppUiState::Help => vec![Span::from("Viewing Help. Press <esc> or <q> to return...")],
@@ -82,12 +80,9 @@ impl App {
             AppUiState::InputReplacement(input, pos) => {
                 let mut spans = vec![Span::from(prefix)];
                 if input.is_empty() {
-                    spans.push(Span::styled(
-                        "<empty>",
-                        Style::default().fg(Color::DarkGray),
-                    ));
+                    spans.push(Span::styled("<empty>", self.theme.muted));
                 } else {
-                    let (before, after) = input.split_at(byte_pos_from_char_pos(&input, *pos));
+                    let (before, after) = input.split_at(byte_pos_from_char_pos(input, *pos));
                     let style = self.printable_style.as_one_line();
                     spans.push(Span::from(before.to_printable(style)));
                     spans.push(Span::from(after.to_printable(style)));
@@ -108,22 +103,22 @@ impl App {
             let x_pos = if input.is_empty() {
                 0
             } else {
-                (&spans[spans.len() - 2]).width() as u16
+                spans[spans.len() - 2].width() as u16
             };
 
             spans.push(Span::styled(
                 "    (press <enter> or <C-s> to accept replacement)",
-                Style::default().fg(Color::DarkGray),
+                self.theme.muted,
             ));
 
             render_input(spans);
-            f.set_cursor(x_start + x_pos, r.y);
+            f.set_cursor_position((x_start + x_pos, r.y));
         } else {
             render_input(spans);
         }
     }
 
-    fn draw_stats_line<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
+    fn draw_stats_line(&mut self, f: &mut Frame, r: Rect) {
         let replacement_count = self
             .list
             .iter()
@@ -143,39 +138,35 @@ impl App {
             .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
             .split(r);
 
-        let left_side_items = vec![Line::from(self.ui_state.to_span())];
+        let left_side_items = vec![Line::from(self.ui_state.to_span(&self.theme))];
         let right_side_items = vec![Line::from(vec![
-            Span::styled(
-                format!(" {} ", self.rg_cmdline),
-                Style::default().bg(Color::Blue).fg(Color::Black),
-            ),
+            Span::styled(format!(" {} ", self.rg_cmdline), self.theme.normal),
             Span::styled(
                 format!(" CtrlChars: {} ", self.printable_style),
-                Style::default().bg(Color::Cyan).fg(Color::Black),
+                self.theme.normal,
             ),
             Span::styled(
                 format!(" {}/{} ", replacement_count, self.stats.matches),
-                Style::default().bg(Color::Magenta).fg(Color::Black),
+                self.theme.emphasis,
             ),
         ])];
 
-        let stats_line_style = Style::default().bg(Color::DarkGray).fg(Color::White);
         f.render_widget(
             Paragraph::new(left_side_items)
-                .style(stats_line_style)
+                .style(self.theme.status)
                 .alignment(Alignment::Left),
             hsplit[0],
         );
         f.render_widget(
             Paragraph::new(right_side_items)
-                .style(stats_line_style)
+                .style(self.theme.status)
                 .alignment(Alignment::Right),
             hsplit[1],
         );
     }
 
-    fn draw_help_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
-        let title_style = Style::default().fg(Color::Magenta);
+    fn draw_help_view(&mut self, f: &mut Frame, r: Rect) {
+        let title_style = self.theme.help_heading;
         let hsplit = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
@@ -210,16 +201,12 @@ impl App {
                 Row::new(vec!["MODE: CONFIRM"]).style(title_style),
                 Row::new(vec!["enter", "write replacements to disk"]),
                 Row::new(vec!["q, esc", "previous mode"]),
-            ]
-            .into_iter(),
+            ],
+            [Constraint::Length(20), Constraint::Length(50)],
         )
         .header(
             Row::new(vec!["[Key]", "[Action]"])
-                .style(
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                )
+                .style(self.theme.help_keys)
                 .bottom_margin(1),
         )
         .block(
@@ -227,7 +214,6 @@ impl App {
                 .borders(Borders::ALL)
                 .title(Span::styled("Keybindings", title_style)),
         )
-        .widths(&[Constraint::Length(20), Constraint::Length(50)])
         .column_spacing(1);
 
         f.render_widget(help_table, hsplit[1]);
@@ -254,8 +240,8 @@ impl App {
         Span::from(self.list_indicator().as_str()).width() as u16
     }
 
-    fn draw_main_view<B: Backend>(&mut self, f: &mut Frame<B>, r: Rect) {
-        let list_rect = self.main_view_list_rect(f.size());
+    fn draw_main_view(&mut self, f: &mut Frame, r: Rect) {
+        let list_rect = self.main_view_list_rect(f.area());
         let indicator_symbol = self.list_indicator();
 
         // For performance with large match sets, we only send a single "window"'s
@@ -273,6 +259,7 @@ impl App {
             printable_style: self.printable_style,
             app_list_state: &self.list_state,
             app_ui_state: &self.ui_state,
+            theme: self.theme,
             list_rect,
         };
 
@@ -314,10 +301,10 @@ impl App {
         // See: https://github.com/fdehau/tui-rs/issues/239#issuecomment-657070300
         let match_list = List::new(match_items)
             .block(Block::default())
-            .style(Style::default().fg(Color::White))
-            .highlight_symbol(&indicator_symbol);
+            .style(self.theme.normal)
+            .highlight_symbol(indicator_symbol.as_str());
 
-        f.render_stateful_widget(match_list, r, &mut self.list_state.indicator_mut());
+        f.render_stateful_widget(match_list, r, self.list_state.indicator_mut());
     }
 
     pub(crate) fn main_view_list_rect(&self, term_size: Rect) -> Rect {

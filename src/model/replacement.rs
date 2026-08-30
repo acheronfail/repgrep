@@ -1,14 +1,98 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+use std::ops::Range;
 
-use regex::bytes::Regex;
+use anyhow::Result;
 
-use crate::rg::de::{ArbitraryData, RgMessageKind};
+use crate::model::CaptureMatcher;
+use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, Stats};
 use crate::ui::line::Item;
+
+pub fn replacement_items(rg_messages: Vec<RgMessage>) -> (Vec<Item>, Option<Stats>) {
+    let mut items = vec![];
+    let mut stats = None;
+
+    for (index, rg_message) in rg_messages.into_iter().enumerate() {
+        match rg_message {
+            RgMessage::Summary {
+                stats: summary_stats,
+                ..
+            } => {
+                stats = Some(summary_stats);
+                break;
+            }
+            other => items.push(Item::new(index, other)),
+        }
+    }
+
+    (items, stats)
+}
+
+/// Expand capture references in a replacement, falling back to the complete
+/// ripgrep match as capture group 0 when no capture pattern is available.
+pub fn expand_replacement(
+    capture_pattern: Option<&CaptureMatcher>,
+    haystack: &[u8],
+    matched_range: Range<usize>,
+    user_replacement: &[u8],
+    dst: &mut Vec<u8>,
+) -> Result<()> {
+    if let Some(capture_pattern) = capture_pattern {
+        dst.extend(capture_pattern.replacement_for(haystack, matched_range, user_replacement)?);
+        return Ok(());
+    }
+
+    let matched_bytes = &haystack[matched_range];
+
+    let mut remaining = user_replacement;
+    while let Some(start) = remaining.iter().position(|&b| b == b'$') {
+        dst.extend_from_slice(&remaining[..start]);
+        remaining = &remaining[start..];
+
+        if remaining.starts_with(b"$$") {
+            dst.push(b'$');
+            remaining = &remaining[2..];
+            continue;
+        }
+
+        let (capture, end) = if remaining.starts_with(b"${") {
+            match remaining[2..].iter().position(|&b| b == b'}') {
+                Some(end) => (&remaining[2..end + 2], end + 3),
+                None => {
+                    dst.push(b'$');
+                    remaining = &remaining[1..];
+                    continue;
+                }
+            }
+        } else {
+            let end = remaining[1..]
+                .iter()
+                .position(|&b| !b.is_ascii_alphanumeric() && b != b'_')
+                .map_or(remaining.len(), |end| end + 1);
+            (&remaining[1..end], end)
+        };
+
+        if capture.is_empty()
+            || capture
+                .iter()
+                .any(|&b| !b.is_ascii_alphanumeric() && b != b'_')
+        {
+            dst.push(b'$');
+            remaining = &remaining[1..];
+            continue;
+        }
+        if capture.iter().all(|&b| b == b'0') {
+            dst.extend_from_slice(matched_bytes);
+        }
+        remaining = &remaining[end..];
+    }
+    dst.extend_from_slice(remaining);
+    Ok(())
+}
 
 #[derive(Debug)]
 pub struct ReplacementCriteria {
-    pub capture_pattern: Option<Regex>,
+    pub capture_pattern: Option<CaptureMatcher>,
     pub items: Vec<Item>,
     pub user_replacement: Vec<u8>,
     pub encoding: Option<String>,
@@ -16,7 +100,7 @@ pub struct ReplacementCriteria {
 
 impl ReplacementCriteria {
     pub fn new<S: AsRef<str>>(
-        capture_pattern: Option<Regex>,
+        capture_pattern: Option<CaptureMatcher>,
         user_replacement: S,
         items: Vec<Item>,
     ) -> ReplacementCriteria {

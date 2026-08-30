@@ -3,50 +3,9 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_CONTEXT_LINE_WRAP).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "4:",
-                style: Style {
-                    fg: Some(
-                        Yellow,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678",
-                style: Style {
-                    fg: Some(
-                        Yellow,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "9*123456789(123456789_a_context_line",
-                style: Style {
-                    fg: Some(
-                        Yellow,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from_iter([
+        Span::from("4:").reversed(),
+        Span::from("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678").reversed(),
+    ]),
+    Line::from(Span::from("9*123456789(123456789_a_context_line").reversed()),
 ]

@@ -5,17 +5,12 @@ use crate::rg::de::ArbitraryData;
 
 type OneLine = bool;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub enum PrintableStyle {
+    #[default]
     Hidden,
     Common(OneLine),
     All(OneLine),
-}
-
-impl Default for PrintableStyle {
-    fn default() -> Self {
-        PrintableStyle::Hidden
-    }
 }
 
 impl Display for PrintableStyle {

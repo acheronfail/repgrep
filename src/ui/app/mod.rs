@@ -16,6 +16,9 @@ const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 pub struct App {
     pub state: AppState,
 
+    /// Replacement text carried between the match-selection and replacement-input modes.
+    replacement_draft: String,
+
     /// If the user passed a single regular expression, then this will be set so capture groups can
     /// be expanded when performing replacements. Capture group 0 contains the full match.
     capture_pattern: Option<CaptureMatcher>,
@@ -44,6 +47,7 @@ impl App {
         capture_pattern: Option<CaptureMatcher>,
         rg_cmdline: String,
         rg_messages: Vec<RgMessage>,
+        replacement: Option<String>,
     ) -> App {
         let mut list = vec![];
         let mut maybe_stats = None;
@@ -61,6 +65,8 @@ impl App {
 
         App {
             state: AppState::Running,
+
+            replacement_draft: replacement.unwrap_or_default(),
 
             capture_pattern,
             rg_cmdline,

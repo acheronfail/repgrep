@@ -33,6 +33,13 @@ See [this issue](https://github.com/acheronfail/repgrep/issues/12) for more info
 
 After installing, just use `rgr` (think: `rg` + `replace`).
 
+Pass ripgrep's `-r`/`--replace` option to prefill the replacement text while retaining the
+interactive match-selection and confirmation steps:
+
+```sh
+rgr 'old_name' -r 'new_name'
+```
+
 The arguments are:
 
 ```bash

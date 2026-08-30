@@ -106,6 +106,7 @@ impl Tui {
         patterns: &[String],
         regex_config: &RegexConfig,
         fixed_strings: bool,
+        replacement: Option<String>,
     ) -> Result<Option<ReplacementCriteria>> {
         // Compile patterns with the same regex engine and matching options used by ripgrep.
         let matchers = (!fixed_strings).then(|| {
@@ -161,7 +162,7 @@ impl Tui {
         };
 
         // main app event loop
-        let mut app = App::new(capture_pattern, rg_cmdline, rg_messages);
+        let mut app = App::new(capture_pattern, rg_cmdline, rg_messages, replacement);
         loop {
             let before_draw = Instant::now();
             self.term.draw(|f| app.draw(f))?;

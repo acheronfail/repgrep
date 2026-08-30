@@ -39,6 +39,9 @@ EXAMPLES:
         {bin} "foo"
             Find and replace all occurrences of "foo".
 
+        {bin} "foo" -r "bar"
+            Find all occurrences of "foo" and prefill the replacement text with "bar".
+
         {bin} "(f)oo"
             Find and replace all occurrences of "foo", but now "$1" will be set to "f".
             This uses regular expression capturing groups, for more info, see `rg --help`.
@@ -88,6 +91,8 @@ pub struct RgArgs {
     /// Whether fixed strings was enabled - means we only need to substring search rather than
     /// regular expression searching.
     pub fixed_strings: bool,
+    /// Replacement text supplied with ripgrep's `-r`/`--replace` option.
+    pub replacement: Option<String>,
     /// All other args that were passed will be forwarded to ripgrep.
     pub other_args: Vec<String>,
     /// Regex options used to resolve capture groups with the same semantics as ripgrep.
@@ -111,6 +116,9 @@ impl RgArgs {
         }
         if let Some(encoding) = &self.encoding {
             args.push(format!("--encoding={}", encoding));
+        }
+        if let Some(replacement) = &self.replacement {
+            args.push(format!("--replace={}", replacement));
         }
         for pattern in &self.patterns {
             args.push(format!("--regexp={}", pattern));
@@ -141,6 +149,7 @@ impl RgArgs {
             patterns,
             encoding: None,
             fixed_strings: false,
+            replacement: None,
             other_args: vec![],
             regex_config: RegexConfig::default(),
             exec_style: ExecStyle::Json,
@@ -238,6 +247,7 @@ impl RgArgs {
         let mut patterns: Vec<String> = vec![];
         let mut encoding: Option<String> = None;
         let mut fixed_strings = false;
+        let mut replacement: Option<String> = None;
         let mut other_args: Vec<String> = vec![];
         let mut regex_config = RegexConfig::default();
 
@@ -275,6 +285,9 @@ impl RgArgs {
                 }
                 Short('F') | Long("fixed-strings") => {
                     fixed_strings = true;
+                }
+                Short('r') | Long("replace") => {
+                    replacement = Some(parser.value()?.string()?);
                 }
                 Long("no-fixed-strings") => {
                     fixed_strings = false;
@@ -469,6 +482,7 @@ impl RgArgs {
             patterns,
             fixed_strings,
             encoding,
+            replacement,
             other_args,
             regex_config,
             exec_style: ExecStyle::Normal,
@@ -534,6 +548,7 @@ mod tests {
         assert!(!args.fixed_strings);
         assert!(args.other_args.is_empty());
         assert_eq!(args.encoding, None);
+        assert_eq!(args.replacement, None);
         assert_eq!(args.exec_style, ExecStyle::Normal);
     }
 
@@ -615,6 +630,34 @@ mod tests {
 
         let args = parse_rg!["-Eascii"];
         assert_eq!(args.encoding.as_deref(), Some("ascii"));
+    }
+
+    #[test]
+    fn rg_replacement() {
+        let args = parse_rg!["pattern", "-r", "replacement"];
+        assert_eq!(args.replacement.as_deref(), Some("replacement"));
+        assert!(args.other_args.is_empty());
+        assert_eq!(
+            args.rg_args(),
+            ["--replace=replacement", "--regexp=pattern"]
+        );
+
+        let args = parse_rg!["-rattached", "pattern"];
+        assert_eq!(args.replacement.as_deref(), Some("attached"));
+
+        let args = parse_rg!["--replace=inline", "pattern"];
+        assert_eq!(args.replacement.as_deref(), Some("inline"));
+
+        let args = parse_rg!["--replace", "-leading", "pattern"];
+        assert_eq!(args.replacement.as_deref(), Some("-leading"));
+
+        let args = parse_rg!["--replace", "", "pattern"];
+        assert_eq!(args.replacement.as_deref(), Some(""));
+        assert_eq!(args.rg_args(), ["--replace=", "--regexp=pattern"]);
+
+        let args = parse_rg!["-r", "first", "--replace=last", "pattern"];
+        assert_eq!(args.replacement.as_deref(), Some("last"));
+        assert_eq!(args.rg_args(), ["--replace=last", "--regexp=pattern"]);
     }
 
     #[test]
@@ -731,9 +774,7 @@ mod tests {
 
     #[test]
     fn rg_short_value_args_consume_one_value() {
-        for flag in [
-            "-A", "-B", "-C", "-d", "-g", "-j", "-m", "-M", "-r", "-t", "-T",
-        ] {
+        for flag in ["-A", "-B", "-C", "-d", "-g", "-j", "-m", "-M", "-t", "-T"] {
             let args = parse_rg![flag, "value", "pattern"];
             assert_eq!(args.patterns, ["pattern"], "failed for {flag}");
             assert_eq!(args.other_args, [format!("{flag}value")]);
@@ -769,7 +810,6 @@ mod tests {
             "--pre",
             "--pre-glob",
             "--regex-size-limit",
-            "--replace",
             "--sort",
             "--sortr",
             "--threads",

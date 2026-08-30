@@ -15,7 +15,7 @@ fn perform_replacements_in_file(
     criteria: &ReplacementCriteria,
     rg_encoding: &RgEncoding,
     (path_data, mut items): (&ArbitraryData, Vec<&Item>),
-) -> Result<bool> {
+) -> Result<()> {
     log::debug!("File: {} (item count: {})", path_data, items.len());
     let path_buf = path_data.to_path_buf()?;
 
@@ -51,6 +51,31 @@ fn perform_replacements_in_file(
     // the same offset.
     items.sort_unstable_by_key(|i| i.offset());
 
+    // Validate all selected matches before editing anything. In particular, this prevents stale
+    // cached search results (or a concurrent file edit) from causing a partially modified file.
+    for item in &items {
+        let offset = item.offset().unwrap();
+        for sub_item in item
+            .sub_items()
+            .iter()
+            .filter(|sub_item| sub_item.should_replace)
+        {
+            let SubMatch { range, text } = &sub_item.sub_match;
+            let normalised_range = (offset + range.start)..(offset + range.end);
+            let current = file_as_str.get(normalised_range.clone()).with_context(|| {
+                format!(
+                    "Matched range {:?} is no longer valid in {}",
+                    normalised_range,
+                    path_buf.display()
+                )
+            })?;
+            let matched_bytes = text.to_vec();
+            if current.as_bytes() != matched_bytes.as_slice() {
+                return bail_stale_match(&path_buf, &normalised_range, text, current);
+            }
+        }
+    }
+
     // Resolve every selected capture expansion in one pass over the original decoded file. Using
     // the complete file preserves the context required by lookbehind, anchors and PCRE2's \K.
     let capture_replacements = if let Some(capture_pattern) = &criteria.capture_pattern {
@@ -75,7 +100,6 @@ fn perform_replacements_in_file(
 
     // Iterate over the items in _reverse_ order -> this is so offsets can stay the same even though we're making
     // changes to the string.
-    let mut did_skip_replacement = false;
     for (i, item) in items.iter().rev().enumerate() {
         let offset = item.offset().unwrap();
         log::debug!("Item[{}] offset: {}", i, offset);
@@ -97,58 +121,45 @@ fn perform_replacements_in_file(
             let str_to_remove = &file_as_str[normalised_range.clone()];
             let matched_bytes = text.to_vec();
 
-            if str_to_remove.as_bytes() == matched_bytes.as_slice() {
-                // compute replacement
-                // empty buf without changing capacity
-                byte_buf.clear();
-                if criteria.capture_pattern.is_some() {
-                    byte_buf.extend_from_slice(
-                        capture_replacements
-                            .get(&(normalised_range.start, normalised_range.end))
-                            .with_context(|| {
-                                format!(
-                                    "Missing capture expansion for range {:?} in {}",
-                                    normalised_range,
-                                    path_buf.display()
-                                )
-                            })?,
-                    );
-                } else {
-                    expand_replacement(
-                        None,
-                        &matched_bytes,
-                        0..matched_bytes.len(),
-                        &criteria.user_replacement,
-                        &mut byte_buf,
-                    )?;
-                }
-                let replacement = byte_buf.as_slice();
-
-                // have to save this because it will be invalid after the replacement
-                let removed_str = str_to_remove.to_string();
-                // must convert to strings since due to encoding support we perform replacements as strings
-                let replacement = std::str::from_utf8(replacement)?;
-                // performance replacement
-                file_as_str.replace_range(normalised_range, replacement);
-
-                log::debug!(
-                    "Replacement - reported line: {:?}, removed: \"{}\", added: \"{}\"",
-                    item.line_number(),
-                    removed_str,
-                    replacement
+            // compute replacement
+            // empty buf without changing capacity
+            byte_buf.clear();
+            if criteria.capture_pattern.is_some() {
+                byte_buf.extend_from_slice(
+                    capture_replacements
+                        .get(&(normalised_range.start, normalised_range.end))
+                        .with_context(|| {
+                            format!(
+                                "Missing capture expansion for range {:?} in {}",
+                                normalised_range,
+                                path_buf.display()
+                            )
+                        })?,
                 );
             } else {
-                log::warn!("Matched bytes do not match bytes to replace!");
-                log::warn!("\tFile: \"{}\"", path_buf.display());
-                log::warn!("\tMatch: data=\"{}\", bytes={:?}", text, matched_bytes);
-                log::warn!(
-                    "\tBytes: data=\"{}\", bytes={:?}",
-                    str_to_remove,
-                    str_to_remove.as_bytes()
-                );
-                log::warn!("\tOffset: {}", offset + range.start);
-                did_skip_replacement = true;
+                expand_replacement(
+                    None,
+                    &matched_bytes,
+                    0..matched_bytes.len(),
+                    &criteria.user_replacement,
+                    &mut byte_buf,
+                )?;
             }
+            let replacement = byte_buf.as_slice();
+
+            // have to save this because it will be invalid after the replacement
+            let removed_str = str_to_remove.to_string();
+            // must convert to strings since due to encoding support we perform replacements as strings
+            let replacement = std::str::from_utf8(replacement)?;
+            // performance replacement
+            file_as_str.replace_range(normalised_range, replacement);
+
+            log::debug!(
+                "Replacement - reported line: {:?}, removed: \"{}\", added: \"{}\"",
+                item.line_number(),
+                removed_str,
+                replacement
+            );
         }
     }
 
@@ -191,7 +202,33 @@ fn perform_replacements_in_file(
     log::debug!("Moving {} to {}", temp_file_path, path_buf.display());
     temp_file.into_temp_path().persist(&path_buf)?;
 
-    Ok(did_skip_replacement)
+    Ok(())
+}
+
+fn bail_stale_match(
+    path: &std::path::Path,
+    range: &std::ops::Range<usize>,
+    expected: &ArbitraryData,
+    current: &str,
+) -> Result<()> {
+    log::warn!("Matched bytes do not match bytes to replace!");
+    log::warn!("\tFile: \"{}\"", path.display());
+    log::warn!(
+        "\tMatch: data=\"{}\", bytes={:?}",
+        expected,
+        expected.to_vec()
+    );
+    log::warn!(
+        "\tBytes: data=\"{}\", bytes={:?}",
+        current,
+        current.as_bytes()
+    );
+    log::warn!("\tOffset: {}", range.start);
+    Err(anyhow!(
+        "Matched bytes at offset {} no longer match in {}",
+        range.start,
+        path.display()
+    ))
 }
 
 pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
@@ -210,11 +247,7 @@ pub fn perform_replacements(criteria: ReplacementCriteria) -> Result<()> {
     // TODO: consider concurrent replacements here - make it configurable - we don't want to read in multiple large files at once
     for meta in criteria.as_map() {
         match perform_replacements_in_file(&criteria, &rg_encoding, meta) {
-            Ok(did_skip) => {
-                if did_skip {
-                    did_skip_replacement = true
-                }
-            }
+            Ok(()) => {}
             Err(e) => {
                 did_skip_replacement = true;
                 log::warn!("Failed to make all replacements: {}", e);
@@ -493,6 +526,29 @@ mod tests {
             fs::read_to_string(p).unwrap(),
             "NEW_VALUE NEW_VALUE NEW_VALUE"
         );
+    }
+
+    #[test]
+    fn it_does_not_modify_a_file_when_any_match_is_stale() {
+        let original = "foo bar";
+        let (item, path) = temp_item!(
+            0,
+            original,
+            vec![
+                SubMatch::new_text("foo", 0..3),
+                SubMatch::new_text("baz", 4..7),
+            ]
+        );
+
+        let error = perform_replacements(ReplacementCriteria::new(None, "NEW_VALUE", vec![item]))
+            .unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("Failed to perform all replacements")
+        );
+        assert_eq!(fs::read_to_string(path).unwrap(), original);
     }
 
     #[test]

@@ -1,3 +1,3 @@
 #!/bin/sh
 
-sudo apt-get install -y --no-install-recommends asciidoctor
+sudo apt-get install -y --no-install-recommends asciidoctor ripgrep

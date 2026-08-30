@@ -29,6 +29,14 @@ This syntax is inherited from the regex crate, see: https://docs.rs/regex/1.8.4/
 
 Only one pattern may be passed at a time when capturing groups are used (i.e., multiple *-e <pat>* flags are not allowed).
 
+**Automatic replacement**
+
+Pass *-y* or *--autoreplace* together with *-r* or *--replace* to replace every match without
+opening the interactive interface. For example, *rgr -y "old_name" -r "new_name"*.
+
+The replacement must be supplied explicitly. Automatic replacement exits with an error before
+searching if *-r* or *--replace* is missing.
+
 **Reading results from a file**
 
 This tool also supports reading results from a JSON file, with the following use case in mind:

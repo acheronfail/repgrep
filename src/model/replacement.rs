@@ -5,8 +5,28 @@ use std::ops::Range;
 use anyhow::Result;
 
 use crate::model::CaptureMatcher;
-use crate::rg::de::{ArbitraryData, RgMessageKind};
+use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind, Stats};
 use crate::ui::line::Item;
+
+pub fn replacement_items(rg_messages: Vec<RgMessage>) -> (Vec<Item>, Option<Stats>) {
+    let mut items = vec![];
+    let mut stats = None;
+
+    for (index, rg_message) in rg_messages.into_iter().enumerate() {
+        match rg_message {
+            RgMessage::Summary {
+                stats: summary_stats,
+                ..
+            } => {
+                stats = Some(summary_stats);
+                break;
+            }
+            other => items.push(Item::new(index, other)),
+        }
+    }
+
+    (items, stats)
+}
 
 /// Expand capture references in a replacement, falling back to the complete
 /// ripgrep match as capture group 0 when no capture pattern is available.

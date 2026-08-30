@@ -24,6 +24,11 @@ USAGE:
     {bin} <RG_ARGS>...
     {env_file}=path/to/rg.json rgr [REGEX]
 
+RGR OPTIONS:
+    -y, --autoreplace
+        Replace every match without opening the interactive interface.
+        This option requires -r/--replace.
+
 EXAMPLES:
     There are different ways to invoke {bin}:
 
@@ -41,6 +46,9 @@ EXAMPLES:
 
         {bin} "foo" -r "bar"
             Find all occurrences of "foo" and prefill the replacement text with "bar".
+
+        {bin} -y "foo" -r "bar"
+            Replace every occurrence of "foo" with "bar" without prompting.
 
         {bin} "(f)oo"
             Find and replace all occurrences of "foo", but now "$1" will be set to "f".
@@ -93,6 +101,8 @@ pub struct RgArgs {
     pub fixed_strings: bool,
     /// Replacement text supplied with ripgrep's `-r`/`--replace` option.
     pub replacement: Option<String>,
+    /// Whether all matches should be replaced without opening the interactive interface.
+    pub autoreplace: bool,
     /// All other args that were passed will be forwarded to ripgrep.
     pub other_args: Vec<String>,
     /// Regex options used to resolve capture groups with the same semantics as ripgrep.
@@ -135,9 +145,17 @@ impl RgArgs {
         use lexopt::prelude::*;
 
         let mut patterns = vec![];
+        let mut replacement = None;
+        let mut autoreplace = false;
 
         while let Some(arg) = parser.next()? {
             match arg {
+                Short('r') | Long("replace") => {
+                    replacement = Some(parser.value()?.string()?);
+                }
+                Short('y') | Long("autoreplace") => {
+                    autoreplace = true;
+                }
                 Value(pat) if patterns.is_empty() => patterns.push(pat.string()?),
                 _ => {
                     bail!("{}\nSee --help for usage", arg.unexpected())
@@ -145,15 +163,18 @@ impl RgArgs {
             }
         }
 
-        Ok(RgArgs {
+        let args = RgArgs {
             patterns,
             encoding: None,
             fixed_strings: false,
-            replacement: None,
+            replacement,
+            autoreplace,
             other_args: vec![],
             regex_config: RegexConfig::default(),
             exec_style: ExecStyle::Json,
-        })
+        };
+        args.validate()?;
+        Ok(args)
     }
 
     pub fn parse_rg_args() -> Result<RgArgs> {
@@ -248,6 +269,7 @@ impl RgArgs {
         let mut encoding: Option<String> = None;
         let mut fixed_strings = false;
         let mut replacement: Option<String> = None;
+        let mut autoreplace = false;
         let mut other_args: Vec<String> = vec![];
         let mut regex_config = RegexConfig::default();
 
@@ -288,6 +310,9 @@ impl RgArgs {
                 }
                 Short('r') | Long("replace") => {
                     replacement = Some(parser.value()?.string()?);
+                }
+                Short('y') | Long("autoreplace") => {
+                    autoreplace = true;
                 }
                 Long("no-fixed-strings") => {
                     fixed_strings = false;
@@ -478,15 +503,25 @@ impl RgArgs {
             }
         }
 
-        Ok(RgArgs {
+        let args = RgArgs {
             patterns,
             fixed_strings,
             encoding,
             replacement,
+            autoreplace,
             other_args,
             regex_config,
             exec_style: ExecStyle::Normal,
-        })
+        };
+        args.validate()?;
+        Ok(args)
+    }
+
+    fn validate(&self) -> Result<()> {
+        if self.autoreplace && self.replacement.is_none() {
+            bail!("--autoreplace requires -r/--replace")
+        }
+        Ok(())
     }
 }
 
@@ -495,9 +530,15 @@ mod tests {
     use super::*;
     use crate::temp_file;
 
+    macro_rules! try_parse_pattern {
+        [$($arg:expr$(,)?)*] => {
+            RgArgs::parse_pattern_impl(Parser::from_iter(["rgr".to_string(), $($arg.into(),)*]))
+        };
+    }
+
     macro_rules! parse_pattern {
         [$($arg:expr$(,)?)*] => {
-            RgArgs::parse_pattern_impl(Parser::from_iter(["rgr".to_string(), $($arg.into(),)*])).unwrap()
+            try_parse_pattern![$($arg),*].unwrap()
         };
     }
 
@@ -508,6 +549,8 @@ mod tests {
         assert!(!args.fixed_strings);
         assert!(args.other_args.is_empty());
         assert_eq!(args.encoding, None);
+        assert_eq!(args.replacement, None);
+        assert!(!args.autoreplace);
         assert_eq!(args.exec_style, ExecStyle::Json);
     }
 
@@ -515,6 +558,23 @@ mod tests {
     fn pattern_one() {
         let args = parse_pattern!["pattern"];
         assert_eq!(args.patterns, ["pattern"]);
+    }
+
+    #[test]
+    fn pattern_autoreplace() {
+        let args = parse_pattern!["-y", "-r", "replacement", "pattern"];
+        assert!(args.autoreplace);
+        assert_eq!(args.replacement.as_deref(), Some("replacement"));
+        assert_eq!(args.patterns, ["pattern"]);
+
+        let args = parse_pattern!["--autoreplace", "--replace=other", "pattern"];
+        assert!(args.autoreplace);
+        assert_eq!(args.replacement.as_deref(), Some("other"));
+
+        let error = try_parse_pattern!["--autoreplace", "pattern"]
+            .err()
+            .unwrap();
+        assert_eq!(error.to_string(), "--autoreplace requires -r/--replace");
     }
 
     #[test]
@@ -549,6 +609,7 @@ mod tests {
         assert!(args.other_args.is_empty());
         assert_eq!(args.encoding, None);
         assert_eq!(args.replacement, None);
+        assert!(!args.autoreplace);
         assert_eq!(args.exec_style, ExecStyle::Normal);
     }
 
@@ -658,6 +719,22 @@ mod tests {
         let args = parse_rg!["-r", "first", "--replace=last", "pattern"];
         assert_eq!(args.replacement.as_deref(), Some("last"));
         assert_eq!(args.rg_args(), ["--replace=last", "--regexp=pattern"]);
+    }
+
+    #[test]
+    fn rg_autoreplace() {
+        for flag in ["-y", "--autoreplace"] {
+            let args = parse_rg![flag, "-r", "replacement", "pattern"];
+            assert!(args.autoreplace);
+            assert_eq!(args.replacement.as_deref(), Some("replacement"));
+            assert_eq!(
+                args.rg_args(),
+                ["--replace=replacement", "--regexp=pattern"]
+            );
+        }
+
+        let error = try_parse_rg!["--autoreplace", "pattern"].err().unwrap();
+        assert_eq!(error.to_string(), "--autoreplace requires -r/--replace");
     }
 
     #[test]

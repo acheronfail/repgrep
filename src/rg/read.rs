@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, BufReader, Read, Write};
+use std::io::{self, BufRead, BufReader, IsTerminal, Read, Write};
 
 use anyhow::{Result, anyhow};
 
@@ -11,9 +11,9 @@ pub fn read_messages<R: Read>(rdr: R) -> Result<Vec<RgMessage>> {
     let reader = BufReader::new(rdr);
     for (i, line) in reader.lines().enumerate() {
         // For large result lists show some progress in the terminal.
-        if i > 0 && i % 1000 == 0 {
-            let _ = io::stdout().write_all(format!("\rMatches found: ~{}", i).as_bytes());
-            let _ = io::stdout().flush();
+        if i > 0 && i % 1000 == 0 && io::stderr().is_terminal() {
+            let _ = io::stderr().write_all(format!("\rMatches found: ~{}", i).as_bytes());
+            let _ = io::stderr().flush();
         }
 
         let rg_msg: RgMessage =

@@ -40,6 +40,13 @@ interactive match-selection and confirmation steps:
 rgr 'old_name' -r 'new_name'
 ```
 
+Use rgr's `-y`/`--autoreplace` option with `-r`/`--replace` to replace every match without
+opening the interactive interface:
+
+```sh
+rgr -y 'old_name' -r 'new_name'
+```
+
 The arguments are:
 
 ```bash

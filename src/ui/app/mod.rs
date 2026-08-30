@@ -6,7 +6,7 @@ use anyhow::{Result, bail};
 use state::HelpTextState;
 pub use state::{AppListState, AppState, AppUiState};
 
-use crate::model::{CaptureMatcher, PrintableStyle, ReplacementCriteria};
+use crate::model::{CaptureMatcher, PrintableStyle, ReplacementCriteria, replacement_items};
 use crate::rg::de::{RgMessage, Stats};
 use crate::ui::line::Item;
 use crate::ui::theme::Theme;
@@ -49,19 +49,7 @@ impl App {
         rg_messages: Vec<RgMessage>,
         replacement: Option<String>,
     ) -> App {
-        let mut list = vec![];
-        let mut maybe_stats = None;
-
-        for (i, rg_message) in rg_messages.into_iter().enumerate() {
-            match rg_message {
-                RgMessage::Summary { stats, .. } => {
-                    maybe_stats = Some(stats);
-                    // NOTE: there should only be one RgMessage::Summary, and it should be the last item.
-                    break;
-                }
-                other => list.push(Item::new(i, other)),
-            }
-        }
+        let (list, maybe_stats) = replacement_items(rg_messages);
 
         App {
             state: AppState::Running,

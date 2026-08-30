@@ -11,7 +11,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crate::model::{CaptureMatcher, RegexConfig, ReplacementCriteria};
+use crate::model::{RegexConfig, ReplacementCriteria, capture_pattern};
 use crate::rg::de::RgMessage;
 use crate::ui::app::{App, AppState};
 use crate::ui::theme::Theme;
@@ -108,55 +108,13 @@ impl Tui {
         fixed_strings: bool,
         replacement: Option<String>,
     ) -> Result<Option<ReplacementCriteria>> {
-        // Compile patterns with the same regex engine and matching options used by ripgrep.
-        let matchers = (!fixed_strings).then(|| {
-            patterns
-                .iter()
-                .map(|pattern| CaptureMatcher::new(pattern, regex_config, false))
-                .collect::<Result<Vec<_>, _>>()
-        });
-
-        // Keep a single regex for replacement expansion. Even without explicit
-        // capturing groups, its implicit capture group 0 contains the full match.
-        let capture_pattern = match matchers {
-            // one pattern passed
-            Some(Ok(mut one)) if one.len() == 1 => {
-                // SAFETY: we just checked for length in this match
-                Some(one.pop().unwrap())
-            }
-            // many patterns passed, and one had a capturing group
-            // all regex's have at least one capturing group, see: https://docs.rs/regex/1.8.4/regex/struct.Captures.html#method.len
-            Some(Ok(many)) if many.iter().any(|matcher| matcher.capture_count() > 1) => {
+        let capture_pattern = match capture_pattern(patterns, regex_config, fixed_strings) {
+            Ok(capture_pattern) => capture_pattern,
+            Err(error) => {
                 self.draw_message_box(
                     "Unsupported Arguments!",
-                    format!(
-                        "{}\n\nPatterns:\n\n{patterns}\n\n{fallback}",
-                        "Either pass a single pattern with capturing groups, or many patterns without capturing groups.",
-                        patterns = patterns
-                            .iter()
-                            .map(|pattern| format!("  - {pattern}"))
-                            .collect::<Vec<_>>()
-                            .join("\n"),
-                            fallback = FALLBACK_MESSAGE
-                    ),
+                    format!("{error}\n\n{FALLBACK_MESSAGE}"),
                 )?;
-
-                None
-            }
-            // many patterns passed, none had capturing groups
-            Some(Ok(_)) | None => None,
-            // failed to parse patterns
-            Some(Err(e)) => {
-                self.draw_message_box(
-                    "Error!",
-                    format!(
-                        "{}\n\nError: {}\n\n{fallback}",
-                        "Failed to pass patterns!",
-                        e,
-                        fallback = FALLBACK_MESSAGE
-                    ),
-                )?;
-
                 None
             }
         };

@@ -172,6 +172,38 @@ impl CaptureMatcher {
     }
 }
 
+pub fn capture_pattern(
+    patterns: &[String],
+    config: &RegexConfig,
+    fixed_strings: bool,
+) -> Result<Option<CaptureMatcher>> {
+    if fixed_strings {
+        return Ok(None);
+    }
+
+    let mut matchers = patterns
+        .iter()
+        .map(|pattern| CaptureMatcher::new(pattern, config, false))
+        .collect::<Result<Vec<_>>>()?;
+
+    if matchers.len() == 1 {
+        return Ok(matchers.pop());
+    }
+
+    if matchers.iter().any(|matcher| matcher.capture_count() > 1) {
+        bail!(
+            "Either pass a single pattern with capturing groups, or many patterns without capturing groups.\n\nPatterns:\n\n{}",
+            patterns
+                .iter()
+                .map(|pattern| format!("  - {pattern}"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+
+    Ok(None)
+}
+
 fn collect_replacements<M: Matcher>(
     matcher: &M,
     haystack: &[u8],
@@ -303,5 +335,29 @@ mod tests {
             .replacement_for(b"foo", 1..3, b"$1")
             .unwrap_err();
         assert!(error.to_string().contains("1..3"));
+    }
+
+    #[test]
+    fn prepares_capture_patterns_for_replacement() {
+        let config = RegexConfig::default();
+        assert!(capture_pattern(&[], &config, false).unwrap().is_none());
+        assert!(
+            capture_pattern(&["foo".into()], &config, false)
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            capture_pattern(&["(foo)".into()], &config, true)
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            capture_pattern(&["foo".into(), "bar".into()], &config, false)
+                .unwrap()
+                .is_none()
+        );
+
+        let error = capture_pattern(&["(foo)".into(), "bar".into()], &config, false).unwrap_err();
+        assert!(error.to_string().contains("single pattern"));
     }
 }

@@ -1,3 +1,17 @@
+# 0.17.0
+
+- c7f882f Merge pull request #114 from acheronfail/next
+- fae1aaee add autoreplace mode
+- fae18da capture and use rg --replace flag
+- fae1108 ui: adapt colours to terminal theme
+- fae168d ci: install ripgrep for macOS integration test
+- fae1852 fix terminal input with piped stdin on macOS
+- fae18a6 fix capture expansion with pcre2 regexes
+- fae13a4 dev: bump MSRV to 1.96.0 and update dependencies
+- fae16bb fix replacement expansion for capture group zero
+- fae161b fix cli argument parsing for ripgrep flags
+- fae1772 remove UTF-8 BOM workarounds since ripgrep#1638
+
 # 0.16.1
 
 - fae15dc fix cli argument parsing issue with single character flags

@@ -51,6 +51,28 @@ fn perform_replacements_in_file(
     // the same offset.
     items.sort_unstable_by_key(|i| i.offset());
 
+    // Resolve every selected capture expansion in one pass over the original decoded file. Using
+    // the complete file preserves the context required by lookbehind, anchors and PCRE2's \K.
+    let capture_replacements = if let Some(capture_pattern) = &criteria.capture_pattern {
+        let ranges = items.iter().flat_map(|item| {
+            let offset = item.offset().unwrap();
+            item.sub_items()
+                .iter()
+                .filter(|sub_item| sub_item.should_replace)
+                .map(move |sub_item| {
+                    (offset + sub_item.sub_match.range.start)
+                        ..(offset + sub_item.sub_match.range.end)
+                })
+        });
+        capture_pattern.replacements_for(
+            file_as_str.as_bytes(),
+            ranges,
+            &criteria.user_replacement,
+        )?
+    } else {
+        Default::default()
+    };
+
     // Iterate over the items in _reverse_ order -> this is so offsets can stay the same even though we're making
     // changes to the string.
     let mut did_skip_replacement = false;
@@ -79,12 +101,27 @@ fn perform_replacements_in_file(
                 // compute replacement
                 // empty buf without changing capacity
                 byte_buf.clear();
-                expand_replacement(
-                    criteria.capture_pattern.as_ref(),
-                    &matched_bytes,
-                    &criteria.user_replacement,
-                    &mut byte_buf,
-                );
+                if criteria.capture_pattern.is_some() {
+                    byte_buf.extend_from_slice(
+                        capture_replacements
+                            .get(&(normalised_range.start, normalised_range.end))
+                            .with_context(|| {
+                                format!(
+                                    "Missing capture expansion for range {:?} in {}",
+                                    normalised_range,
+                                    path_buf.display()
+                                )
+                            })?,
+                    );
+                } else {
+                    expand_replacement(
+                        None,
+                        &matched_bytes,
+                        0..matched_bytes.len(),
+                        &criteria.user_replacement,
+                        &mut byte_buf,
+                    )?;
+                }
                 let replacement = byte_buf.as_slice();
 
                 // have to save this because it will be invalid after the replacement
@@ -204,7 +241,6 @@ mod tests {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     use base64_simd::STANDARD as base64;
     use pretty_assertions::assert_eq;
-    use regex::bytes::Regex;
 
     use crate::model::*;
     use crate::replace::perform_replacements;
@@ -251,8 +287,20 @@ mod tests {
             None
         };
         ($re:expr) => {
-            Some(Regex::new($re).unwrap())
+            Some(CaptureMatcher::new($re, &RegexConfig::default(), false).unwrap())
         };
+    }
+
+    fn pcre2(pattern: &str) -> CaptureMatcher {
+        CaptureMatcher::new(
+            pattern,
+            &RegexConfig {
+                engine: RegexEngine::Pcre2,
+                ..RegexConfig::default()
+            },
+            false,
+        )
+        .unwrap()
     }
 
     #[test]
@@ -297,6 +345,39 @@ mod tests {
             perform_replacements(criteria).unwrap();
             assert_eq!(fs::read_to_string(p1).unwrap(), expected);
         }
+    }
+
+    #[test]
+    fn it_expands_pcre2_backreferences() {
+        let (item, path) = temp_item!(
+            0,
+            "word word tail",
+            vec![SubMatch::new_text("word word", 0..9)]
+        );
+        let criteria = ReplacementCriteria::new(Some(pcre2(r"(\w+) \1")), "$1", vec![item]);
+
+        perform_replacements(criteria).unwrap();
+
+        assert_eq!(fs::read_to_string(path).unwrap(), "word tail");
+    }
+
+    #[test]
+    fn it_expands_pcre2_captures_using_context_before_the_match() {
+        let path = temp_file!("prefix\nbar\nsuffix");
+        let item = Item::new(
+            0,
+            RgMessageBuilder::new(RgMessageKind::Match)
+                .with_path_text(path.to_string_lossy())
+                .with_lines_text("bar\n")
+                .with_submatches(vec![SubMatch::new_text("r", 2..3)])
+                .with_offset(7)
+                .build(),
+        );
+        let criteria = ReplacementCriteria::new(Some(pcre2(r"(ba)\K(r)")), "$1-$2", vec![item]);
+
+        perform_replacements(criteria).unwrap();
+
+        assert_eq!(fs::read_to_string(path).unwrap(), "prefix\nbaba-r\nsuffix");
     }
 
     #[test]

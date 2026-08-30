@@ -1,23 +1,28 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::ops::Range;
 
-use regex::bytes::Regex;
+use anyhow::Result;
 
+use crate::model::CaptureMatcher;
 use crate::rg::de::{ArbitraryData, RgMessageKind};
 use crate::ui::line::Item;
 
 /// Expand capture references in a replacement, falling back to the complete
 /// ripgrep match as capture group 0 when no capture pattern is available.
 pub fn expand_replacement(
-    capture_pattern: Option<&Regex>,
-    matched_bytes: &[u8],
+    capture_pattern: Option<&CaptureMatcher>,
+    haystack: &[u8],
+    matched_range: Range<usize>,
     user_replacement: &[u8],
     dst: &mut Vec<u8>,
-) {
-    if let Some(captures) = capture_pattern.and_then(|re| re.captures(matched_bytes)) {
-        captures.expand(user_replacement, dst);
-        return;
+) -> Result<()> {
+    if let Some(capture_pattern) = capture_pattern {
+        dst.extend(capture_pattern.replacement_for(haystack, matched_range, user_replacement)?);
+        return Ok(());
     }
+
+    let matched_bytes = &haystack[matched_range];
 
     let mut remaining = user_replacement;
     while let Some(start) = remaining.iter().position(|&b| b == b'$') {
@@ -62,11 +67,12 @@ pub fn expand_replacement(
         remaining = &remaining[end..];
     }
     dst.extend_from_slice(remaining);
+    Ok(())
 }
 
 #[derive(Debug)]
 pub struct ReplacementCriteria {
-    pub capture_pattern: Option<Regex>,
+    pub capture_pattern: Option<CaptureMatcher>,
     pub items: Vec<Item>,
     pub user_replacement: Vec<u8>,
     pub encoding: Option<String>,
@@ -74,7 +80,7 @@ pub struct ReplacementCriteria {
 
 impl ReplacementCriteria {
     pub fn new<S: AsRef<str>>(
-        capture_pattern: Option<Regex>,
+        capture_pattern: Option<CaptureMatcher>,
         user_replacement: S,
         items: Vec<Item>,
     ) -> ReplacementCriteria {

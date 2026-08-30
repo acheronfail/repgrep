@@ -3,6 +3,8 @@ use std::{fs, process};
 use anyhow::{Result, bail};
 use lexopt::Parser;
 
+use crate::model::{CaseMode, RegexConfig, RegexEngine};
+
 pub const ENV_JSON_FILE: &str = "RGR_JSON_FILE";
 
 pub fn print_help() {
@@ -88,6 +90,8 @@ pub struct RgArgs {
     pub fixed_strings: bool,
     /// All other args that were passed will be forwarded to ripgrep.
     pub other_args: Vec<String>,
+    /// Regex options used to resolve capture groups with the same semantics as ripgrep.
+    pub regex_config: RegexConfig,
 
     exec_style: ExecStyle,
 }
@@ -138,6 +142,7 @@ impl RgArgs {
             encoding: None,
             fixed_strings: false,
             other_args: vec![],
+            regex_config: RegexConfig::default(),
             exec_style: ExecStyle::Json,
         })
     }
@@ -234,6 +239,7 @@ impl RgArgs {
         let mut encoding: Option<String> = None;
         let mut fixed_strings = false;
         let mut other_args: Vec<String> = vec![];
+        let mut regex_config = RegexConfig::default();
 
         // as per ripgrep's documentation:
         // > When -f/--file or -e/--regexp is used, then ripgrep treats all positional arguments as
@@ -272,6 +278,135 @@ impl RgArgs {
                 }
                 Long("no-fixed-strings") => {
                     fixed_strings = false;
+                }
+
+                // ripgrep: regex engine and matching options. rgr needs these to compile the same
+                // capture matcher that ripgrep used for the search.
+                Short('P') => {
+                    regex_config.engine = RegexEngine::Pcre2;
+                    other_args.push("-P".into());
+                }
+                Long("pcre2") => {
+                    regex_config.engine = RegexEngine::Pcre2;
+                    other_args.push("--pcre2".into());
+                }
+                Long("no-pcre2") => {
+                    regex_config.engine = RegexEngine::Default;
+                    other_args.push("--no-pcre2".into());
+                }
+                Long("engine") => {
+                    let engine = parser.value()?.string()?;
+                    regex_config.engine = match engine.as_str() {
+                        "default" => RegexEngine::Default,
+                        "pcre2" => RegexEngine::Pcre2,
+                        "auto" | "auto-hybrid" => RegexEngine::Auto,
+                        _ => bail!("unsupported ripgrep regex engine: {engine}"),
+                    };
+                    other_args.push(format!("--engine={engine}"));
+                }
+                Long("auto-hybrid-regex") => {
+                    regex_config.engine = RegexEngine::Auto;
+                    other_args.push("--auto-hybrid-regex".into());
+                }
+                Long("no-auto-hybrid-regex") => {
+                    regex_config.engine = RegexEngine::Default;
+                    other_args.push("--no-auto-hybrid-regex".into());
+                }
+                Short('s') => {
+                    regex_config.case = CaseMode::Sensitive;
+                    other_args.push("-s".into());
+                }
+                Long("case-sensitive") => {
+                    regex_config.case = CaseMode::Sensitive;
+                    other_args.push("--case-sensitive".into());
+                }
+                Short('i') => {
+                    regex_config.case = CaseMode::Insensitive;
+                    other_args.push("-i".into());
+                }
+                Long("ignore-case") => {
+                    regex_config.case = CaseMode::Insensitive;
+                    other_args.push("--ignore-case".into());
+                }
+                Short('S') => {
+                    regex_config.case = CaseMode::Smart;
+                    other_args.push("-S".into());
+                }
+                Long("smart-case") => {
+                    regex_config.case = CaseMode::Smart;
+                    other_args.push("--smart-case".into());
+                }
+                Short('U') => {
+                    regex_config.multiline = true;
+                    other_args.push("-U".into());
+                }
+                Long("multiline") => {
+                    regex_config.multiline = true;
+                    other_args.push("--multiline".into());
+                }
+                Long("no-multiline") => {
+                    regex_config.multiline = false;
+                    other_args.push("--no-multiline".into());
+                }
+                Long("multiline-dotall") => {
+                    regex_config.multiline_dotall = true;
+                    other_args.push("--multiline-dotall".into());
+                }
+                Long("no-multiline-dotall") => {
+                    regex_config.multiline_dotall = false;
+                    other_args.push("--no-multiline-dotall".into());
+                }
+                Long("crlf") => {
+                    regex_config.crlf = true;
+                    other_args.push("--crlf".into());
+                }
+                Long("no-crlf") => {
+                    regex_config.crlf = false;
+                    other_args.push("--no-crlf".into());
+                }
+                Short('w') => {
+                    regex_config.word = true;
+                    regex_config.whole_line = false;
+                    other_args.push("-w".into());
+                }
+                Long("word-regexp") => {
+                    regex_config.word = true;
+                    regex_config.whole_line = false;
+                    other_args.push("--word-regexp".into());
+                }
+                Short('x') => {
+                    regex_config.word = false;
+                    regex_config.whole_line = true;
+                    other_args.push("-x".into());
+                }
+                Long("line-regexp") => {
+                    regex_config.word = false;
+                    regex_config.whole_line = true;
+                    other_args.push("--line-regexp".into());
+                }
+                Long("no-word-regexp") => {
+                    regex_config.word = false;
+                    other_args.push("--no-word-regexp".into());
+                }
+                Long("no-line-regexp") => {
+                    regex_config.whole_line = false;
+                    other_args.push("--no-line-regexp".into());
+                }
+                Long("unicode") => {
+                    regex_config.unicode = true;
+                    other_args.push("--unicode".into());
+                }
+                Long("pcre2-unicode") => {
+                    regex_config.unicode = true;
+                    other_args.push("--pcre2-unicode".into());
+                }
+                Long("no-unicode") => {
+                    regex_config.unicode = false;
+                    other_args.push("--no-unicode".into());
+                }
+                Long("no-pcre2-unicode") => {
+                    regex_config.unicode = false;
+                    other_args.push("--no-pcre2-unicode".into());
                 }
 
                 // These ripgrep modes either don't emit search results or are incompatible with
@@ -335,6 +470,7 @@ impl RgArgs {
             fixed_strings,
             encoding,
             other_args,
+            regex_config,
             exec_style: ExecStyle::Normal,
         })
     }
@@ -505,6 +641,58 @@ mod tests {
     }
 
     #[test]
+    fn rg_regex_engine_options_follow_argument_order() {
+        let args = parse_rg!["--pcre2", "--engine=default", "pattern"];
+        assert_eq!(args.regex_config.engine, RegexEngine::Default);
+
+        let args = parse_rg!["--engine", "pcre2", "--no-pcre2", "pattern"];
+        assert_eq!(args.regex_config.engine, RegexEngine::Default);
+
+        let args = parse_rg!["--no-pcre2", "--auto-hybrid-regex", "pattern"];
+        assert_eq!(args.regex_config.engine, RegexEngine::Auto);
+
+        let args = parse_rg!["--engine=auto", "pattern"];
+        assert_eq!(args.regex_config.engine, RegexEngine::Auto);
+    }
+
+    #[test]
+    fn rg_capture_matching_options_follow_argument_order() {
+        let args = parse_rg![
+            "-i",
+            "--smart-case",
+            "-s",
+            "--multiline",
+            "--multiline-dotall",
+            "--crlf",
+            "--word-regexp",
+            "--line-regexp",
+            "--no-unicode",
+            "pattern"
+        ];
+        assert_eq!(args.regex_config.case, CaseMode::Sensitive);
+        assert!(args.regex_config.multiline);
+        assert!(args.regex_config.multiline_dotall);
+        assert!(args.regex_config.crlf);
+        assert!(!args.regex_config.word);
+        assert!(args.regex_config.whole_line);
+        assert!(!args.regex_config.unicode);
+
+        let args = parse_rg![
+            "--no-multiline",
+            "--no-multiline-dotall",
+            "--no-crlf",
+            "--no-line-regexp",
+            "--unicode",
+            "pattern"
+        ];
+        assert!(!args.regex_config.multiline);
+        assert!(!args.regex_config.multiline_dotall);
+        assert!(!args.regex_config.crlf);
+        assert!(!args.regex_config.whole_line);
+        assert!(args.regex_config.unicode);
+    }
+
+    #[test]
     fn rg_boolean_flags_do_not_consume_pattern() {
         for flag in [
             "-.",
@@ -566,7 +754,6 @@ mod tests {
             "--context",
             "--context-separator",
             "--dfa-size-limit",
-            "--engine",
             "--field-context-separator",
             "--field-match-separator",
             "--glob",
@@ -628,7 +815,8 @@ mod tests {
 
         let args = parse_rg!["-in", "pattern"];
         assert_eq!(args.patterns, ["pattern"]);
-        assert_eq!(args.other_args, ["-in"]);
+        assert_eq!(args.other_args, ["-i", "-n"]);
+        assert_eq!(args.regex_config.case, CaseMode::Insensitive);
 
         let args = parse_rg!["--", "-pattern"];
         assert_eq!(args.patterns, ["-pattern"]);

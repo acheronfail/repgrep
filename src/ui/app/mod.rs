@@ -3,11 +3,10 @@ mod app_render;
 mod state;
 
 use anyhow::{Result, bail};
-use regex::bytes::Regex;
 use state::HelpTextState;
 pub use state::{AppListState, AppState, AppUiState};
 
-use crate::model::{PrintableStyle, ReplacementCriteria};
+use crate::model::{CaptureMatcher, PrintableStyle, ReplacementCriteria};
 use crate::rg::de::{RgMessage, Stats};
 use crate::ui::line::Item;
 
@@ -18,7 +17,7 @@ pub struct App {
 
     /// If the user passed a single regular expression, then this will be set so capture groups can
     /// be expanded when performing replacements. Capture group 0 contains the full match.
-    capture_pattern: Option<Regex>,
+    capture_pattern: Option<CaptureMatcher>,
 
     /// Raw args passed to `ripgrep`.
     rg_cmdline: String,
@@ -39,7 +38,7 @@ pub struct App {
 
 impl App {
     pub fn new(
-        capture_pattern: Option<Regex>,
+        capture_pattern: Option<CaptureMatcher>,
         rg_cmdline: String,
         rg_messages: Vec<RgMessage>,
     ) -> App {

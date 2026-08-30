@@ -282,15 +282,19 @@ impl Item {
 
                 // Read the lines as bytes since we split it at the byte ranges that ripgrep gives us in each of the submatches.
                 let lines_bytes = lines.to_vec();
-                let replacement_spans = |matched_bytes: &[u8]| {
+                let replacement_spans = |matched_range: Range<usize>| {
                     let user = ctx.replacement_text?;
                     let mut text = Vec::new();
-                    expand_replacement(
+                    if let Err(error) = expand_replacement(
                         ctx.capture_pattern,
-                        matched_bytes,
+                        &lines_bytes,
+                        matched_range,
                         user.as_bytes(),
                         &mut text,
-                    );
+                    ) {
+                        log::warn!("failed to expand replacement preview: {error}");
+                        return None;
+                    }
 
                     let replacement_style = base_style.fg(Color::Green);
                     let mut spans = text
@@ -375,8 +379,7 @@ impl Item {
 
                     // Replacement text.
                     if sub_item.should_replace
-                        && let Some(replacement_span_lines) =
-                            replacement_spans(&lines_bytes[start..end])
+                        && let Some(replacement_span_lines) = replacement_spans(start..end)
                     {
                         for (i, span) in replacement_span_lines.iter().enumerate() {
                             if i == 0 {
@@ -467,7 +470,6 @@ mod tests {
     use insta::assert_debug_snapshot;
     use pretty_assertions::assert_eq;
     use ratatui::layout::Rect;
-    use regex::bytes::Regex;
 
     use crate::model::*;
     use crate::rg::de::test_utilities::*;
@@ -681,7 +683,8 @@ mod tests {
         let app_list_state = new_app_list_state();
         let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
-        let re = Regex::new(r"(?:(Item)|(rg_msg))").unwrap();
+        let re =
+            CaptureMatcher::new(r"(?:(Item)|(rg_msg))", &RegexConfig::default(), false).unwrap();
         ctx.capture_pattern = Some(&re);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
@@ -706,7 +709,8 @@ mod tests {
         let app_list_state = new_app_list_state();
         let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
-        let re = Regex::new(r"(?:(Item)|(rg_msg))").unwrap();
+        let re =
+            CaptureMatcher::new(r"(?:(Item)|(rg_msg))", &RegexConfig::default(), false).unwrap();
         ctx.capture_pattern = Some(&re);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));

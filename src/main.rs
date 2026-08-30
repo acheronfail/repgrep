@@ -198,6 +198,7 @@ fn main() {
                     args.rg_cmdline(),
                     rg_messages,
                     &args.patterns,
+                    &args.regex_config,
                     args.fixed_strings,
                 )
             });

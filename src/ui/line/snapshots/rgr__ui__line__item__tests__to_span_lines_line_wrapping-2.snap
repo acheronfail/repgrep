@@ -4,8 +4,8 @@ expression: new_item(RG_JSON_CONTEXT_LINE_WRAP).to_span_lines(&ctx)
 ---
 [
     Line::from_iter([
-        Span::from("4:").yellow(),
-        Span::from("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678").yellow(),
+        Span::from("4:").reversed(),
+        Span::from("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678").reversed(),
     ]),
-    Line::from(Span::from("9*123456789(123456789_a_context_line").yellow()),
+    Line::from(Span::from("9*123456789(123456789_a_context_line").reversed()),
 ]

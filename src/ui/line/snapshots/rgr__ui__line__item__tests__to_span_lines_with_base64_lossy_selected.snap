@@ -3,5 +3,5 @@ source: src/ui/line/item.rs
 expression: new_item(RG_B64_JSON_BEGIN).to_span_lines(&ctx)
 ---
 [
-    Line::from(Span::from("./a/fo�o").black().on_yellow()),
+    Line::from(Span::from("./a/fo�o").reversed()),
 ]

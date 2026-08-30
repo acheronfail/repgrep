@@ -4,26 +4,26 @@ expression: new_item(RG_JSON_MATCH_MULTILINE).to_span_lines(&ctx)
 ---
 [
     Line::from_iter([
-        Span::from("3:").dark_gray(),
+        Span::from("3:").dim(),
         Span::from("baz "),
         Span::from("foobar").green(),
     ]),
     Line::from_iter([
-        Span::from("+:").dark_gray(),
+        Span::from("+:").dim(),
         Span::from("baz").green(),
     ]),
     Line::from_iter([
-        Span::from("+:").dark_gray(),
+        Span::from("+:").dim(),
         Span::from("asdf").green(),
         Span::from(" bar "),
         Span::from("foobar").green(),
     ]),
     Line::from_iter([
-        Span::from("+:").dark_gray(),
+        Span::from("+:").dim(),
         Span::from("baz").green(),
     ]),
     Line::from_iter([
-        Span::from("+:").dark_gray(),
+        Span::from("+:").dim(),
         Span::from("asdf").green(),
         Span::default(),
     ]),

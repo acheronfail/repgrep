@@ -4,7 +4,7 @@ expression: item.to_span_lines(&ctx)
 ---
 [
     Line::from_iter([
-        Span::from("197:").dark_gray(),
+        Span::from("197:").dim(),
         Span::from("    "),
         Span::from("Item"),
         Span::from("::new("),

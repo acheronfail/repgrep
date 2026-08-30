@@ -4,12 +4,12 @@ expression: new_item(RG_JSON_MATCH_LINE_WRAP).to_span_lines(&ctx)
 ---
 [
     Line::from_iter([
-        Span::from("3:").yellow(),
-        Span::from("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678").yellow(),
+        Span::from("3:").reversed(),
+        Span::from("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678").reversed(),
     ]),
     Line::from_iter([
-        Span::from("9*123456789(123456789_").yellow(),
-        Span::from("one_hundred").black().on_yellow(),
-        Span::from("_characters_wowzers").yellow(),
+        Span::from("9*123456789(123456789_").reversed(),
+        Span::from("one_hundred").red().bold().underlined().reversed(),
+        Span::from("_characters_wowzers").reversed(),
     ]),
 ]

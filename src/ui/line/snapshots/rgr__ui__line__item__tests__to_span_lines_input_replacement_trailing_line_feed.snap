@@ -4,20 +4,20 @@ expression: new_item(RG_JSON_MATCH).to_span_lines(&ctx)
 ---
 [
     Line::from_iter([
-        Span::from("197:").dark_gray(),
+        Span::from("197:").dim(),
         Span::from("    "),
         Span::from("Item").red().crossed_out(),
         Span::from("foobar").green(),
     ]),
     Line::from_iter([
-        Span::from("+:").dark_gray(),
+        Span::from("+:").dim(),
         Span::default(),
         Span::from("::new("),
         Span::from("rg_msg").red().crossed_out(),
         Span::from("foobar").green(),
     ]),
     Line::from_iter([
-        Span::from("+:").dark_gray(),
+        Span::from("+:").dim(),
         Span::default(),
         Span::from(")"),
     ]),

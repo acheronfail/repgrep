@@ -1,6 +1,7 @@
-use ratatui::style::{Color, Style};
 use ratatui::text::Span;
 use ratatui::widgets::ListState;
+
+use crate::ui::theme::Theme;
 
 #[derive(Debug)]
 pub struct AppListState {
@@ -101,13 +102,12 @@ impl AppUiState {
 
     /// Represent the `AppUiState` as a `Text`.
     /// This is displayed as the "mode" in the stats line.
-    pub fn to_span(&self) -> Span<'_> {
-        let style = Style::default().fg(Color::Black);
+    pub fn to_span(&self, theme: &Theme) -> Span<'_> {
         match self {
-            AppUiState::Help => Span::styled(" HELP ", style.bg(Color::Green)),
-            AppUiState::SelectMatches => Span::styled(" SELECT ", style.bg(Color::Cyan)),
-            AppUiState::InputReplacement(_, _) => Span::styled(" REPLACE ", style.bg(Color::White)),
-            AppUiState::ConfirmReplacement(_, _) => Span::styled(" CONFIRM ", style.bg(Color::Red)),
+            AppUiState::Help => Span::styled(" HELP ", theme.emphasis),
+            AppUiState::SelectMatches => Span::styled(" SELECT ", theme.emphasis),
+            AppUiState::InputReplacement(_, _) => Span::styled(" REPLACE ", theme.emphasis),
+            AppUiState::ConfirmReplacement(_, _) => Span::styled(" CONFIRM ", theme.emphasis),
         }
     }
 }

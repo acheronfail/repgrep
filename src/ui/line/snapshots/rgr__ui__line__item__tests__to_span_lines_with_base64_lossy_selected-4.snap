@@ -4,7 +4,7 @@ expression: new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx)
 ---
 [
     Line::from_iter([
-        Span::from("198:").yellow(),
-        Span::from("  �}").yellow(),
+        Span::from("198:").reversed(),
+        Span::from("  �}").reversed(),
     ]),
 ]

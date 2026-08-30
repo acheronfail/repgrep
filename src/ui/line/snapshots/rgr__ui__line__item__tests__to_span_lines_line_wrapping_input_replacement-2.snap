@@ -4,7 +4,7 @@ expression: new_item(RG_JSON_CONTEXT_LINE_WRAP).to_span_lines(&ctx)
 ---
 [
     Line::from_iter([
-        Span::from("4:").dark_gray(),
+        Span::from("4:").dim(),
         Span::from("123456789!123456789@123456789#123456789$123456789%123456789^123456789&12345678"),
     ]),
     Line::from("9*123456789(123456789_a_context_line"),

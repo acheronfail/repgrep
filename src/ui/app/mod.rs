@@ -9,6 +9,7 @@ pub use state::{AppListState, AppState, AppUiState};
 use crate::model::{CaptureMatcher, PrintableStyle, ReplacementCriteria};
 use crate::rg::de::{RgMessage, Stats};
 use crate::ui::line::Item;
+use crate::ui::theme::Theme;
 
 const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 
@@ -34,6 +35,8 @@ pub struct App {
 
     /// The current printable style used to render text.
     printable_style: PrintableStyle,
+    /// Styles used to render the UI.
+    theme: Theme,
 }
 
 impl App {
@@ -67,6 +70,7 @@ impl App {
             ui_state: AppUiState::SelectMatches,
             help_text_state: HelpTextState::new(HELP_TEXT),
             printable_style: PrintableStyle::default(),
+            theme: Theme::default(),
         }
     }
 

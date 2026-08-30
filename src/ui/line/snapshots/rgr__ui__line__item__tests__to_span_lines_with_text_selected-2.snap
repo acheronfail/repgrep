@@ -4,11 +4,11 @@ expression: new_item(RG_JSON_MATCH).to_span_lines(&ctx)
 ---
 [
     Line::from_iter([
-        Span::from("197:").yellow(),
-        Span::from("    ").yellow(),
-        Span::from("Item").black().on_yellow(),
-        Span::from("::new(").yellow(),
-        Span::from("rg_msg").black().on_red(),
-        Span::from(")").yellow(),
+        Span::from("197:").reversed(),
+        Span::from("    ").reversed(),
+        Span::from("Item").red().bold().underlined().reversed(),
+        Span::from("::new(").reversed(),
+        Span::from("rg_msg").red().bold().reversed(),
+        Span::from(")").reversed(),
     ]),
 ]

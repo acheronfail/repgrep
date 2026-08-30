@@ -2,7 +2,6 @@
 use const_format::formatcp;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
-use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
 
@@ -81,10 +80,7 @@ impl App {
             AppUiState::InputReplacement(input, pos) => {
                 let mut spans = vec![Span::from(prefix)];
                 if input.is_empty() {
-                    spans.push(Span::styled(
-                        "<empty>",
-                        Style::default().fg(Color::DarkGray),
-                    ));
+                    spans.push(Span::styled("<empty>", self.theme.muted));
                 } else {
                     let (before, after) = input.split_at(byte_pos_from_char_pos(input, *pos));
                     let style = self.printable_style.as_one_line();
@@ -112,7 +108,7 @@ impl App {
 
             spans.push(Span::styled(
                 "    (press <enter> or <C-s> to accept replacement)",
-                Style::default().fg(Color::DarkGray),
+                self.theme.muted,
             ));
 
             render_input(spans);
@@ -142,39 +138,35 @@ impl App {
             .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
             .split(r);
 
-        let left_side_items = vec![Line::from(self.ui_state.to_span())];
+        let left_side_items = vec![Line::from(self.ui_state.to_span(&self.theme))];
         let right_side_items = vec![Line::from(vec![
-            Span::styled(
-                format!(" {} ", self.rg_cmdline),
-                Style::default().bg(Color::Blue).fg(Color::Black),
-            ),
+            Span::styled(format!(" {} ", self.rg_cmdline), self.theme.normal),
             Span::styled(
                 format!(" CtrlChars: {} ", self.printable_style),
-                Style::default().bg(Color::Cyan).fg(Color::Black),
+                self.theme.normal,
             ),
             Span::styled(
                 format!(" {}/{} ", replacement_count, self.stats.matches),
-                Style::default().bg(Color::Magenta).fg(Color::Black),
+                self.theme.emphasis,
             ),
         ])];
 
-        let stats_line_style = Style::default().bg(Color::DarkGray).fg(Color::White);
         f.render_widget(
             Paragraph::new(left_side_items)
-                .style(stats_line_style)
+                .style(self.theme.status)
                 .alignment(Alignment::Left),
             hsplit[0],
         );
         f.render_widget(
             Paragraph::new(right_side_items)
-                .style(stats_line_style)
+                .style(self.theme.status)
                 .alignment(Alignment::Right),
             hsplit[1],
         );
     }
 
     fn draw_help_view(&mut self, f: &mut Frame, r: Rect) {
-        let title_style = Style::default().fg(Color::Magenta);
+        let title_style = self.theme.help_heading;
         let hsplit = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
@@ -214,11 +206,7 @@ impl App {
         )
         .header(
             Row::new(vec!["[Key]", "[Action]"])
-                .style(
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                )
+                .style(self.theme.help_keys)
                 .bottom_margin(1),
         )
         .block(
@@ -271,6 +259,7 @@ impl App {
             printable_style: self.printable_style,
             app_list_state: &self.list_state,
             app_ui_state: &self.ui_state,
+            theme: self.theme,
             list_rect,
         };
 
@@ -312,7 +301,7 @@ impl App {
         // See: https://github.com/fdehau/tui-rs/issues/239#issuecomment-657070300
         let match_list = List::new(match_items)
             .block(Block::default())
-            .style(Style::default().fg(Color::White))
+            .style(self.theme.normal)
             .highlight_symbol(indicator_symbol.as_str());
 
         f.render_stateful_widget(match_list, r, self.list_state.indicator_mut());

@@ -1,7 +1,6 @@
 use std::ops::Range;
 use std::path::PathBuf;
 
-use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
@@ -226,9 +225,9 @@ impl Item {
         let is_replacing = ctx.app_ui_state.is_replacing();
         let is_selected = ctx.app_list_state.selected_item() == self.index;
 
-        let mut base_style = Style::default();
+        let mut base_style = ctx.theme.normal;
         if !is_replacing && is_selected {
-            base_style = base_style.fg(Color::Yellow);
+            base_style = ctx.theme.selected;
         }
 
         // pushes a span to `spans` which contains the given line number content
@@ -236,7 +235,7 @@ impl Item {
             ($spans:expr, $content:expr) => {{
                 let mut line_number_style = base_style;
                 if !is_selected || is_replacing {
-                    line_number_style = line_number_style.fg(Color::DarkGray);
+                    line_number_style = ctx.theme.muted;
                 }
 
                 $spans.push(Span::styled(
@@ -250,9 +249,9 @@ impl Item {
             RgMessage::Begin { .. } => vec![vec![Span::styled(
                 format!("{}", self.path_buf().unwrap().display()).to_printable(ctx.printable_style),
                 if !is_replacing && is_selected {
-                    base_style.fg(Color::Black).bg(Color::Yellow)
+                    ctx.theme.file_selected
                 } else {
-                    base_style.fg(Color::Magenta)
+                    ctx.theme.file
                 },
             )]],
 
@@ -296,7 +295,7 @@ impl Item {
                         return None;
                     }
 
-                    let replacement_style = base_style.fg(Color::Green);
+                    let replacement_style = ctx.theme.inserted;
                     let mut spans = text
                         .to_printable(ctx.printable_style)
                         .lines()
@@ -627,6 +626,7 @@ mod tests {
             replacement_text,
             app_list_state,
             app_ui_state,
+            theme: crate::ui::theme::Theme::default(),
             list_rect: Rect::new(0, 0, 80, 24),
         }
     }

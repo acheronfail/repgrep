@@ -8,54 +8,49 @@ on:
     # - test-release
     tags:
     - '[0-9]+.[0-9]+.[0-9]+'
+permissions:
+  contents: read
 jobs:
   # This job is responsible for _creating_ the GitHub release.
-  # It creates the release, and publishes some artifacts into it which are used
-  # in the `build-release` job.
+  # It passes the resolved version to the `build-release` jobs, which publish
+  # the platform archives.
   #
   # This job runs only once, before the `build-release` jobs.
   create-release:
     name: create-release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     # env:
     #   # Set to force version number, e.g., when no tag exists.
     #   CRATE_VERSION: TEST-0.0.0
     steps:
-      - name: Create artifacts directory
-        run: mkdir artifacts
-
       - name: Get the release version from the tag
-        if: env.CRATE_VERSION == ''
+        id: version
+        shell: bash
         run: |
-          echo "CRATE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          version="${CRATE_VERSION:-${GITHUB_REF#refs/tags/}}"
+          echo "CRATE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
-        id: release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ env.CRATE_VERSION }}
-          release_name: ${{ env.CRATE_VERSION }}
-          draft: true
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$CRATE_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$CRATE_VERSION" \
+            --draft
 
-      - name: Save release upload URL to artifact
-        run: echo "${{ steps.release.outputs.upload_url }}" > artifacts/release-upload-url
-
-      - name: Save version number to artifact
-        run: echo "${{ env.CRATE_VERSION }}" > artifacts/release-version
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifacts
-          path: artifacts
-
-  # This job runs _after_ the `create-release` job, and uses the artifacts that it created.
+  # This job runs _after_ the `create-release` job and uploads its archives to that release.
   build-release:
     name: build-release
     needs: ['create-release']
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     env:
       # For some builds, we use cross to test on 32-bit and big-endian
       # systems.
@@ -66,6 +61,7 @@ jobs:
       TARGET_DIR: ./target
       # Emit backtraces on panics.
       RUST_BACKTRACE: 1
+      RELEASE_VERSION: ${{ needs.create-release.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -115,7 +111,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
       with:
         fetch-depth: 1
         submodules: recursive
@@ -131,15 +127,16 @@ jobs:
         ci/install-packages-macos.sh
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
-        profile: minimal
         override: true
         target: ${{ matrix.target }}
+        cache: false
+        rustflags: ""
 
     # cache
-    - uses: actions/cache@v3
+    - uses: actions/cache@v6
       with:
         path: |
           ~/.cargo/bin/
@@ -169,22 +166,6 @@ jobs:
         echo "cargo command is: ${{ env.CARGO }}"
         echo "target flag is: ${{ env.TARGET_FLAGS }}"
         echo "target dir is: ${{ env.TARGET_DIR }}"
-
-    - name: Get release download URL
-      uses: actions/download-artifact@v4
-      with:
-        name: artifacts
-        path: artifacts
-
-    - name: Set release upload URL and release version
-      shell: bash
-      run: |
-        release_upload_url="$(cat artifacts/release-upload-url)"
-        echo "RELEASE_UPLOAD_URL=$release_upload_url" >> $GITHUB_ENV
-        echo "release upload url: $RELEASE_UPLOAD_URL"
-        release_version="$(cat artifacts/release-version)"
-        echo "RELEASE_VERSION=$release_version" >> $GITHUB_ENV
-        echo "release version: $RELEASE_VERSION"
 
     - name: Build release binary
       run: ${{ env.CARGO }} build --verbose --release ${{ env.TARGET_FLAGS }}
@@ -238,40 +219,38 @@ jobs:
         fi
 
     - name: Upload release archive
-      uses: actions/upload-release-asset@v1.0.1
+      shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.RELEASE_UPLOAD_URL }}
-        asset_path: ${{ env.ASSET }}
-        asset_name: ${{ env.ASSET }}
-        asset_content_type: application/octet-stream
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh release upload "$RELEASE_VERSION" "$ASSET" \
+          --repo "$GITHUB_REPOSITORY"
 
 
-  # This job runs _after_ the `create-release` job, and uses the artifacts that it created.
+  # This job runs after all release archives have been built and uploaded.
   publish-crate:
     name: publish-crate
     needs: ['build-release']
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v7
       with:
         fetch-depth: 1
         submodules: recursive
 
     - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
       run: |
         ci/install-packages-ubuntu.sh
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: nightly
-        profile: minimal
         override: true
         target: x86_64-unknown-linux-gnu
+        cache: false
+        rustflags: ""
 
     - name: Publish Crate
       shell: bash

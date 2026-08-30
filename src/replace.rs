@@ -6,7 +6,7 @@ use encoding::{DecoderTrap, EncoderTrap};
 use tempfile::NamedTempFile;
 
 use crate::encoding::get_encoder;
-use crate::model::ReplacementCriteria;
+use crate::model::{expand_replacement, ReplacementCriteria};
 use crate::rg::de::{ArbitraryData, SubMatch};
 use crate::rg::RgEncoding;
 use crate::ui::line::Item;
@@ -77,21 +77,15 @@ fn perform_replacements_in_file(
 
             if str_to_remove.as_bytes() == matched_bytes.as_slice() {
                 // compute replacement
-                let replacement = match criteria
-                    .capture_pattern
-                    .as_ref()
-                    .and_then(|re| re.captures(&matched_bytes))
-                {
-                    // user passed a capturing group
-                    Some(captures) => {
-                        // empty buf without changing capacity
-                        byte_buf.clear();
-                        captures.expand(&criteria.user_replacement, &mut byte_buf);
-                        byte_buf.as_slice()
-                    }
-                    // just use raw replacement
-                    None => criteria.user_replacement.as_slice(),
-                };
+                // empty buf without changing capacity
+                byte_buf.clear();
+                expand_replacement(
+                    criteria.capture_pattern.as_ref(),
+                    &matched_bytes,
+                    &criteria.user_replacement,
+                    &mut byte_buf,
+                );
+                let replacement = byte_buf.as_slice();
 
                 // have to save this because it will be invalid after the replacement
                 let removed_str = str_to_remove.to_string();
@@ -273,7 +267,18 @@ mod tests {
             (s("foo", 0..3), r"Rust", re!(), r"Rust bar baz"),
             (s("foo", 0..3), r"🦀", re!(), r"🦀 bar baz"),
             (s("foo", 0..3), r"¯\_(ツ)_/¯", re!(), r"¯\_(ツ)_/¯ bar baz"),
+            (s("foo", 0..3), r"$0", re!(), r"foo bar baz"),
+            (s("foo", 0..3), r"${0}!", re!(), r"foo! bar baz"),
+            (s("foo", 0..3), r"$$0", re!(), r"$0 bar baz"),
+            (s("foo", 0..3), r"$1", re!(), r" bar baz"),
+            (
+                s("foo", 0..3),
+                r"${not-valid}",
+                re!(),
+                r"${not-valid} bar baz",
+            ),
             // capture groups
+            (s("foo", 0..3), r"[$0]", re!("foo"), r"[foo] bar baz"),
             (s("foo", 0..3), r"$1", re!("(foo)"), r"foo bar baz"),
             (s("foo", 0..3), r"$1 $1", re!("(foo)"), r"foo foo bar baz"),
             (s("foo", 0..3), r"bar$1", re!("(f)oo"), r"barf bar baz"),

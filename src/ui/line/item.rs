@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::format_line_number;
-use crate::model::{Printable, PrintableStyle};
+use crate::model::{expand_replacement, Printable, PrintableStyle};
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind};
 use crate::ui::app::AppUiState;
 use crate::ui::line::SubItem;
@@ -282,16 +282,15 @@ impl Item {
 
                 // Read the lines as bytes since we split it at the byte ranges that ripgrep gives us in each of the submatches.
                 let lines_bytes = lines.to_vec();
-                let replacement_spans = ctx.replacement_text.map(|user| {
-                    let user = user.as_bytes().to_vec();
-                    let text = match ctx.capture_pattern.and_then(|re| re.captures(&lines_bytes)) {
-                        Some(captures) => {
-                            let mut s = Vec::new();
-                            captures.expand(&user, &mut s);
-                            s
-                        }
-                        None => user,
-                    };
+                let replacement_spans = |matched_bytes: &[u8]| {
+                    let user = ctx.replacement_text?;
+                    let mut text = Vec::new();
+                    expand_replacement(
+                        ctx.capture_pattern,
+                        matched_bytes,
+                        user.as_bytes(),
+                        &mut text,
+                    );
 
                     let replacement_style = base_style.fg(Color::Green);
                     let mut spans = text
@@ -306,8 +305,8 @@ impl Item {
                         spans.push(Span::from(""));
                     }
 
-                    spans
-                });
+                    Some(spans)
+                };
 
                 let mut span_lines = vec![];
                 let mut spans = vec![]; // filled and emptied for each line
@@ -376,7 +375,9 @@ impl Item {
 
                     // Replacement text.
                     if sub_item.should_replace {
-                        if let Some(replacement_span_lines) = replacement_spans.as_ref() {
+                        if let Some(replacement_span_lines) =
+                            replacement_spans(&lines_bytes[start..end])
+                        {
                             for (i, span) in replacement_span_lines.iter().enumerate() {
                                 if i == 0 {
                                     // reset the line number
@@ -681,7 +682,7 @@ mod tests {
         let app_list_state = new_app_list_state();
         let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
         let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
-        let re = Regex::new(r"(new)\((rg_msg)\)").unwrap();
+        let re = Regex::new(r"(?:(Item)|(rg_msg))").unwrap();
         ctx.capture_pattern = Some(&re);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));
@@ -691,12 +692,22 @@ mod tests {
     }
 
     #[test]
+    fn to_span_lines_with_full_match_replacement() {
+        let replacement = "<$0>";
+        let app_list_state = new_app_list_state();
+        let app_ui_state = AppUiState::InputReplacement(String::from(replacement), 0);
+        let ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
+
+        assert_debug_snapshot!(new_item(RG_JSON_MATCH).to_span_lines(&ctx));
+    }
+
+    #[test]
     fn to_span_lines_with_text_confirm_replacement_and_capture_pattern() {
         let replacement = "${2}($1)";
         let app_list_state = new_app_list_state();
         let app_ui_state = AppUiState::ConfirmReplacement(String::from(replacement), 0);
         let mut ctx = new_ui_item_ctx(Some(replacement), &app_list_state, &app_ui_state);
-        let re = Regex::new(r"(new)\((rg_msg)\)").unwrap();
+        let re = Regex::new(r"(?:(Item)|(rg_msg))").unwrap();
         ctx.capture_pattern = Some(&re);
 
         assert_debug_snapshot!(new_item(RG_JSON_BEGIN).to_span_lines(&ctx));

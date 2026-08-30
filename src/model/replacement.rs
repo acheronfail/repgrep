@@ -6,6 +6,64 @@ use regex::bytes::Regex;
 use crate::rg::de::{ArbitraryData, RgMessageKind};
 use crate::ui::line::Item;
 
+/// Expand capture references in a replacement, falling back to the complete
+/// ripgrep match as capture group 0 when no capture pattern is available.
+pub fn expand_replacement(
+    capture_pattern: Option<&Regex>,
+    matched_bytes: &[u8],
+    user_replacement: &[u8],
+    dst: &mut Vec<u8>,
+) {
+    if let Some(captures) = capture_pattern.and_then(|re| re.captures(matched_bytes)) {
+        captures.expand(user_replacement, dst);
+        return;
+    }
+
+    let mut remaining = user_replacement;
+    while let Some(start) = remaining.iter().position(|&b| b == b'$') {
+        dst.extend_from_slice(&remaining[..start]);
+        remaining = &remaining[start..];
+
+        if remaining.starts_with(b"$$") {
+            dst.push(b'$');
+            remaining = &remaining[2..];
+            continue;
+        }
+
+        let (capture, end) = if remaining.starts_with(b"${") {
+            match remaining[2..].iter().position(|&b| b == b'}') {
+                Some(end) => (&remaining[2..end + 2], end + 3),
+                None => {
+                    dst.push(b'$');
+                    remaining = &remaining[1..];
+                    continue;
+                }
+            }
+        } else {
+            let end = remaining[1..]
+                .iter()
+                .position(|&b| !b.is_ascii_alphanumeric() && b != b'_')
+                .map_or(remaining.len(), |end| end + 1);
+            (&remaining[1..end], end)
+        };
+
+        if capture.is_empty()
+            || capture
+                .iter()
+                .any(|&b| !b.is_ascii_alphanumeric() && b != b'_')
+        {
+            dst.push(b'$');
+            remaining = &remaining[1..];
+            continue;
+        }
+        if capture.iter().all(|&b| b == b'0') {
+            dst.extend_from_slice(matched_bytes);
+        }
+        remaining = &remaining[end..];
+    }
+    dst.extend_from_slice(remaining);
+}
+
 #[derive(Debug)]
 pub struct ReplacementCriteria {
     pub capture_pattern: Option<Regex>,

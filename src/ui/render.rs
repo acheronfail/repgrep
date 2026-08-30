@@ -6,8 +6,8 @@ use crate::ui::app::{AppListState, AppUiState};
 
 /// Used when building the UI from the App's state.
 pub struct UiItemContext<'a> {
-    /// Regex to use for capturing groups. If it's not provided, the user didn't
-    /// pass any capturing groups.
+    /// Regex to use for capture expansion. If it isn't provided, only capture
+    /// group 0 is available from the matched text.
     pub capture_pattern: Option<&'a Regex>,
     /// The replacement text the user has entered.
     pub replacement_text: Option<&'a str>,

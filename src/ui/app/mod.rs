@@ -16,8 +16,8 @@ const HELP_TEXT: &str = include_str!("../../../doc/rgr.1.template");
 pub struct App {
     pub state: AppState,
 
-    /// If the user passed a regular expression with a capturing group, then this will be set to
-    /// indicate that we should use the capturing group when performing replacements.
+    /// If the user passed a single regular expression, then this will be set so capture groups can
+    /// be expanded when performing replacements. Capture group 0 contains the full match.
     capture_pattern: Option<Regex>,
 
     /// Raw args passed to `ripgrep`.

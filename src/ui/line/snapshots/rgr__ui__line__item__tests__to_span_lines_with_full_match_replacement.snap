@@ -28,7 +28,19 @@ expression: new_item(RG_JSON_MATCH).to_span_lines(&ctx)
                 },
             },
             Span {
-                content: "(Item)",
+                content: "Item",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    underline_color: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: NONE,
+                },
+            },
+            Span {
+                content: "<Item>",
                 style: Style {
                     fg: Some(
                         Green,
@@ -50,7 +62,19 @@ expression: new_item(RG_JSON_MATCH).to_span_lines(&ctx)
                 },
             },
             Span {
-                content: "rg_msg()",
+                content: "rg_msg",
+                style: Style {
+                    fg: Some(
+                        Red,
+                    ),
+                    bg: None,
+                    underline_color: None,
+                    add_modifier: CROSSED_OUT,
+                    sub_modifier: NONE,
+                },
+            },
+            Span {
+                content: "<rg_msg>",
                 style: Style {
                     fg: Some(
                         Green,

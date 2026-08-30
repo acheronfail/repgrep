@@ -118,23 +118,27 @@ impl Tui {
         rg_cmdline: String,
         rg_messages: Vec<RgMessage>,
         patterns: &[String],
+        fixed_strings: bool,
     ) -> Result<Option<ReplacementCriteria>> {
         // Parse patterns into `Regex` structs
-        let patterns = patterns
-            .into_iter()
-            .map(|p| Regex::new(p))
-            .collect::<Result<Vec<_>, _>>();
+        let patterns = (!fixed_strings).then(|| {
+            patterns
+                .into_iter()
+                .map(|p| Regex::new(p))
+                .collect::<Result<Vec<_>, _>>()
+        });
 
-        // Check if we should be performing replacements with capturing groups.
+        // Keep a single regex for replacement expansion. Even without explicit
+        // capturing groups, its implicit capture group 0 contains the full match.
         let capture_pattern = match patterns {
-            // pattern with capturing group passed, and we only have one
-            Ok(mut one) if one.len() == 1 => {
+            // one pattern passed
+            Some(Ok(mut one)) if one.len() == 1 => {
                 // SAFETY: we just checked for length in this match
-                (one[0].captures_len() > 1).then_some(one.pop().unwrap())
+                Some(one.pop().unwrap())
             }
             // many patterns passed, and one had a capturing group
             // all regex's have at least one capturing group, see: https://docs.rs/regex/1.8.4/regex/struct.Captures.html#method.len
-            Ok(many) if many.iter().any(|re| re.captures_len() > 1) => {
+            Some(Ok(many)) if many.iter().any(|re| re.captures_len() > 1) => {
                 self.draw_message_box(
                     "Unsupported Arguments!",
                     format!(
@@ -152,9 +156,9 @@ impl Tui {
                 None
             }
             // many patterns passed, none had capturing groups
-            Ok(_) => None,
+            Some(Ok(_)) | None => None,
             // failed to parse patterns
-            Err(e) => {
+            Some(Err(e)) => {
                 self.draw_message_box(
                     "Error!",
                     format!(

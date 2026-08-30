@@ -1,6 +1,6 @@
 use std::io::{self, BufRead, BufReader, Read, Write};
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 use crate::rg::de::RgMessage;
 

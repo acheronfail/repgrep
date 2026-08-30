@@ -3,19 +3,5 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_END).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from(""),
 ]

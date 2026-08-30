@@ -3,7 +3,7 @@ use std::fmt::Display;
 use std::io::{ErrorKind, Read};
 use std::process::{Command, Stdio};
 
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result, anyhow};
 
 use crate::rg::de::RgMessage;
 

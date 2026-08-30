@@ -3,33 +3,8 @@ source: src/ui/line/item.rs
 expression: new_item(RG_B64_JSON_CONTEXT).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "198:",
-                style: Style {
-                    fg: Some(
-                        Yellow,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "  �}",
-                style: Style {
-                    fg: Some(
-                        Yellow,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from_iter([
+        Span::from("198:").yellow(),
+        Span::from("  �}").yellow(),
+    ]),
 ]

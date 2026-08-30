@@ -3,75 +3,12 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_MATCH).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "197:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "    ",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "foobar",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "::new(",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "foobar",
-                style: Style {
-                    fg: Some(
-                        Green,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: ")",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from_iter([
+        Span::from("197:").dark_gray(),
+        Span::from("    "),
+        Span::from("foobar").green(),
+        Span::from("::new("),
+        Span::from("foobar").green(),
+        Span::from(")"),
+    ]),
 ]

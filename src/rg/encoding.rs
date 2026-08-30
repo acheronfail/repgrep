@@ -1,8 +1,8 @@
 use std::convert::From;
 use std::fmt::{self, Debug};
 
-use encoding::label::encoding_from_whatwg_label;
 use encoding::EncodingRef;
+use encoding::label::encoding_from_whatwg_label;
 
 /// A small wrapper to help describe the encoding that we think ripgrep will use.
 pub enum RgEncoding {
@@ -33,7 +33,7 @@ impl Debug for RgEncoding {
 
 impl From<&str> for RgEncoding {
     fn from(s: &str) -> Self {
-        encoding_from_whatwg_label(s).map_or_else(|| RgEncoding::None, |e| RgEncoding::Some(e))
+        encoding_from_whatwg_label(s).map_or_else(|| RgEncoding::None, RgEncoding::Some)
     }
 }
 

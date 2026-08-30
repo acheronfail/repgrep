@@ -53,7 +53,7 @@
 //!
 //! ### Via Cargo
 //!
-//! **NOTE**: The minimum Rust version required is `1.81.0`.
+//! **NOTE**: The minimum Rust version required is `1.96.0`.
 //!
 //! ```bash
 //! cargo install repgrep
@@ -80,7 +80,7 @@
 //!
 //! ### From Source
 //!
-//! **NOTE**: The minimum Rust version required is `1.81.0`.
+//! **NOTE**: The minimum Rust version required is `1.96.0`.
 //!
 //! ```bash
 //! git clone https://github.com/acheronfail/repgrep/
@@ -104,7 +104,7 @@ use std::fs::File;
 use std::{env, process};
 
 use anyhow::Result;
-use flexi_logger::{opt_format, FileSpec, Logger};
+use flexi_logger::{FileSpec, Logger, opt_format};
 use rg::exec::run_ripgrep;
 use ui::tui::Tui;
 

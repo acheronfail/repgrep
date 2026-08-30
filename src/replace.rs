@@ -1,14 +1,14 @@
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use encoding::{DecoderTrap, EncoderTrap};
 use tempfile::NamedTempFile;
 
 use crate::encoding::get_encoder;
-use crate::model::{expand_replacement, ReplacementCriteria};
-use crate::rg::de::{ArbitraryData, SubMatch};
+use crate::model::{ReplacementCriteria, expand_replacement};
 use crate::rg::RgEncoding;
+use crate::rg::de::{ArbitraryData, SubMatch};
 use crate::ui::line::Item;
 
 fn perform_replacements_in_file(
@@ -90,7 +90,7 @@ fn perform_replacements_in_file(
                 // have to save this because it will be invalid after the replacement
                 let removed_str = str_to_remove.to_string();
                 // must convert to strings since due to encoding support we perform replacements as strings
-                let replacement = std::str::from_utf8(&replacement)?;
+                let replacement = std::str::from_utf8(replacement)?;
                 // performance replacement
                 file_as_str.replace_range(normalised_range, replacement);
 
@@ -514,7 +514,7 @@ mod tests {
             0,
             RgMessageBuilder::new(RgMessageKind::Match)
                 .with_path_base64(base64.encode_to_string(p.as_os_str().as_bytes()))
-                .with_lines_text(lines.to_string())
+                .with_lines_text(lines)
                 .with_submatches(vec![SubMatch::new_text("o", 4..5)])
                 .with_offset(0)
                 .build(),
@@ -634,7 +634,7 @@ mod tests {
         FOO,
         RUST,
         ("foo", "RUST"),
-        vec![(0, 0..3), (16, 4..7), (32, 8..11)]
+        [(0, 0..3), (16, 4..7), (32, 8..11)]
     );
 
     simple_test_batch!(
@@ -642,7 +642,7 @@ mod tests {
         FOO,
         A,
         ("foo", "A"),
-        vec![(0, 0..3), (16, 4..7), (32, 8..11)]
+        [(0, 0..3), (16, 4..7), (32, 8..11)]
     );
 
     simple_test_batch!(
@@ -650,7 +650,7 @@ mod tests {
         FOO,
         EMOJI,
         ("foo", "🦀"),
-        vec![(0, 0..3), (16, 4..7), (32, 8..11)]
+        [(0, 0..3), (16, 4..7), (32, 8..11)]
     );
 
     simple_test_batch!(
@@ -658,7 +658,7 @@ mod tests {
         EMOJI,
         FOO,
         ("🦀", "foo"),
-        vec![(0, 0..4), (16, 5..9), (32, 10..14)]
+        [(0, 0..4), (16, 5..9), (32, 10..14)]
     );
 
     simple_test_batch!(
@@ -666,7 +666,7 @@ mod tests {
         FOO,
         UNICODE,
         ("foo", r"¯\_(ツ)_/¯"),
-        vec![(0, 0..3), (16, 4..7), (32, 8..11)]
+        [(0, 0..3), (16, 4..7), (32, 8..11)]
     );
 
     simple_test_batch!(
@@ -674,6 +674,6 @@ mod tests {
         UNICODE,
         FOO,
         (r"¯\_(ツ)_/¯", "foo"),
-        vec![(0, 0..13), (16, 14..27), (32, 28..41)]
+        [(0, 0..13), (16, 14..27), (32, 28..41)]
     );
 }

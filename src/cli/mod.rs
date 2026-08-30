@@ -1,6 +1,6 @@
 use std::{fs, process};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use lexopt::Parser;
 
 pub const ENV_JSON_FILE: &str = "RGR_JSON_FILE";

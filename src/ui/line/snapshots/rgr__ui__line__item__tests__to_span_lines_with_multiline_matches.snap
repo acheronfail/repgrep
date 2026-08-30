@@ -3,141 +3,20 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_MATCH_MULTILINE).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "3:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "baz ",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "1",
-                style: Style {
-                    fg: Some(
-                        Black,
-                    ),
-                    bg: Some(
-                        Red,
-                    ),
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "4:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "22",
-                style: Style {
-                    fg: Some(
-                        Black,
-                    ),
-                    bg: Some(
-                        Red,
-                    ),
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
-    Line {
-        spans: [
-            Span {
-                content: "5:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "333",
-                style: Style {
-                    fg: Some(
-                        Black,
-                    ),
-                    bg: Some(
-                        Red,
-                    ),
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: " bar ",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "4444",
-                style: Style {
-                    fg: Some(
-                        Black,
-                    ),
-                    bg: Some(
-                        Red,
-                    ),
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from_iter([
+        Span::from("3:").dark_gray(),
+        Span::from("baz "),
+        Span::from("1").black().on_red(),
+    ]),
+    Line::from_iter([
+        Span::from("4:").dark_gray(),
+        Span::from("22").black().on_red(),
+    ]),
+    Line::from_iter([
+        Span::from("5:").dark_gray(),
+        Span::from("333").black().on_red(),
+        Span::from(" bar "),
+        Span::from("4444").black().on_red(),
+        Span::default(),
+    ]),
 ]

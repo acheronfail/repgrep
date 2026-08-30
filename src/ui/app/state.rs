@@ -101,7 +101,7 @@ impl AppUiState {
 
     /// Represent the `AppUiState` as a `Text`.
     /// This is displayed as the "mode" in the stats line.
-    pub fn to_span(&self) -> Span {
+    pub fn to_span(&self) -> Span<'_> {
         let style = Style::default().fg(Color::Black);
         match self {
             AppUiState::Help => Span::styled(" HELP ", style.bg(Color::Green)),

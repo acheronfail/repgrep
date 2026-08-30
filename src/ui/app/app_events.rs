@@ -39,11 +39,11 @@ impl App {
                     }
 
                     // Clear input on Ctrl+U
-                    if let AppUiState::InputReplacement(_, _) = &self.ui_state {
-                        if key.code == KeyCode::Char('u') {
-                            self.ui_state = AppUiState::InputReplacement(String::new(), 0);
-                            return Ok(());
-                        }
+                    if let AppUiState::InputReplacement(_, _) = &self.ui_state
+                        && key.code == KeyCode::Char('u')
+                    {
+                        self.ui_state = AppUiState::InputReplacement(String::new(), 0);
+                        return Ok(());
                     }
 
                     // Common Ctrl+Key scroll keybindings that apply to multiple modes.
@@ -140,7 +140,7 @@ impl App {
                             _ => {}
                         }
                     }
-                    AppUiState::InputReplacement(ref input, pos) => match key.code {
+                    AppUiState::InputReplacement(input, pos) => match key.code {
                         // input char, or detect changing to next mode
                         KeyCode::Char(ch) => {
                             if control_pressed && ch == 's' {

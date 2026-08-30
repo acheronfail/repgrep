@@ -2,7 +2,7 @@ mod app_events;
 mod app_render;
 mod state;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use regex::bytes::Regex;
 use state::HelpTextState;
 pub use state::{AppListState, AppState, AppUiState};

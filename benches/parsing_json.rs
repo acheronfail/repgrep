@@ -1,12 +1,13 @@
 #![allow(unused)]
 
 use std::fs::File;
+use std::hint::black_box;
 use std::io::{BufRead, BufReader, Read};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use crossbeam_queue::ArrayQueue;
 use rayon::prelude::*;
 use serde_json::Deserializer;
@@ -49,7 +50,7 @@ fn read_to_string_par_bridge() -> Vec<de::RgMessage> {
         .unwrap()
         .lines()
         .par_bridge()
-        .map(|x| serde_json::from_str::<de::RgMessage>(&x).unwrap())
+        .map(|x| serde_json::from_str::<de::RgMessage>(x).unwrap())
         .collect::<Vec<de::RgMessage>>()
 }
 
@@ -134,7 +135,7 @@ fn par_bridge_with_borrow() -> usize {
     let items = black_box(
         s.lines()
             .par_bridge()
-            .map(|x| serde_json::from_str(&x).unwrap())
+            .map(|x| serde_json::from_str(x).unwrap())
             .collect::<Vec<de_borrow::RgMessage>>(),
     );
 
@@ -215,25 +216,25 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     // these borrow the data
     g.bench_function("0 read_to_string().lines().par_bridge() [borrow]", |b| {
-        b.iter(|| par_bridge_with_borrow())
+        b.iter(par_bridge_with_borrow)
     });
     g.bench_function("1 mmap & thread parse [borrow]", |b| {
-        b.iter(|| divide_and_conquer_with_borrow())
+        b.iter(divide_and_conquer_with_borrow)
     });
     g.bench_function(
         "2 read_to_string().lines().par_bridge() [borrow+mmap]",
-        |b| b.iter(|| par_bridge_mmap_with_borrow()),
+        |b| b.iter(par_bridge_mmap_with_borrow),
     );
     // these don't take up more memory than they need
-    g.bench_function("3 BufReader::lines", |b| b.iter(|| bufreader_lines()));
-    g.bench_function("4 StreamDeserializer", |b| b.iter(|| bufreader_stream()));
+    g.bench_function("3 BufReader::lines", |b| b.iter(bufreader_lines));
+    g.bench_function("4 StreamDeserializer", |b| b.iter(bufreader_stream));
     g.bench_function("5 BufReader::lines + ArrayQueue", |b| {
-        b.iter(|| crossbeam_queue())
+        b.iter(crossbeam_queue)
     });
     // these take twice the memory needed
-    g.bench_function("6 mmap & thread parse", |b| b.iter(|| divide_and_conquer()));
+    g.bench_function("6 mmap & thread parse", |b| b.iter(divide_and_conquer));
     g.bench_function("7 read_to_string().lines().par_bridge()", |b| {
-        b.iter(|| read_to_string_par_bridge())
+        b.iter(read_to_string_par_bridge)
     });
 
     g.finish();

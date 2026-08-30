@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::format_line_number;
-use crate::model::{expand_replacement, Printable, PrintableStyle};
+use crate::model::{Printable, PrintableStyle, expand_replacement};
 use crate::rg::de::{ArbitraryData, RgMessage, RgMessageKind};
 use crate::ui::app::AppUiState;
 use crate::ui::line::SubItem;
@@ -183,10 +183,10 @@ impl Item {
     }
 
     pub fn line_count(&mut self, list_width: u16, style: PrintableStyle) -> usize {
-        if let Some(cache) = &self.cached_line_count {
-            if cache.list_width == list_width {
-                return cache.value;
-            }
+        if let Some(cache) = &self.cached_line_count
+            && cache.list_width == list_width
+        {
+            return cache.value;
         }
 
         let count = match &self.rg_message {
@@ -222,7 +222,7 @@ impl Item {
         count
     }
 
-    pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Line> {
+    pub fn to_span_lines(&self, ctx: &UiItemContext) -> Vec<Line<'_>> {
         let is_replacing = ctx.app_ui_state.is_replacing();
         let is_selected = ctx.app_list_state.selected_item() == self.index;
 
@@ -262,10 +262,10 @@ impl Item {
                 let mut span_lines = vec![];
                 for (i, line) in lines.to_printable(ctx.printable_style).lines().enumerate() {
                     let mut spans = vec![];
-                    if i == 0 {
-                        if let Some(n) = line_number {
-                            push_line_number_span!(spans, n);
-                        }
+                    if i == 0
+                        && let Some(n) = line_number
+                    {
+                        push_line_number_span!(spans, n);
                     }
 
                     spans.push(Span::styled(line.to_string(), base_style));
@@ -339,10 +339,10 @@ impl Item {
                 for (idx, sub_item) in self.sub_items.iter().enumerate() {
                     let Range { start, end } = sub_item.sub_match.range;
 
-                    if idx == 0 {
-                        if let Some(n) = line_number {
-                            push_line_number_span!(spans, n);
-                        }
+                    if idx == 0
+                        && let Some(n) = line_number
+                    {
+                        push_line_number_span!(spans, n);
                     }
 
                     // Text in between start (or last SubMatch) and this SubMatch.
@@ -374,21 +374,20 @@ impl Item {
                     }
 
                     // Replacement text.
-                    if sub_item.should_replace {
-                        if let Some(replacement_span_lines) =
+                    if sub_item.should_replace
+                        && let Some(replacement_span_lines) =
                             replacement_spans(&lines_bytes[start..end])
-                        {
-                            for (i, span) in replacement_span_lines.iter().enumerate() {
-                                if i == 0 {
-                                    // reset the line number
-                                    line_number = self.line_number().cloned();
-                                } else {
-                                    push_line_number_span!(spans, "+");
-                                }
-
-                                spans.push(span.clone());
-                                new_line_if_needed!(replacement_span_lines.len(), i);
+                    {
+                        for (i, span) in replacement_span_lines.iter().enumerate() {
+                            if i == 0 {
+                                // reset the line number
+                                line_number = self.line_number().cloned();
+                            } else {
+                                push_line_number_span!(spans, "+");
                             }
+
+                            spans.push(span.clone());
+                            new_line_if_needed!(replacement_span_lines.len(), i);
                         }
                     }
 
@@ -436,7 +435,7 @@ impl Item {
                                     chars.drain(..).collect::<String>(),
                                     span.style,
                                 ));
-                                wrapped_spans.push(Line::from(tmp.drain(..).collect::<Vec<_>>()));
+                                wrapped_spans.push(Line::from(std::mem::take(&mut tmp)));
                                 len = 0;
                             }
 
@@ -453,7 +452,7 @@ impl Item {
                     }
                 }
 
-                wrapped_spans.push(Line::from(tmp.drain(..).collect::<Vec<_>>()));
+                wrapped_spans.push(Line::from(std::mem::take(&mut tmp)));
                 wrapped_spans
             })
             .collect()
@@ -570,7 +569,7 @@ mod tests {
             Item::new(
                 0,
                 RgMessageBuilder::new(kind)
-                    .with_path_base64(base64.encode_to_string(&invalid_utf8_name_bytes))
+                    .with_path_base64(base64.encode_to_string(invalid_utf8_name_bytes))
                     .with_lines_text("foo bar baz")
                     .with_submatches(vec![SubMatch::new_text("foo", 0..3)])
                     .with_stats(Stats::new())

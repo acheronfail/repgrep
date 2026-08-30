@@ -3,79 +3,12 @@ source: src/ui/line/item.rs
 expression: new_item(RG_JSON_MATCH).to_span_lines(&ctx)
 ---
 [
-    Line {
-        spans: [
-            Span {
-                content: "197:",
-                style: Style {
-                    fg: Some(
-                        DarkGray,
-                    ),
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "    ",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "Item",
-                style: Style {
-                    fg: Some(
-                        Black,
-                    ),
-                    bg: Some(
-                        Red,
-                    ),
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "::new(",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: "rg_msg",
-                style: Style {
-                    fg: Some(
-                        Black,
-                    ),
-                    bg: Some(
-                        Red,
-                    ),
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-            Span {
-                content: ")",
-                style: Style {
-                    fg: None,
-                    bg: None,
-                    underline_color: None,
-                    add_modifier: NONE,
-                    sub_modifier: NONE,
-                },
-            },
-        ],
-        alignment: None,
-    },
+    Line::from_iter([
+        Span::from("197:").dark_gray(),
+        Span::from("    "),
+        Span::from("Item").black().on_red(),
+        Span::from("::new("),
+        Span::from("rg_msg").black().on_red(),
+        Span::from(")"),
+    ]),
 ]

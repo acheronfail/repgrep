@@ -25,7 +25,7 @@ impl SubItem {
 impl SubItem {
     /// A SubItem contains the "match". A match _may_ be over multiple lines, but there will only ever
     /// be a single span on each line. So this returns a list of "lines": one span for each line.
-    pub fn to_span_lines(&self, ctx: &UiItemContext, is_item_selected: bool) -> Vec<Span> {
+    pub fn to_span_lines(&self, ctx: &UiItemContext, is_item_selected: bool) -> Vec<Span<'_>> {
         let mut s = Style::default();
         if ctx.app_ui_state.is_replacing() {
             if self.should_replace {

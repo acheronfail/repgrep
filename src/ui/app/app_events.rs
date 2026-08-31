@@ -9,6 +9,8 @@ use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppState, AppUiState};
 use crate::util::{byte_pos_from_char_pos, clamp};
 
+const MAX_COUNT: u32 = 100_000;
+
 impl App {
     pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
         match event {
@@ -107,13 +109,13 @@ impl App {
                             KeyCode::Char(ch @ '1'..='9') if !shift => {
                                 let digit = ch.to_digit(10).unwrap();
                                 let current = self.count.unwrap_or(0);
-                                if current < 100000 {
+                                if current < MAX_COUNT {
                                     self.count = Some(current * 10 + digit);
                                 }
                             }
                             KeyCode::Char('0') if !shift && self.count.is_some() => {
                                 let current = self.count.unwrap();
-                                if current < 100000 {
+                                if current < MAX_COUNT {
                                     self.count = Some(current * 10);
                                 }
                             }

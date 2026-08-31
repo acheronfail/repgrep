@@ -284,52 +284,31 @@ impl App {
             }
 
             let line_count = item.line_count(list_rect.width, self.printable_style);
+            let lines = item.to_span_lines(ctx);
 
-            // items that fall in the visible window, but don't start in the visible window
-            if curr_height < window_start {
-                let gap = (curr_height + line_count).saturating_sub(window_start);
-                if gap > 0 {
-                    let lines = item.to_span_lines(ctx);
-                    let padding = lines.len() - gap;
-                    for (i, line) in lines.into_iter().skip(padding).enumerate() {
-                        let absolute_line_idx = curr_height + padding + i;
-                        let diff = absolute_line_idx as i32 - absolute_indicator_idx as i32;
-                        let line_number_text = if diff == 0 {
-                            format!("{:>3} ", item.index + 1)
-                        } else {
-                            format!("{:>3} ", diff.abs())
-                        };
-                        let line_number_style = if diff == 0 {
-                            self.theme.normal.fg(Color::Yellow)
-                        } else {
-                            self.theme.muted
-                        };
-                        let mut spans = line.spans;
-                        spans.insert(0, Span::styled(line_number_text, line_number_style));
-                        match_items.push(ListItem::new(Line::from(spans)));
-                    }
-                }
-            }
+            for (i, line) in lines.into_iter().enumerate() {
+                let absolute_line_idx = curr_height + i;
 
-            // items that start in the visible window
-            if curr_height >= window_start {
-                for (i, line) in item.to_span_lines(ctx).into_iter().enumerate() {
-                    let absolute_line_idx = curr_height + i;
-                    let diff = absolute_line_idx as i32 - absolute_indicator_idx as i32;
-                    let line_number_text = if diff == 0 {
-                        format!("{:>3} ", item.index + 1)
-                    } else {
-                        format!("{:>3} ", diff.abs())
-                    };
-                    let line_number_style = if diff == 0 {
-                        self.theme.normal.fg(Color::Yellow)
-                    } else {
-                        self.theme.muted
-                    };
-                    let mut spans = line.spans;
-                    spans.insert(0, Span::styled(line_number_text, line_number_style));
-                    match_items.push(ListItem::new(Line::from(spans)));
+                // skip if above visible window
+                if absolute_line_idx < window_start {
+                    continue;
                 }
+
+                let diff = absolute_line_idx as i32 - absolute_indicator_idx as i32;
+                let line_number_text = if diff == 0 {
+                    format!("{:>3} ", item.index + 1)
+                } else {
+                    format!("{:>3} ", diff.abs())
+                };
+                let line_number_style = if diff == 0 {
+                    self.theme.normal.fg(Color::Yellow)
+                } else {
+                    self.theme.muted
+                };
+
+                let mut spans = line.spans;
+                spans.insert(0, Span::styled(line_number_text, line_number_style));
+                match_items.push(ListItem::new(Line::from(spans)));
             }
 
             curr_height += line_count;

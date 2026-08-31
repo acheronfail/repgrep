@@ -162,6 +162,7 @@ impl App {
                             KeyCode::Char(' ') => {
                                 self.count = None;
                                 self.toggle_item(false);
+                                self.move_pos(Movement::Forward(1), term_size);
                             }
                             KeyCode::Char('s') | KeyCode::Char('S') => {
                                 self.count = None;
@@ -685,7 +686,7 @@ mod tests {
         assert_eq!(app.current_item().kind, RgMessageKind::Begin);
 
         // select match and invert
-        app.move_pos(Movement::NextLine, term_size);
+        app.move_pos(Movement::Forward(1), term_size);
         assert_eq!(app.current_item().kind, RgMessageKind::Match);
         app.invert_selection_current();
 
@@ -718,7 +719,7 @@ mod tests {
         assert_eq!(app.current_item().kind, RgMessageKind::Begin);
 
         // select match in first file and invert
-        app.move_pos(Movement::NextLine, term_size);
+        app.move_pos(Movement::Forward(1), term_size);
         assert_eq!(app.current_item().kind, RgMessageKind::Match);
         app.invert_selection_current();
 

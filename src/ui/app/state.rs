@@ -29,6 +29,10 @@ impl AppListState {
         }
     }
 
+    pub fn indicator(&self) -> &ListState {
+        &self.indicator
+    }
+
     pub fn indicator_mut(&mut self) -> &mut ListState {
         &mut self.indicator
     }

@@ -2,6 +2,7 @@
 use const_format::formatcp;
 use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::Color;
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table, Wrap};
 
@@ -134,11 +135,15 @@ impl App {
         // Split the stats line into halves, so we can render left and right aligned portions.
         let hsplit = Layout::default()
             .direction(Direction::Horizontal)
-            // NOTE: Length is 10 because the longest `AppUiState.to_span()` is 10 characters.
-            .constraints([Constraint::Length(10), Constraint::Min(1)].as_ref())
+            // NOTE: Length is 16 to accommodate the `AppUiState.to_span()` (up to 10 characters) plus a count prefix.
+            .constraints([Constraint::Length(16), Constraint::Min(1)].as_ref())
             .split(r);
 
-        let left_side_items = vec![Line::from(self.ui_state.to_span(&self.theme))];
+        let mut left_side_spans = vec![self.ui_state.to_span(&self.theme)];
+        if let Some(count) = self.count {
+            left_side_spans.push(Span::styled(format!(" {} ", count), self.theme.emphasis));
+        }
+        let left_side_items = vec![Line::from(left_side_spans)];
         let right_side_items = vec![Line::from(vec![
             Span::styled(format!(" {} ", self.rg_cmdline), self.theme.normal),
             Span::styled(
@@ -187,6 +192,9 @@ impl App {
                 Row::new(vec!["j, down", "move to next match"]),
                 Row::new(vec!["K, shift + up", "move to previous file"]),
                 Row::new(vec!["J, shift + down", "move to next file"]),
+                Row::new(vec!["g", "move to first match"]),
+                Row::new(vec!["G", "move to last match"]),
+                Row::new(vec!["<n><motion>", "repeat motion n times (e.g. 2j)"]),
                 Row::new(vec!["space", "toggle selection"]),
                 Row::new(vec!["a, A", "toggle selection for all matches"]),
                 Row::new(vec!["s, S", "toggle selection for whole line"]),
@@ -253,6 +261,8 @@ impl App {
         let window_start = self.list_state.window_start();
         let window_end = window_start + window_height;
 
+        let absolute_indicator_idx = window_start + self.list_state.indicator().selected().unwrap_or(0);
+
         let ctx = &UiItemContext {
             capture_pattern: self.capture_pattern.as_ref(),
             replacement_text: self.ui_state.user_replacement_text(),
@@ -281,16 +291,44 @@ impl App {
                 if gap > 0 {
                     let lines = item.to_span_lines(ctx);
                     let padding = lines.len() - gap;
-                    for line in lines.into_iter().skip(padding) {
-                        match_items.push(ListItem::new(line));
+                    for (i, line) in lines.into_iter().skip(padding).enumerate() {
+                        let absolute_line_idx = curr_height + padding + i;
+                        let diff = absolute_line_idx as i32 - absolute_indicator_idx as i32;
+                        let line_number_text = if diff == 0 {
+                            format!("{:>3} ", item.index + 1)
+                        } else {
+                            format!("{:>3} ", diff.abs())
+                        };
+                        let line_number_style = if diff == 0 {
+                            self.theme.normal.fg(Color::Yellow)
+                        } else {
+                            self.theme.muted
+                        };
+                        let mut spans = line.spans;
+                        spans.insert(0, Span::styled(line_number_text, line_number_style));
+                        match_items.push(ListItem::new(Line::from(spans)));
                     }
                 }
             }
 
             // items that start in the visible window
             if curr_height >= window_start {
-                for line in item.to_span_lines(ctx).into_iter() {
-                    match_items.push(ListItem::new(line));
+                for (i, line) in item.to_span_lines(ctx).into_iter().enumerate() {
+                    let absolute_line_idx = curr_height + i;
+                    let diff = absolute_line_idx as i32 - absolute_indicator_idx as i32;
+                    let line_number_text = if diff == 0 {
+                        format!("{:>3} ", item.index + 1)
+                    } else {
+                        format!("{:>3} ", diff.abs())
+                    };
+                    let line_number_style = if diff == 0 {
+                        self.theme.normal.fg(Color::Yellow)
+                    } else {
+                        self.theme.muted
+                    };
+                    let mut spans = line.spans;
+                    spans.insert(0, Span::styled(line_number_text, line_number_style));
+                    match_items.push(ListItem::new(Line::from(spans)));
                 }
             }
 
@@ -315,10 +353,11 @@ impl App {
             height,
         } = self.get_layouts(term_size).0[0];
         let indicator_width = self.list_indicator_width();
+        let line_number_width = 4;
         Rect::new(
-            x + indicator_width,
+            x + indicator_width + line_number_width,
             y,
-            width.saturating_sub(indicator_width),
+            width.saturating_sub(indicator_width + line_number_width),
             height,
         )
     }

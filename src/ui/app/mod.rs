@@ -33,6 +33,8 @@ pub struct App {
     list_state: AppListState,
     /// Current UI mode.
     ui_state: AppUiState,
+    /// A count prefix typed by the user (e.g. "2" for 2j).
+    count: Option<u32>,
     /// Holds state information used when rendering the help screen.
     help_text_state: HelpTextState,
 
@@ -62,6 +64,7 @@ impl App {
             list_state: AppListState::new(),
             list,
             ui_state: AppUiState::SelectMatches,
+            count: None,
             help_text_state: HelpTextState::new(HELP_TEXT),
             printable_style: PrintableStyle::default(),
             theme: Theme::default(),

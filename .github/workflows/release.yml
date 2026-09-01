@@ -183,17 +183,17 @@ jobs:
       timeout-minutes: 10
 
     - name: Strip release binary (linux and macos)
-      if: matrix.build == 'linux' || matrix.build == 'macos'
+      if: matrix.target == 'x86_64-unknown-linux-gnu' || matrix.target == 'x86_64-apple-darwin' || matrix.target == 'aarch64-apple-darwin'
       run: strip "target/${{ matrix.target }}/release/rgr"
 
-    - name: Strip release binary (arm)
-      if: matrix.build == 'linux-arm'
+    - name: Strip release binary (cross)
+      if: matrix.target == 'x86_64-unknown-linux-musl' || matrix.target == 'arm-unknown-linux-gnueabihf'
       run: |
-        docker run --rm -v \
-          "$PWD/target:/target:Z" \
-          rustembedded/cross:arm-unknown-linux-gnueabihf \
-          arm-linux-gnueabihf-strip \
-          /target/arm-unknown-linux-gnueabihf/release/rgr
+        case "${{ matrix.target }}" in
+          x86_64-unknown-linux-musl) STRIP="x86_64-linux-musl-strip" ; IMAGE="ghcr.io/cross-rs/x86_64-unknown-linux-musl:main" ;;
+          arm-unknown-linux-gnueabihf) STRIP="arm-linux-gnueabihf-strip" ; IMAGE="ghcr.io/cross-rs/arm-unknown-linux-gnueabihf:main" ;;
+        esac
+        docker run --rm -v "$PWD/target:/target:Z" "$IMAGE" "$STRIP" "/target/${{ matrix.target }}/release/rgr"
 
     # FIXME: for some reasons the manpage isn't generated in CI from the build.rs script.
     # So we build it (again?) here too.

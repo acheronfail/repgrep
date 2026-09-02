@@ -1,3 +1,16 @@
+# 0.17.1
+
+- fae1e46 ci: enable ARM child-process tests under QEMU
+- fae1f49 Strip all release binaries
+- fae1309 Update GitHub Actions workflows
+- fae10d2 add components to rust-toolchain.toml
+- fe5ad69 Merge pull request #124 from mathstuf/release-add-aarch64-binaries
+- fae1d7f ci: skip child-process tests on aarch64
+- fae1b3e gha/release: fix ARM strip executable
+- 8eeab4e gha/release: upload linux-aarch64 binaries as well
+- 312dbce gha/release: match strip actions on the target
+- b0661cb ci: add nightly jobs for linux-aarch64 with GNU and musl
+
 # 0.17.0
 
 - c7f882f Merge pull request #114 from acheronfail/next

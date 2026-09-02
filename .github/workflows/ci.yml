@@ -158,6 +158,12 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Set up QEMU
+      if: matrix.target == 'arm-unknown-linux-gnueabihf' || startsWith(matrix.target, 'aarch64-unknown-linux-')
+      uses: docker/setup-qemu-action@v4
+      with:
+        platforms: arm,arm64
+
     # cache
     - uses: actions/cache@v6
       with:

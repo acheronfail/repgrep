@@ -1,6 +1,6 @@
 // Cross runs this test binary under QEMU, but child processes are not automatically wrapped in
 // QEMU. The unit suite still exercises the implementation on ARM.
-#![cfg(not(target_arch = "arm"))]
+#![cfg(not(any(target_arch = "arm", target_arch = "aarch64")))]
 
 use std::fs;
 use std::process::{Command, Output, Stdio};

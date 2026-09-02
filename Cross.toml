@@ -9,3 +9,9 @@ image = "burntsushi/cross:mips64-unknown-linux-gnuabi64"
 
 [target.arm-unknown-linux-gnueabihf]
 image = "burntsushi/cross:arm-unknown-linux-gnueabihf"
+
+[target.aarch64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main"
+
+[target.aarch64-unknown-linux-musl]
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:main"

@@ -199,7 +199,7 @@ jobs:
       run: |
         case "${{ matrix.target }}" in
           x86_64-unknown-linux-musl) STRIP="x86_64-linux-musl-strip" ; IMAGE="ghcr.io/cross-rs/x86_64-unknown-linux-musl:main" ;;
-          arm-unknown-linux-gnueabihf) STRIP="arm-linux-gnueabihf-strip" ; IMAGE="ghcr.io/cross-rs/arm-unknown-linux-gnueabihf:main" ;;
+          arm-unknown-linux-gnueabihf) STRIP="arm-unknown-linux-gnueabihf-strip" ; IMAGE="ghcr.io/cross-rs/arm-unknown-linux-gnueabihf:main" ;;
           aarch64-unknown-linux-gnu) STRIP="aarch64-linux-gnu-strip" ; IMAGE="ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main" ;;
           aarch64-unknown-linux-musl) STRIP="aarch64-linux-musl-strip" ; IMAGE="ghcr.io/cross-rs/aarch64-unknown-linux-musl:main" ;;
         esac

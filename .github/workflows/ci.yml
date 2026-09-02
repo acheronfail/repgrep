@@ -6,20 +6,23 @@ on:
   push:
     branches:
     - master
+permissions:
+  contents: read
 jobs:
   rustfmt:
     name: rustfmt
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: stable
         override: true
-        profile: minimal
         components: rustfmt
+        cache: false
+        rustflags: ""
     - name: Check formatting
       run: |
         cargo fmt --all -- --check
@@ -29,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
     # cache
-    - uses: actions/cache@v3
+    - uses: actions/cache@v6
       with:
         path: |
           ~/.cargo/bin/
@@ -43,12 +46,13 @@ jobs:
           target/
         key: ${{ runner.os }}-cargo-readme
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: nightly
         override: true
-        profile: minimal
         components: rustfmt
+        cache: false
+        rustflags: ""
     - name: Check readme
       run: |
         ci/install-packages-ubuntu.sh
@@ -150,12 +154,18 @@ jobs:
           rust: nightly-x86_64-gnu
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
       with:
         submodules: recursive
 
+    - name: Set up QEMU
+      if: matrix.target == 'arm-unknown-linux-gnueabihf' || startsWith(matrix.target, 'aarch64-unknown-linux-')
+      uses: docker/setup-qemu-action@v4
+      with:
+        platforms: arm,arm64
+
     # cache
-    - uses: actions/cache@v3
+    - uses: actions/cache@v6
       with:
         path: |
           ~/.cargo/bin/
@@ -178,11 +188,12 @@ jobs:
         ci/install-packages-macos.sh
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
-        profile: minimal
         override: true
+        cache: false
+        rustflags: ""
 
     - name: Use Cross
       if: matrix.target != ''

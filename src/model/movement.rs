@@ -11,10 +11,6 @@ pub enum Movement {
     Prev,
     /// Move to the next match.
     Next,
-    /// Move to the previous line.
-    PrevLine,
-    /// Move to the next line.
-    NextLine,
     /// Move to the previous file.
     PrevFile,
     /// Move to the next file.
@@ -32,12 +28,8 @@ impl Movement {
 
     pub fn direction(&self) -> Direction {
         match self {
-            Movement::Prev | Movement::PrevLine | Movement::PrevFile | Movement::Backward(_) => {
-                Direction::Backward
-            }
-            Movement::Next | Movement::NextLine | Movement::NextFile | Movement::Forward(_) => {
-                Direction::Forward
-            }
+            Movement::Prev | Movement::PrevFile | Movement::Backward(_) => Direction::Backward,
+            Movement::Next | Movement::NextFile | Movement::Forward(_) => Direction::Forward,
         }
     }
 }

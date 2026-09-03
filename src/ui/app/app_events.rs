@@ -9,6 +9,8 @@ use crate::rg::de::RgMessageKind;
 use crate::ui::app::{App, AppState, AppUiState};
 use crate::util::{byte_pos_from_char_pos, clamp};
 
+const MAX_COUNT: u32 = 100_000;
+
 impl App {
     pub fn on_event(&mut self, term_size: Rect, event: Event) -> Result<()> {
         match event {
@@ -104,43 +106,100 @@ impl App {
                     AppUiState::SelectMatches => {
                         let shift = key.modifiers.contains(KeyModifiers::SHIFT);
                         match key.code {
-                            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => self.move_pos(
-                                if shift {
-                                    Movement::PrevFile
-                                } else {
-                                    Movement::PrevLine
-                                },
-                                term_size,
-                            ),
-                            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => self
-                                .move_pos(
+                            KeyCode::Char(ch @ '1'..='9') if !shift => {
+                                let digit = ch.to_digit(10).unwrap();
+                                let current = self.count.unwrap_or(0);
+                                if current < MAX_COUNT {
+                                    self.count = Some(current * 10 + digit);
+                                }
+                            }
+                            KeyCode::Char('0') if !shift && self.count.is_some() => {
+                                let current = self.count.unwrap();
+                                if current < MAX_COUNT {
+                                    self.count = Some(current * 10);
+                                }
+                            }
+                            KeyCode::Up | KeyCode::Char('k') | KeyCode::Char('K') => {
+                                let n = self.count.take().unwrap_or(1) as u16;
+                                self.move_pos(
+                                    if shift {
+                                        Movement::PrevFile
+                                    } else {
+                                        Movement::Backward(n)
+                                    },
+                                    term_size,
+                                )
+                            }
+                            KeyCode::Down | KeyCode::Char('j') | KeyCode::Char('J') => {
+                                let n = self.count.take().unwrap_or(1) as u16;
+                                self.move_pos(
                                     if shift {
                                         Movement::NextFile
                                     } else {
-                                        Movement::NextLine
+                                        Movement::Forward(n)
                                     },
                                     term_size,
-                                ),
+                                )
+                            }
                             KeyCode::Left | KeyCode::Char('h') | KeyCode::Char('H') => {
-                                self.move_pos(Movement::Prev, term_size)
+                                let n = self.count.take().unwrap_or(1);
+                                for _ in 0..n {
+                                    self.move_pos(Movement::Prev, term_size);
+                                }
                             }
                             KeyCode::Right | KeyCode::Char('l') | KeyCode::Char('L') => {
-                                self.move_pos(Movement::Next, term_size)
+                                let n = self.count.take().unwrap_or(1);
+                                for _ in 0..n {
+                                    self.move_pos(Movement::Next, term_size);
+                                }
                             }
-                            KeyCode::Char(' ') => self.toggle_item(false),
-                            KeyCode::Char('s') | KeyCode::Char('S') => self.toggle_item(true),
-                            KeyCode::Char('a') | KeyCode::Char('A') => self.toggle_all_items(),
-                            KeyCode::Char('v') => self.invert_selection_current(),
-                            KeyCode::Char('V') => self.invert_selection_all(),
-                            KeyCode::Esc | KeyCode::Char('q') => self.state = AppState::Cancelled,
-                            KeyCode::Char('?') => self.ui_state = AppUiState::Help,
+                            KeyCode::Char('g') => {
+                                self.count = None;
+                                self.move_pos(Movement::Backward(u16::MAX), term_size);
+                            }
+                            KeyCode::Char('G') => {
+                                self.count = None;
+                                self.move_pos(Movement::Forward(u16::MAX), term_size);
+                            }
+                            KeyCode::Char(' ') => {
+                                self.count = None;
+                                self.toggle_item(false);
+                                self.move_pos(Movement::Forward(1), term_size);
+                            }
+                            KeyCode::Char('s') | KeyCode::Char('S') => {
+                                self.count = None;
+                                self.toggle_item(true);
+                            }
+                            KeyCode::Char('a') | KeyCode::Char('A') => {
+                                self.count = None;
+                                self.toggle_all_items();
+                            }
+                            KeyCode::Char('v') => {
+                                self.count = None;
+                                self.invert_selection_current();
+                            }
+                            KeyCode::Char('V') => {
+                                self.count = None;
+                                self.invert_selection_all();
+                            }
+                            KeyCode::Esc | KeyCode::Char('q') => {
+                                self.count = None;
+                                self.state = AppState::Cancelled;
+                            }
+                            KeyCode::Char('?') => {
+                                self.count = None;
+                                self.ui_state = AppUiState::Help;
+                            }
                             KeyCode::Enter | KeyCode::Char('r') | KeyCode::Char('R') => {
+                                self.count = None;
                                 self.ui_state = AppUiState::InputReplacement(
                                     self.replacement_draft.clone(),
                                     self.replacement_draft.chars().count(),
-                                )
+                                );
                             }
-                            _ => {}
+                            _ => {
+                                self.count = None;
+                            }
                         }
                     }
                     AppUiState::InputReplacement(input, pos) => match key.code {
@@ -250,7 +309,7 @@ impl App {
         // Determine how far to skip down the list.
         let selected_item = self.list_state.selected_item();
         let (skip, default_item_idx) = match movement {
-            Movement::Prev | Movement::PrevLine | Movement::PrevFile => {
+            Movement::Prev | Movement::PrevFile => {
                 (self.list.len().saturating_sub(selected_item), 0)
             }
             Movement::Backward(n) => (
@@ -260,9 +319,7 @@ impl App {
                 0,
             ),
 
-            Movement::Next | Movement::NextLine | Movement::NextFile => {
-                (selected_item, self.list.len() - 1)
-            }
+            Movement::Next | Movement::NextFile => (selected_item, self.list.len() - 1),
             Movement::Forward(n) => (selected_item + (*n as usize), self.list.len() - 1),
         };
 
@@ -277,10 +334,8 @@ impl App {
                     Movement::NextFile => {
                         i > selected_item && matches!(item.kind, RgMessageKind::Begin)
                     }
-                    Movement::Prev | Movement::PrevLine | Movement::Backward(_) => {
-                        i < selected_item
-                    }
-                    Movement::Next | Movement::NextLine | Movement::Forward(_) => i > selected_item,
+                    Movement::Prev | Movement::Backward(_) => i < selected_item,
+                    Movement::Next | Movement::Forward(_) => i > selected_item,
                 };
 
                 if is_valid_next && item.is_selectable() {
@@ -633,7 +688,7 @@ mod tests {
         assert_eq!(app.current_item().kind, RgMessageKind::Begin);
 
         // select match and invert
-        app.move_pos(Movement::NextLine, term_size);
+        app.move_pos(Movement::Forward(1), term_size);
         assert_eq!(app.current_item().kind, RgMessageKind::Match);
         app.invert_selection_current();
 
@@ -666,7 +721,7 @@ mod tests {
         assert_eq!(app.current_item().kind, RgMessageKind::Begin);
 
         // select match in first file and invert
-        app.move_pos(Movement::NextLine, term_size);
+        app.move_pos(Movement::Forward(1), term_size);
         assert_eq!(app.current_item().kind, RgMessageKind::Match);
         app.invert_selection_current();
 
@@ -810,28 +865,28 @@ mod tests {
     fn movement_nextline_and_prevline() {
         let mut app = new_app_multiple_files();
         assert_list_state!(app, POS_1_BEGIN);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_1_MATCH_0_0);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_1_MATCH_1_0);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_2_BEGIN);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_2_MATCH_MULTILINE_0_0);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_3_BEGIN);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_3_MATCH_0_0);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_3_MATCH_1_0);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_4_BEGIN);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_4_MATCH_MULTILINE_0_0);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_4_END);
-        move_and_assert_list_state!(app, Movement::NextLine, POS_4_END);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_4_MATCH_MULTILINE_0_0);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_4_BEGIN);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_3_MATCH_1_0);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_3_MATCH_0_0);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_3_BEGIN);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_2_MATCH_MULTILINE_0_0);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_2_BEGIN);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_1_MATCH_1_0);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_1_MATCH_0_0);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_1_BEGIN);
-        move_and_assert_list_state!(app, Movement::PrevLine, POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_1_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_3_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_4_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_4_END);
+        move_and_assert_list_state!(app, Movement::Forward(1), POS_4_END);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_4_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_4_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_3_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_3_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_3_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_2_MATCH_MULTILINE_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_2_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_1_MATCH_1_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_1_MATCH_0_0);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_1_BEGIN);
+        move_and_assert_list_state!(app, Movement::Backward(1), POS_1_BEGIN);
     }
 
     #[test]
